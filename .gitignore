@@ -1,8 +1,38 @@
-node_modules/
-build/
-dist/
-coverage/
-.DS_Store
-*.log
-.env*
+# Environment files
+.env
+.env.*
 !.env.example
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+
+# Local databases and backups
+*.sqlite
+*.sqlite3
+*.db
+*.sql.gz
+*.dump
+backups/
+
+# Logs
+*.log
+logs/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+coverage/
+
+# Dependencies
+node_modules/
+
+# OS/editor files
+.DS_Store
+.vscode/
+.idea/
