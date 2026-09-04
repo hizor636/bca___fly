@@ -1,0 +1,340 @@
+export type UserRole = 'admin' | 'faculty' | 'student' | 'counselor';
+
+export type ScreenType =
+  | 'dashboard'
+  | 'home'
+  | 'explore'
+  | 'students'
+  | 'tracking'
+  | 'workspace'
+  | 'faculties'
+  | 'admin'
+  | 'admin-assignments'
+  | 'admin-attendance'
+  | 'admin-sms'
+  | 'admin-reports'
+  | 'admin-audit'
+  | 'student-portal'
+  | 'counselor-portal'
+  | 'about'
+  | 'contact';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  phone: string;
+  departmentId: string;
+  isActive: boolean;
+  createdAt: string;
+  avatarBg?: string;
+  avatarText?: string;
+  designation?: string;
+  studentId?: string; // If student
+  semester?: number;
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  code: string;
+}
+
+export interface SemesterInfo {
+  id: string;
+  number: number; // 1 to 6
+  name: string;
+  year?: number; // 1, 2, or 3
+  typicalStatus?: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  totalEnrolled: number;
+}
+
+export type CourseType = 'Theory' | 'Lab' | 'Theory + Lab' | 'Elective' | 'Project' | 'Internship';
+
+export interface Course {
+  id: string;
+  courseCode: string;
+  courseName: string;
+  shortName?: string;
+  semester: number; // 1 to 6
+  departmentId: string;
+  academicScheme: string; // e.g. 'BCA-2024-REG'
+  credits: number;
+  courseType: CourseType;
+  maxMarks: number;
+  cia1MaxMarks?: number;
+  cia2MaxMarks?: number;
+  cia3MaxMarks?: number;
+  attendanceRequired: number; // normally 75
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FacultyCourseAssignment {
+  id: string;
+  facultyId: string;
+  courseId: string;
+  section: string;
+  batch: string;
+  academicYear: string;
+  term: 'Odd' | 'Even';
+  isActive: boolean;
+}
+
+export interface StudentCourseEnrollment {
+  id: string;
+  studentId: string;
+  courseId: string;
+  academicYear: string;
+  section: string;
+  enrollmentStatus: 'Enrolled' | 'Dropped' | 'Withdrawn';
+}
+
+export interface CourseAttendanceRecord {
+  id: string;
+  studentId: string;
+  courseId: string;
+  facultyId: string;
+  date: string;
+  sessionType: 'THEORY' | 'LAB' | 'TUTORIAL';
+  status: 'PRESENT' | 'ABSENT' | 'LATE' | 'ON_DUTY';
+  markedAt: string;
+  markedBy: string;
+  finalized: boolean;
+  remarks?: string;
+}
+
+export interface CourseMarks {
+  id: string;
+  studentId: string;
+  courseId: string;
+  semester: number;
+  academicYear: string;
+  cia1: number | null;
+  cia2: number | null;
+  cia3: number | null;
+  assignmentMarks: number | null;
+  practicalMarks: number | null;
+  internalTotal: number | null;
+  finalExamMarks: number | null;
+  finalGrade: string | null;
+  updatedBy: string;
+  updatedAt: string;
+  status?: 'Saved' | 'Pending' | 'Finalized';
+}
+
+export interface ClassSection {
+  id: string;
+  semesterId: string;
+  section: string;
+  year: string;
+  name: string;
+  courseCode: string;
+  subjectName: string;
+  assignedFacultyId: string;
+  roomNo: string;
+}
+
+export interface StudentAssignment {
+  id: string;
+  studentId: string;
+  facultyId: string;
+  semesterId: string;
+  classId?: string;
+  reason: 'mentor' | 'instructor' | 'dept';
+  startDate: string;
+  endDate?: string;
+}
+
+export interface Student {
+  id: string;
+  studentId: string;
+  name: string;
+  initials: string;
+  avatarBg?: string;
+  avatarText?: string;
+  course: string;
+  semester: number;
+  section?: string;
+  email: string;
+  phone: string;
+  parentPhone?: string;
+  attendanceRate: number;
+  mentoringStatus: 'Regular' | 'Mentoring' | 'Academic Concern' | 'Honor Roll';
+  cgpa: number;
+  sgpaHistory?: number[]; // 6 semesters
+  assignedFaculty: string;
+  assignedFacultyId?: string;
+  lastMentoringDate?: string;
+  mentoringNotes: MentoringNote[];
+  subjectGrades: SubjectGrade[];
+  weeklyAttendance: number[]; // 6 days
+  totalClassesHeld?: number;
+  totalClassesAttended?: number;
+  condonationEligible?: boolean;
+  condonationStatus?: 'Pending' | 'Approved' | 'Debarred';
+}
+
+export interface MentoringNote {
+  id: string;
+  date: string;
+  facultyName: string;
+  facultyId?: string;
+  topic: string;
+  notes: string;
+  actionItems: string;
+  status: 'Open' | 'Resolved' | 'Follow-up Required';
+}
+
+export interface SubjectGrade {
+  subjectCode: string;
+  subjectName: string;
+  internalMax: number;
+  internalObtained: number;
+  attendancePercent: number;
+  grade: string;
+  status: 'Submitted' | 'Draft' | 'Pending Review';
+}
+
+export interface FacultyMember {
+  id: string;
+  name: string;
+  designation: string;
+  department: string;
+  email: string;
+  phone?: string;
+  office: string;
+  assignedStudentsCount: number;
+  specialization: string;
+  courses: string[];
+}
+
+export interface AttendanceSession {
+  id: string;
+  classId: string;
+  className: string;
+  date: string;
+  facultyId: string;
+  facultyName: string;
+  status: 'draft' | 'finalized';
+  finalizedAt?: string;
+  totalPresent: number;
+  totalAbsent: number;
+  totalLate: number;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  attendanceId: string;
+  studentId: string;
+  status: 'present' | 'absent' | 'late';
+  markedAt: string;
+  remarks?: string;
+}
+
+export interface AttendanceSettings {
+  dailyCutoffTime: string; // e.g. "11:30"
+  cutoffEnforced: boolean;
+  autoSmsOnFinalize: boolean;
+  smsWorkingDaysOnly: boolean;
+}
+
+export interface WorkingDay {
+  id: string;
+  date: string; // YYYY-MM-DD
+  dayOfWeek: string;
+  isWorking: boolean;
+  reason?: string;
+}
+
+export interface SmsTemplate {
+  id: string;
+  name: string;
+  body: string;
+  variables: string[];
+  isActive: boolean;
+}
+
+export interface SmsMessage {
+  id: string;
+  studentId: string;
+  studentName: string;
+  recipientPhone: string;
+  recipientType: 'Student' | 'Parent';
+  templateId: string;
+  body: string;
+  channel: string;
+  status: 'queued' | 'sent' | 'failed';
+  sentAt: string;
+  providerMessageId: string;
+  idempotencyKey: string;
+  isWorkingDay: boolean;
+}
+
+export interface CounselingReferral {
+  id: string;
+  studentId: string;
+  studentName: string;
+  semester: number;
+  referredByFacultyId: string;
+  referredByFacultyName: string;
+  counselorId: string;
+  counselorName: string;
+  reasonCode: 'academic_stress' | 'attendance_deficit' | 'personal_concern' | 'career_anxiety' | 'behavioural';
+  facultyRemarks: string;
+  status: 'pending' | 'in_progress' | 'closed';
+  mentorVisibleStatus: 'Under Review' | 'Session Scheduled' | 'Action Plan Recommended' | 'Monitoring Progress' | 'Resolved';
+  createdAt: string;
+  closedAt?: string;
+  notesCount: number;
+}
+
+export interface CounselingNote {
+  id: string;
+  referralId: string;
+  noteText: string;
+  treatmentPlan: string;
+  createdByCounselorId: string;
+  createdByCounselorName: string;
+  createdAt: string;
+  isConfidential: true;
+}
+
+export interface AuditLog {
+  id: string;
+  actorUserId: string;
+  actorName: string;
+  actorRole: UserRole;
+  action: string;
+  entityType: 'attendance' | 'sms' | 'mentoring' | 'counseling' | 'assignment' | 'settings' | 'user' | 'session' | 'auth' | 'course' | 'course_assignment' | 'course_enrollment' | 'marks';
+  entityId: string;
+  beforeJson?: string;
+  afterJson?: string;
+  ip: string;
+  createdAt: string;
+}
+
+export interface DepartmentNotice {
+  id: string;
+  title: string;
+  subtitle: string;
+  date: string;
+  isNew: boolean;
+  priority: 'High' | 'Normal' | 'Urgent';
+  body: string;
+  actionLabel?: string;
+  deadline?: string;
+}
+
+export interface AttendanceBatchItem {
+  studentId: string;
+  name: string;
+  rollNo: string;
+  present: boolean;
+  remarks?: string;
+}

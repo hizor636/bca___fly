@@ -1,0 +1,6 @@
+{
+  "name": "BcaFly",
+  "description": "Faculty academic workspace to manage assigned students, academic records, attendance workflows, mentoring notes, and department updates.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
