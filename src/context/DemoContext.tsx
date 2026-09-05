@@ -42,6 +42,7 @@ import {
   INITIAL_COURSE_MARKS,
   INITIAL_COURSE_ATTENDANCE
 } from '../data/mockStore';
+import { generateSessionToken } from '../services/authApi';
 
 export interface SixSemesterRecord {
   student: Student;
@@ -84,6 +85,7 @@ interface DemoContextType {
   semesters: SemesterInfo[];
   classes: ClassSection[];
   isAuthenticated: boolean;
+  sessionToken: string | null;
   accessDeniedMessage: string | null;
 
   // Course Master & Semester Allocation State
@@ -94,7 +96,7 @@ interface DemoContextType {
   courseMarks: CourseMarks[];
 
   // Actions
-  login: (email: string, password: string, roleHint?: UserRole) => { success: boolean; error?: string; role?: UserRole };
+  login: (email: string, password: string, roleHint?: UserRole) => { success: boolean; error?: string; role?: UserRole; token?: string };
   logout: () => void;
   requestPasswordReset: (email: string) => { success: boolean; message: string };
   setAccessDeniedMessage: (msg: string | null) => void;
@@ -155,6 +157,9 @@ const DemoContext = createContext<DemoContextType | null>(null);
 export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('bcafly_authenticated') === 'true';
+  });
+  const [sessionToken, setSessionToken] = useState<string | null>(() => {
+    return localStorage.getItem('bcafly_session_token');
   });
   const [currentRole, setCurrentRole] = useState<UserRole>('faculty');
   const [activeFaculty, setActiveFacultyState] = useState<FacultyMember>(INITIAL_FACULTY[0]);
@@ -362,7 +367,7 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuditLogs((prev) => [roleAudit, ...prev]);
   };
 
-  const login = (email: string, password: string, roleHint?: UserRole): { success: boolean; error?: string; role?: UserRole } => {
+  const login = (email: string, password: string, roleHint?: UserRole): { success: boolean; error?: string; role?: UserRole; token?: string } => {
     if (failedLoginAttempts >= 3) {
       const error = 'Too many failed login attempts. Rate limiting engaged for security. Please wait 15 minutes before trying again or contact campus IT Helpdesk.';
       return { success: false, error };
@@ -449,12 +454,15 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Successful login
+    const token = generateSessionToken({ id: targetUser.id, email: targetUser.email, role: matchedRole });
     setFailedLoginAttempts(0);
     setCurrentRole(matchedRole);
     setIsAuthenticated(true);
+    setSessionToken(token);
     setAccessDeniedMessage(null);
     try {
       localStorage.setItem('bcafly_authenticated', 'true');
+      localStorage.setItem('bcafly_session_token', token);
     } catch {
       // ignore
     }
@@ -473,7 +481,7 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setAuditLogs((prev) => [loginAudit, ...prev]);
 
-    return { success: true, role: matchedRole };
+    return { success: true, role: matchedRole, token };
   };
 
   const logout = () => {
@@ -492,9 +500,11 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setAuditLogs((prev) => [logoutAudit, ...prev]);
     setIsAuthenticated(false);
+    setSessionToken(null);
     setAccessDeniedMessage(null);
     try {
       localStorage.removeItem('bcafly_authenticated');
+      localStorage.removeItem('bcafly_session_token');
     } catch {
       // ignore
     }
@@ -1753,6 +1763,7 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
         semesters: SEMESTERS,
         classes: CLASSES,
         isAuthenticated,
+        sessionToken,
         accessDeniedMessage,
         courses,
         facultyCourseAssignments,

@@ -52,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({
   const handleLogout = () => {
     setProfileDropdownOpen(false);
     logout();
-    onNavigate('home');
+    onNavigate('signin');
   };
 
   return (
