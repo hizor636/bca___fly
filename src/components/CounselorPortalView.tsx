@@ -1,17 +1,11 @@
 import React, { useState } from 'react';
 import { useDemoStore } from '../context/DemoContext';
 import { CounselingReferral } from '../types';
-import { BcaFlyLogo } from './BcaFlyLogo';
 import {
   HeartHandshake,
-  Shield,
   Lock,
   Plus,
   CheckCircle2,
-  Clock,
-  AlertCircle,
-  FileText,
-  UserCheck,
   LogOut
 } from 'lucide-react';
 

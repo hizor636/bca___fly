@@ -2,18 +2,12 @@ import React, { useState } from 'react';
 import { useDemoStore } from '../context/DemoContext';
 import { BcaFlyLogo } from './BcaFlyLogo';
 import {
-  GraduationCap,
-  Calendar,
   AlertTriangle,
-  CheckCircle2,
-  Clock,
   Mail,
   Phone,
   Building,
   Target,
   MessageSquare,
-  Sparkles,
-  ArrowRight,
   LogOut
 } from 'lucide-react';
 

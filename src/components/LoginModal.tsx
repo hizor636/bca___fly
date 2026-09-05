@@ -8,12 +8,9 @@ import {
   Mail,
   CheckCircle2,
   ArrowRight,
-  AlertCircle,
   ShieldAlert,
   Eye,
-  EyeOff,
-  UserCheck,
-  RotateCcw
+  EyeOff
 } from 'lucide-react';
 
 interface LoginModalProps {

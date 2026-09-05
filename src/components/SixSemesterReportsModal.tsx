@@ -4,12 +4,8 @@ import {
   X,
   FileText,
   Download,
-  AlertTriangle,
   CheckCircle,
-  GraduationCap,
-  Printer,
-  BarChart3,
-  Users
+  GraduationCap
 } from 'lucide-react';
 
 interface SixSemesterReportsModalProps {

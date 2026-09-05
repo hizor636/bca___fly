@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, Mail, Phone, MapPin, Send, CheckCircle2 } from 'lucide-react';
+import { X, ShieldCheck, Send, CheckCircle2 } from 'lucide-react';
 import { BcaFlyLogo } from './BcaFlyLogo';
 
 interface AboutContactModalsProps {

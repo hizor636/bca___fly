@@ -1,7 +1,7 @@
 import React, { Component, useState } from 'react';
 import { DemoProvider, useDemoStore } from './context/DemoContext';
 import { ScreenType, Student, UserRole } from './types';
-import { INITIAL_NOTICES, INITIAL_FACULTY } from './data/academicData';
+import { INITIAL_NOTICES, INITIAL_FACULTY } from './data/mockStore';
 import { AuditTrailModal } from './components/AuditTrailModal';
 import { Header } from './components/Header';
 import { FacultyDashboardView } from './components/FacultyDashboardView';
@@ -10,6 +10,7 @@ import { AssignedStudentsView } from './components/AssignedStudentsView';
 import { AcademicTrackingView } from './components/AcademicTrackingView';
 import { SmartWorkspaceView } from './components/SmartWorkspaceView';
 import { FacultiesView } from './components/FacultiesView';
+import { DatabaseStudioView } from './components/DatabaseStudioView';
 import { AdminPortalView } from './components/AdminPortalView';
 import { StudentPortalView } from './components/StudentPortalView';
 import { CounselorPortalView } from './components/CounselorPortalView';
@@ -221,6 +222,12 @@ const AppContent: React.FC = () => {
                 faculties={INITIAL_FACULTY}
                 activeFaculty={activeFaculty}
                 onSelectFaculty={(fac) => setActiveFaculty(fac)}
+                onNavigateHome={() => handleNavigation('dashboard')}
+              />
+            )}
+
+            {currentScreen === 'database-studio' && (
+              <DatabaseStudioView
                 onNavigateHome={() => handleNavigation('dashboard')}
               />
             )}

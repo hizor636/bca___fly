@@ -6,15 +6,12 @@ import {
   Student,
   FacultyMember,
   StudentAssignment,
-  AttendanceSession,
-  AttendanceRecord,
   AttendanceSettings,
   WorkingDay,
   SmsTemplate,
   SmsMessage,
   CounselingReferral,
   CounselingNote,
-  MentoringNote,
   AuditLog,
   DepartmentNotice
 } from '../types';

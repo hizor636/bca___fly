@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
-import { Student } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Student, CohortSemesterStats } from '../types';
+import { api } from '../services/api';
 import {
-  TrendingUp,
-  Award,
   CheckCircle2,
-  Clock,
   Send,
   Save,
   BookOpen,
-  Calendar,
+  Sparkles,
+  BarChart2,
+  TrendingUp,
+  Activity
 } from 'lucide-react';
 
 interface AcademicTrackingViewProps {
@@ -66,6 +67,22 @@ export const AcademicTrackingView: React.FC<AcademicTrackingViewProps> = ({
 }) => {
   const [selectedCourseCode, setSelectedCourseCode] = useState('BCA-501');
   const selectedCourse = COURSES.find((c) => c.code === selectedCourseCode) || COURSES[0];
+  const [cohortStats, setCohortStats] = useState<CohortSemesterStats | null>(null);
+  const [aiOnline, setAiOnline] = useState(false);
+
+  useEffect(() => {
+    api.getCohortStats()
+      .then((res) => {
+        if (res.success && res.cohortStats) {
+          const semKey = `Semester_${selectedCourse.semester}`;
+          if (res.cohortStats[semKey]) {
+            setCohortStats(res.cohortStats[semKey]);
+          }
+          setAiOnline(true);
+        }
+      })
+      .catch(() => setAiOnline(false));
+  }, [selectedCourse.semester]);
 
   // Editable grades state
   const courseStudents = students.filter((s) => s.semester === selectedCourse.semester);
@@ -208,7 +225,18 @@ export const AcademicTrackingView: React.FC<AcademicTrackingViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-6 text-xs">
+          <div className="flex items-center gap-4 text-xs flex-wrap">
+            {cohortStats && (
+              <div className="flex items-center gap-3 bg-indigo-50/80 border border-indigo-100 rounded-xl px-3 py-1.5">
+                <div className="flex items-center gap-1.5 text-indigo-700 font-semibold">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Python Analytics Engine</span>
+                </div>
+                <div className="text-slate-600 text-[11px]">
+                  Mean: <strong className="text-slate-900">{cohortStats.attendance.mean}%</strong> | Med: <strong className="text-slate-900">{cohortStats.attendance.median}%</strong> | σ: <strong className="text-slate-900">{cohortStats.attendance.stdDev}</strong>
+                </div>
+              </div>
+            )}
             <div>
               <span className="text-slate-400 block">Class Average</span>
               <strong className="text-sm font-bold text-slate-900">{averageScore} / 30</strong>

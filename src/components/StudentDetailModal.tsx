@@ -3,23 +3,17 @@ import { useDemoStore } from '../context/DemoContext';
 import { Student, MentoringNote, CounselingReferral } from '../types';
 import {
   X,
-  Calendar,
   Award,
   Phone,
   Mail,
   FileText,
   CheckCircle2,
-  Clock,
   AlertTriangle,
   Plus,
   Send,
   HeartHandshake,
   Lock,
-  ShieldCheck,
-  GraduationCap,
-  BookOpen,
-  Layers,
-  Download
+  GraduationCap
 } from 'lucide-react';
 
 interface StudentDetailModalProps {

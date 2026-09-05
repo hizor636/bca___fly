@@ -1,24 +1,19 @@
-<<<<<<< HEAD
+# Dependencies
 node_modules/
-build/
+.pnp
+.pnp.js
+
+# Build outputs
 dist/
+build/
+out/
+.next/
 coverage/
-.DS_Store
-*.log
-.env*
-!.env.example
-=======
+
 # Environment files
 .env
 .env.*
 !.env.example
-
-# Keys and certificates
-*.pem
-*.key
-*.p12
-*.pfx
-*.crt
 
 # Local databases and backups
 *.sqlite
@@ -31,19 +26,17 @@ backups/
 # Logs
 *.log
 logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Build outputs
-dist/
-build/
-out/
-.next/
-coverage/
-
-# Dependencies
-node_modules/
-
-# OS/editor files
+# OS and Editor files
 .DS_Store
+Thumbs.db
 .vscode/
 .idea/
->>>>>>> 5d11993 (feat: add BcaFly security policy (SECURITY.md) and security-hardened .gitignore)
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

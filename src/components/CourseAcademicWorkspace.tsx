@@ -1,35 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import { useDemoStore } from '../context/DemoContext';
-import { Course, Student, CourseAttendanceRecord, CourseMarks } from '../types';
+import { Course, Student } from '../types';
 
 export type AssessmentType = 'CIA_1' | 'CIA_2' | 'CIA_3' | 'ASSIGNMENT' | 'PRACTICAL' | 'FINAL_EXAM';
 import {
-  BookOpen,
   Users,
   CheckCircle2,
   Calendar,
-  Clock,
   TrendingUp,
   AlertTriangle,
   Send,
   Save,
-  FileSpreadsheet,
-  ExternalLink,
   Search,
   Filter,
-  Check,
-  X,
   Award,
-  Layers,
-  Sparkles,
-  ChevronRight,
-  ShieldCheck,
-  GraduationCap,
-  FileText,
-  UserCheck,
-  BarChart2,
-  RefreshCw,
-  Plus
+  FileText
 } from 'lucide-react';
 
 interface CourseAcademicWorkspaceProps {

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useDemoStore } from '../context/DemoContext';
-import { Student, DepartmentNotice, FacultyMember } from '../types';
-import { INITIAL_NOTICES } from '../data/academicData';
+import { Student, DepartmentNotice } from '../types';
+import { INITIAL_NOTICES } from '../data/mockStore';
 import { DashboardRibbon } from './DashboardRibbon';
 import { SixSemesterReportsModal } from './SixSemesterReportsModal';
 import { CourseAcademicWorkspace } from './CourseAcademicWorkspace';
@@ -12,27 +12,15 @@ import {
   Search,
   Filter,
   CheckCircle,
-  AlertTriangle,
-  Award,
-  Calendar,
   Clock,
   Send,
-  Sparkles,
   ChevronRight,
-  TrendingUp,
   FileSpreadsheet,
-  FileText,
   ShieldCheck,
   HeartHandshake,
   UserCheck,
-  Phone,
-  Mail,
-  Check,
   X,
-  RefreshCw,
-  Bell,
-  ArrowRight,
-  ExternalLink
+  Bell
 } from 'lucide-react';
 
 interface FacultyDashboardViewProps {

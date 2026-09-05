@@ -14,6 +14,7 @@ export type ScreenType =
   | 'admin-sms'
   | 'admin-reports'
   | 'admin-audit'
+  | 'database-studio'
   | 'student-portal'
   | 'counselor-portal'
   | 'about'
@@ -338,3 +339,120 @@ export interface AttendanceBatchItem {
   present: boolean;
   remarks?: string;
 }
+
+export interface DbColumnInfo {
+  cid: number;
+  name: string;
+  type: string;
+  notnull: number;
+  dflt_value: any;
+  pk: number;
+}
+
+export interface DbForeignKeyInfo {
+  id: number;
+  seq: number;
+  table: string;
+  from: string;
+  to: string;
+  on_update: string;
+  on_delete: string;
+}
+
+export interface DbTableInfo {
+  name: string;
+  rowCount: number;
+  columns: DbColumnInfo[];
+  primaryKeys: string[];
+  foreignKeys: DbForeignKeyInfo[];
+}
+
+export interface DbStats {
+  databaseSizeKb: number;
+  tableCount: number;
+  totalRows: number;
+  dbFilePath: string;
+  engine: string;
+  tables: { name: string; rows: number }[];
+}
+
+export interface DbQueryResult {
+  success: boolean;
+  type?: string;
+  columns?: string[];
+  rows?: Record<string, any>[];
+  rowCount?: number;
+  executionTimeMs?: number;
+  changes?: number;
+  message?: string;
+  error?: string;
+}
+
+export interface AttendanceForecastResult {
+  success: boolean;
+  studentId: string;
+  name: string;
+  semester: number;
+  currentAttendancePercent: number;
+  classesHeld: number;
+  classesAttended: number;
+  classesRemaining: number;
+  minClassesNeededFor75: number;
+  maxPossibleAttendance: number;
+  riskLevel: string;
+  statusColor: 'emerald' | 'amber' | 'orange' | 'rose';
+  canReachCutoff: boolean;
+  source?: string;
+}
+
+export interface RiskMatrixItem {
+  id: string;
+  studentId: string;
+  name: string;
+  semester: number;
+  assignedFaculty: string;
+  attendanceRate: number;
+  cgpa: number;
+  avgInternalMarks: number;
+  riskScore: number;
+  riskTier: 'Urgent Intervention' | 'Academic Concern' | 'Normal Progress';
+}
+
+export interface CohortSemesterStats {
+  enrolledCount: number;
+  attendance: {
+    mean: number;
+    median: number;
+    stdDev: number;
+    min: number;
+    max: number;
+    q25: number;
+    q75: number;
+    shortagePercent: number;
+  };
+  cgpa: {
+    mean: number;
+    median: number;
+    stdDev: number;
+    min: number;
+    max: number;
+  };
+}
+
+export interface CohortStatsResult {
+  success: boolean;
+  generatedAt?: string;
+  cohortStats: Record<string, CohortSemesterStats>;
+  source?: string;
+}
+
+export interface AiMentoringAdvice {
+  success: boolean;
+  studentName: string;
+  primaryConcern: string;
+  suggestedAction: string;
+  recommendedSmsDraft: string;
+  source?: string;
+}
+
+

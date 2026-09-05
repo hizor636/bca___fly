@@ -5,21 +5,16 @@ import { useDemoStore } from '../context/DemoContext';
 import {
   User,
   LogOut,
-  ChevronDown,
   Check,
-  GraduationCap,
   BarChart2,
   LayoutDashboard,
   Users,
-  BookOpen,
   FileText,
   Eye,
-  Sparkles,
-  ShieldCheck,
   ArrowRight,
-  HelpCircle,
   Menu,
-  X
+  X,
+  Database
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -181,6 +176,19 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               Faculties
+            </button>
+
+            <button
+              id="nav-db-studio-btn"
+              onClick={() => onNavigate('database-studio')}
+              className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                currentScreen === 'database-studio'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/60'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span>DB Studio</span>
             </button>
 
             <button

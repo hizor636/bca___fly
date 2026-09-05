@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FacultyMember } from '../types';
-import { Mail, MapPin, BookOpen, Users, Check, Search } from 'lucide-react';
+import { Mail, MapPin, Users, Check, Search } from 'lucide-react';
 
 interface FacultiesViewProps {
   faculties: FacultyMember[];

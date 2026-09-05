@@ -10,10 +10,8 @@ import {
   Users,
   CheckCircle2,
   MessageSquare,
-  FileText,
   BarChart2,
   Calendar,
-  HelpCircle,
   Send,
   ChevronDown,
   ChevronUp,
@@ -21,12 +19,7 @@ import {
   Mail,
   MapPin,
   Building,
-  Clock,
-  Sparkles,
-  Eye,
-  BookOpen,
-  Check,
-  AlertCircle
+  Clock
 } from 'lucide-react';
 
 interface LandingViewProps {
