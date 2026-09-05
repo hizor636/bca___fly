@@ -4,10 +4,6 @@ export type ScreenType =
   | 'dashboard'
   | 'home'
   | 'explore'
-  | 'signin'
-  | 'dashboard-admin'
-  | 'dashboard-faculty'
-  | 'dashboard-student'
   | 'students'
   | 'tracking'
   | 'workspace'
@@ -28,7 +24,6 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  passwordHash?: string;
   phone: string;
   departmentId: string;
   isActive: boolean;
@@ -39,43 +34,6 @@ export interface User {
   studentId?: string; // If student
   semester?: number;
 }
-
-export interface AuthSession {
-  token: string;
-  user: {
-    id: string;
-    email: string;
-    role: UserRole;
-    name: string;
-  };
-  expiresAt: number;
-}
-
-export interface SignInRequest {
-  email?: string;
-  password?: string;
-}
-
-export interface SignInSuccessResponse {
-  ok: true;
-  user: {
-    id: string;
-    email: string;
-    role: 'admin' | 'faculty' | 'student' | 'counselor';
-    name?: string;
-  };
-  token: string;
-  error?: never;
-}
-
-export interface SignInErrorResponse {
-  ok: false;
-  error: 'INVALID_CREDENTIALS' | 'INVALID_PAYLOAD' | string;
-  user?: never;
-  token?: never;
-}
-
-export type SignInResponse = SignInSuccessResponse | SignInErrorResponse;
 
 export interface Department {
   id: string;

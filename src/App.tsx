@@ -1,4 +1,4 @@
-import React, { Component, useState, useEffect, useCallback } from 'react';
+import React, { Component, useState } from 'react';
 import { DemoProvider, useDemoStore } from './context/DemoContext';
 import { ScreenType, Student, UserRole } from './types';
 import { INITIAL_NOTICES, INITIAL_FACULTY } from './data/academicData';
@@ -19,46 +19,6 @@ import { DepartmentUpdateModal } from './components/DepartmentUpdateModal';
 import { LoginModal } from './components/LoginModal';
 import { AboutContactModals } from './components/AboutContactModals';
 import { SixSemesterReportsModal } from './components/SixSemesterReportsModal';
-import { SignInPage } from './components/SignInPage';
-import { DashboardGuard } from './components/DashboardGuard';
-
-/**
- * Maps the browser URL pathname to internal ScreenType
- */
-function getScreenFromPath(pathname: string, isAuthenticated: boolean, role: UserRole): ScreenType {
-  const cleanPath = pathname.replace(/\/$/, '') || '/';
-
-  if (cleanPath === '/signin') {
-    return 'signin';
-  }
-  if (cleanPath === '/dashboard/admin') {
-    return 'dashboard-admin';
-  }
-  if (cleanPath === '/dashboard/faculty') {
-    return 'dashboard-faculty';
-  }
-  if (cleanPath === '/dashboard/student') {
-    return 'dashboard-student';
-  }
-  if (cleanPath === '/explore') {
-    return 'explore';
-  }
-  if (cleanPath === '/counselor') {
-    return 'counselor-portal';
-  }
-
-  // Root path handling
-  if (cleanPath === '/') {
-    if (isAuthenticated) {
-      if (role === 'admin') return 'dashboard-admin';
-      if (role === 'student') return 'dashboard-student';
-      return 'dashboard-faculty';
-    }
-    return 'home';
-  }
-
-  return 'home';
-}
 
 const AppContent: React.FC = () => {
   const {
@@ -74,9 +34,9 @@ const AppContent: React.FC = () => {
     getScopedStudentsForActiveFaculty
   } = useDemoStore();
 
-  // Screen State initialized from current browser URL
+  // Initial screen: Unauthenticated visitors land on the Public Landing Page ('home')
   const [currentScreen, setCurrentScreen] = useState<ScreenType>(() => {
-    return getScreenFromPath(window.location.pathname, isAuthenticated, currentRole);
+    return isAuthenticated ? 'dashboard' : 'home';
   });
 
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -86,41 +46,8 @@ const AppContent: React.FC = () => {
   const [showReportsModal, setShowReportsModal] = useState<boolean>(false);
   const [infoModalType, setInfoModalType] = useState<'about' | 'contact' | 'privacy' | 'terms' | null>(null);
 
-  // Synchronize browser history & URL path
-  const navigateTo = useCallback((path: string, screen: ScreenType) => {
-    if (window.location.pathname !== path) {
-      try {
-        window.history.pushState({}, '', path);
-      } catch {
-        // ignore history state errors
-      }
-    }
-    setCurrentScreen(screen);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-
-  // Listen for browser back / forward navigation
-  useEffect(() => {
-    const handlePopState = () => {
-      const targetScreen = getScreenFromPath(window.location.pathname, isAuthenticated, currentRole);
-      setCurrentScreen(targetScreen);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [isAuthenticated, currentRole]);
-
-  // Handle role redirect after sign-in
-  const handleSignInRedirect = (role: UserRole) => {
-    setShowLoginModal(false);
-    if (role === 'admin') {
-      navigateTo('/dashboard/admin', 'dashboard-admin');
-    } else if (role === 'student') {
-      navigateTo('/dashboard/student', 'dashboard-student');
-    } else {
-      navigateTo('/dashboard/faculty', 'dashboard-faculty');
-    }
-  };
+  // Scoped students for active faculty
+  const scopedStudents = getScopedStudentsForActiveFaculty() || [];
 
   const handleNavigation = (screen: ScreenType) => {
     if (screen === 'about' || screen === 'contact') {
@@ -128,40 +55,10 @@ const AppContent: React.FC = () => {
       return;
     }
 
-    if (screen === 'signin') {
-      navigateTo('/signin', 'signin');
-      return;
-    }
-
-    if (screen === 'home') {
-      navigateTo('/', 'home');
-      return;
-    }
-
-    if (screen === 'explore') {
-      navigateTo('/explore', 'explore');
-      return;
-    }
-
-    if (screen === 'dashboard-admin' || (screen === 'admin' && currentRole === 'admin')) {
-      navigateTo('/dashboard/admin', 'dashboard-admin');
-      return;
-    }
-
-    if (screen === 'dashboard-faculty' || (screen === 'dashboard' && currentRole === 'faculty')) {
-      navigateTo('/dashboard/faculty', 'dashboard-faculty');
-      return;
-    }
-
-    if (screen === 'dashboard-student' || (screen === 'student-portal' && currentRole === 'student')) {
-      navigateTo('/dashboard/student', 'dashboard-student');
-      return;
-    }
-
     // Guard academic workspace screens if unauthenticated
-    const protectedScreens: ScreenType[] = ['dashboard', 'students', 'tracking', 'workspace', 'faculties', 'dashboard-faculty', 'dashboard-admin', 'dashboard-student'];
+    const protectedScreens: ScreenType[] = ['dashboard', 'students', 'tracking', 'workspace', 'faculties'];
     if (protectedScreens.includes(screen) && !isAuthenticated) {
-      navigateTo('/signin', 'signin');
+      setShowLoginModal(true);
       return;
     }
 
@@ -169,75 +66,120 @@ const AppContent: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const scopedStudents = getScopedStudentsForActiveFaculty() || [];
+  const handleLoginSuccess = (role: UserRole) => {
+    setShowLoginModal(false);
+    if (role === 'faculty') {
+      setCurrentScreen('dashboard');
+    }
+  };
+
+  // Determine if we should display the public landing / explore view
+  const isPublicScreen = currentScreen === 'home' || currentScreen === 'explore';
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans text-slate-900 selection:bg-slate-200 selection:text-slate-900">
-      {/* 1. Dedicated Sign-In Screen (/signin) */}
-      {currentScreen === 'signin' ? (
-        <SignInPage
-          onSuccessRedirect={handleSignInRedirect}
-          onNavigateLanding={() => navigateTo('/', 'home')}
-        />
-      ) : currentScreen === 'dashboard-admin' ? (
-        /* 2. Role-Based Admin Dashboard (/dashboard/admin) */
-        <DashboardGuard
-          requiredRole="admin"
-          onNavigateSignIn={() => navigateTo('/signin', 'signin')}
-          onNavigateRoleDashboard={(role) => handleSignInRedirect(role)}
-          onNavigateLanding={() => navigateTo('/', 'home')}
-        >
-          <div className="flex-1">
-            <AdminPortalView
-              onNavigateHome={() => navigateTo('/dashboard/admin', 'dashboard-admin')}
-              onLogout={() => {
-                logout();
-                navigateTo('/signin', 'signin');
-              }}
-              onNavigatePublic={() => navigateTo('/', 'home')}
-            />
-          </div>
-        </DashboardGuard>
-      ) : currentScreen === 'dashboard-student' ? (
-        /* 3. Role-Based Student Dashboard (/dashboard/student) */
-        <DashboardGuard
-          requiredRole="student"
-          onNavigateSignIn={() => navigateTo('/signin', 'signin')}
-          onNavigateRoleDashboard={(role) => handleSignInRedirect(role)}
-          onNavigateLanding={() => navigateTo('/', 'home')}
-        >
-          <div className="flex-1">
-            <StudentPortalView
-              onNavigateHome={() => navigateTo('/dashboard/student', 'dashboard-student')}
-              onLogout={() => {
-                logout();
-                navigateTo('/signin', 'signin');
-              }}
-              onNavigatePublic={() => navigateTo('/', 'home')}
-            />
-          </div>
-        </DashboardGuard>
-      ) : currentScreen === 'dashboard-faculty' || (isAuthenticated && currentRole === 'faculty' && ['dashboard', 'students', 'tracking', 'workspace', 'faculties'].includes(currentScreen)) ? (
-        /* 4. Role-Based Faculty Dashboard (/dashboard/faculty & Sub-views) */
-        <DashboardGuard
-          requiredRole="faculty"
-          onNavigateSignIn={() => navigateTo('/signin', 'signin')}
-          onNavigateRoleDashboard={(role) => handleSignInRedirect(role)}
-          onNavigateLanding={() => navigateTo('/', 'home')}
-        >
+      {/* 1. Public Landing Area (Accessible by visitors and exploring authenticated users) */}
+      {isPublicScreen ? (
+        <>
           <Header
             currentScreen={currentScreen}
             onNavigate={handleNavigation}
             activeFaculty={activeFaculty}
             allFaculties={INITIAL_FACULTY}
             onSelectFaculty={(fac) => setActiveFaculty(fac)}
-            onOpenLogin={() => navigateTo('/signin', 'signin')}
+            onOpenLogin={() => setShowLoginModal(true)}
             onOpenReports={() => setShowReportsModal(true)}
             onOpenAudit={() => setShowAuditModal(true)}
           />
 
           <main className="flex-1 w-full">
-            {(currentScreen === 'dashboard' || currentScreen === 'dashboard-faculty') && (
+            <LandingView
+              onNavigate={handleNavigation}
+              onOpenLogin={() => setShowLoginModal(true)}
+              onOpenAudit={() => setShowAuditModal(true)}
+              onOpenReports={() => setShowReportsModal(true)}
+            />
+          </main>
+        </>
+      ) : !isAuthenticated ? (
+        /* 2. Unauthenticated Guard Fallback: Redirect to Public Landing Page */
+        <>
+          <Header
+            currentScreen="home"
+            onNavigate={handleNavigation}
+            activeFaculty={activeFaculty}
+            allFaculties={INITIAL_FACULTY}
+            onSelectFaculty={(fac) => setActiveFaculty(fac)}
+            onOpenLogin={() => setShowLoginModal(true)}
+          />
+          <main className="flex-1 w-full">
+            <LandingView
+              onNavigate={handleNavigation}
+              onOpenLogin={() => setShowLoginModal(true)}
+            />
+          </main>
+        </>
+      ) : currentRole === 'admin' ? (
+        /* 3. Secure Academic Workspace: Admin / Academic Dean */
+        <div className="flex-1">
+          <AdminPortalView
+            onNavigateHome={() => {
+              switchRole('faculty');
+              setCurrentScreen('dashboard');
+            }}
+            onLogout={() => {
+              logout();
+              setCurrentScreen('home');
+            }}
+            onNavigatePublic={() => setCurrentScreen('home')}
+          />
+        </div>
+      ) : currentRole === 'student' ? (
+        /* 4. Secure Academic Workspace: Student Portal */
+        <div className="flex-1">
+          <StudentPortalView
+            onNavigateHome={() => {
+              switchRole('faculty');
+              setCurrentScreen('dashboard');
+            }}
+            onLogout={() => {
+              logout();
+              setCurrentScreen('home');
+            }}
+            onNavigatePublic={() => setCurrentScreen('home')}
+          />
+        </div>
+      ) : currentRole === 'counselor' ? (
+        /* 5. Secure Academic Workspace: Counselor Portal */
+        <div className="flex-1">
+          <CounselorPortalView
+            onNavigateHome={() => {
+              switchRole('faculty');
+              setCurrentScreen('dashboard');
+            }}
+            onLogout={() => {
+              logout();
+              setCurrentScreen('home');
+            }}
+            onNavigatePublic={() => setCurrentScreen('home')}
+          />
+        </div>
+      ) : (
+        /* 6. Secure Academic Workspace: Faculty Member Dashboard */
+        <>
+          <Header
+            currentScreen={currentScreen}
+            onNavigate={handleNavigation}
+            activeFaculty={activeFaculty}
+            allFaculties={INITIAL_FACULTY}
+            onSelectFaculty={(fac) => setActiveFaculty(fac)}
+            onOpenLogin={() => setShowLoginModal(true)}
+            onOpenReports={() => setShowReportsModal(true)}
+            onOpenAudit={() => setShowAuditModal(true)}
+          />
+
+          <main className="flex-1 w-full">
+            {currentScreen === 'dashboard' && (
               <FacultyDashboardView
                 onSelectStudent={(st) => setSelectedStudent(st)}
                 onOpenNotice={() => setShowNoticeModal(true)}
@@ -251,14 +193,14 @@ const AppContent: React.FC = () => {
               <AssignedStudentsView
                 students={scopedStudents}
                 onSelectStudent={(st) => setSelectedStudent(st)}
-                onNavigateHome={() => handleNavigation('dashboard-faculty')}
+                onNavigateHome={() => handleNavigation('dashboard')}
               />
             )}
 
             {currentScreen === 'tracking' && (
               <AcademicTrackingView
                 students={scopedStudents}
-                onNavigateHome={() => handleNavigation('dashboard-faculty')}
+                onNavigateHome={() => handleNavigation('dashboard')}
               />
             )}
 
@@ -268,7 +210,7 @@ const AppContent: React.FC = () => {
                 notices={INITIAL_NOTICES}
                 onOpenNotice={() => setShowNoticeModal(true)}
                 onSelectStudent={(st) => setSelectedStudent(st)}
-                onNavigateHome={() => handleNavigation('dashboard-faculty')}
+                onNavigateHome={() => handleNavigation('dashboard')}
                 onOpenReports={() => setShowReportsModal(true)}
                 onOpenAudit={() => setShowAuditModal(true)}
               />
@@ -279,55 +221,18 @@ const AppContent: React.FC = () => {
                 faculties={INITIAL_FACULTY}
                 activeFaculty={activeFaculty}
                 onSelectFaculty={(fac) => setActiveFaculty(fac)}
-                onNavigateHome={() => handleNavigation('dashboard-faculty')}
+                onNavigateHome={() => handleNavigation('dashboard')}
               />
             )}
-          </main>
-        </DashboardGuard>
-      ) : currentRole === 'counselor' && currentScreen === 'counselor-portal' ? (
-        /* 5. Counselor Portal */
-        <div className="flex-1">
-          <CounselorPortalView
-            onNavigateHome={() => navigateTo('/', 'home')}
-            onLogout={() => {
-              logout();
-              navigateTo('/signin', 'signin');
-            }}
-            onNavigatePublic={() => navigateTo('/', 'home')}
-          />
-        </div>
-      ) : (
-        /* 6. Public Landing & Exploration Area (/) */
-        <>
-          <Header
-            currentScreen={currentScreen}
-            onNavigate={handleNavigation}
-            activeFaculty={activeFaculty}
-            allFaculties={INITIAL_FACULTY}
-            onSelectFaculty={(fac) => setActiveFaculty(fac)}
-            onOpenLogin={() => navigateTo('/signin', 'signin')}
-            onOpenReports={() => setShowReportsModal(true)}
-            onOpenAudit={() => setShowAuditModal(true)}
-          />
-
-          <main className="flex-1 w-full">
-            <LandingView
-              onNavigate={handleNavigation}
-              onOpenLogin={() => navigateTo('/signin', 'signin')}
-              onOpenAudit={() => setShowAuditModal(true)}
-              onOpenReports={() => setShowReportsModal(true)}
-            />
           </main>
         </>
       )}
 
-      {/* Global Footer (Visible on landing and faculty pages) */}
-      {currentScreen !== 'signin' && (
-        <Footer
-          onOpenPrivacy={() => setInfoModalType('privacy')}
-          onOpenTerms={() => setInfoModalType('terms')}
-        />
-      )}
+      {/* Global Footer */}
+      <Footer
+        onOpenPrivacy={() => setInfoModalType('privacy')}
+        onOpenTerms={() => setInfoModalType('terms')}
+      />
 
       {/* Global Audit Ledger Modal */}
       {showAuditModal && (
@@ -342,7 +247,7 @@ const AppContent: React.FC = () => {
         />
       )}
 
-      {/* Student Details Modal */}
+      {/* Student Details Modal (Protected to authenticated faculty/admin) */}
       {selectedStudent && (
         <StudentDetailModal
           student={selectedStudent}
@@ -357,16 +262,16 @@ const AppContent: React.FC = () => {
           onClose={() => setShowNoticeModal(false)}
           onOpenTracking={() => {
             setShowNoticeModal(false);
-            handleNavigation('tracking');
+            setCurrentScreen('tracking');
           }}
         />
       )}
 
-      {/* Optional Legacy Login Modal */}
+      {/* Authentication Login Modal */}
       {showLoginModal && (
         <LoginModal
           onClose={() => setShowLoginModal(false)}
-          onSuccessRedirect={handleSignInRedirect}
+          onSuccessRedirect={handleLoginSuccess}
         />
       )}
 
@@ -407,7 +312,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     } catch {
       // ignore
     }
-    window.location.href = '/signin';
+    window.location.reload();
   };
 
   render() {
@@ -438,7 +343,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                 onClick={this.handleReset}
                 className="w-full py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
               >
-                Reset Demo Storage &amp; Go to Sign In
+                Reset Demo Storage &amp; Refresh
               </button>
             </div>
           </div>

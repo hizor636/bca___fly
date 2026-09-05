@@ -1,3 +1,13 @@
+<<<<<<< HEAD
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+=======
 # Environment files
 .env
 .env.*
@@ -36,3 +46,4 @@ node_modules/
 .DS_Store
 .vscode/
 .idea/
+>>>>>>> 5d11993 (feat: add BcaFly security policy (SECURITY.md) and security-hardened .gitignore)
