@@ -63,6 +63,8 @@ export interface UserListResponse {
 
 export interface User {
   id: string;
+  username?: string;
+  password?: string;
   name: string;
   email: string;
   role: UserRole;

@@ -116,7 +116,7 @@ userRoutes.get('/', async (req: Request, res: Response) => {
 
     // Fetch paginated rows
     const dataSql = `
-      SELECT id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id, semester
+      SELECT id, username, password, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id, semester
       FROM users
       ${whereClause}
       ORDER BY ${sortBy} ${sortDir}
@@ -126,6 +126,8 @@ userRoutes.get('/', async (req: Request, res: Response) => {
 
     const users = dataRes.rows.map(u => ({
       id: u.id,
+      username: u.username || u.email.split('@')[0],
+      password: u.password || 'password123',
       name: u.name,
       email: u.email,
       role: u.role,
@@ -237,13 +239,17 @@ userRoutes.post('/', async (req: Request, res: Response) => {
     const userId = `usr-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
     const avatar = generateAvatarProps(name);
     const now = new Date().toISOString();
+    const finalUsername = req.body.username?.trim() || email.trim().split('@')[0];
+    const finalPassword = req.body.password?.trim() || 'password123';
 
     // Insert user
     await dbManager.run(
-      `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id, semester)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (id, username, password, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id, semester)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
+        finalUsername,
+        finalPassword,
         name.trim(),
         email.trim().toLowerCase(),
         role,
@@ -362,6 +368,8 @@ userRoutes.post('/', async (req: Request, res: Response) => {
 userRoutes.put('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const {
+    username,
+    password,
     name,
     email,
     role,
@@ -389,6 +397,8 @@ userRoutes.put('/:id', async (req: Request, res: Response) => {
       }
     }
 
+    const updatedUsername = username !== undefined ? username.trim() : (current.username || current.email.split('@')[0]);
+    const updatedPassword = password !== undefined ? password : (current.password || 'password123');
     const updatedName = name !== undefined ? name.trim() : current.name;
     const updatedEmail = email !== undefined ? email.trim().toLowerCase() : current.email;
     const updatedRole = role !== undefined ? role : current.role;
@@ -401,9 +411,11 @@ userRoutes.put('/:id', async (req: Request, res: Response) => {
 
     await dbManager.run(
       `UPDATE users
-       SET name = ?, email = ?, role = ?, phone = ?, department_id = ?, designation = ?, student_id = ?, semester = ?, is_active = ?
+       SET username = ?, password = ?, name = ?, email = ?, role = ?, phone = ?, department_id = ?, designation = ?, student_id = ?, semester = ?, is_active = ?
        WHERE id = ?`,
       [
+        updatedUsername,
+        updatedPassword,
         updatedName,
         updatedEmail,
         updatedRole,

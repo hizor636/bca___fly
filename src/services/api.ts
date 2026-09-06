@@ -816,6 +816,100 @@ class ApiService {
     if (!res.ok) throw new Error('Failed to generate AI mentoring advice');
     return await res.json();
   }
+
+  // --- API Gateway & Core Integration ---
+  public async dispatchSmsAlert(payload: {
+    studentName: string;
+    recipientPhone: string;
+    alertType?: string;
+    message: string;
+    studentId?: string;
+  }): Promise<{ success: boolean; dispatchId: string; recipient: string; student: string; status: string; timestamp: string }> {
+    const res = await fetch(`${API_BASE}/v1/sms/dispatch-alert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to dispatch SMS alert');
+    }
+    return await res.json();
+  }
+
+  public async getGatewayHealth(): Promise<{
+    status: string;
+    service: string;
+    version: string;
+    targets: { java_core: string; python_analytics: string };
+    websocket: string;
+    timestamp: number;
+  }> {
+    const res = await fetch('/health');
+    if (!res.ok) throw new Error('Gateway unreachable');
+    return await res.json();
+  }
+
+  public async initializeBcaDepartmentSetup(
+    departmentCode = 'BCA',
+    adminUser = 'SYSTEM_ADMIN'
+  ): Promise<{ status: string; message: string; departmentCode: string }> {
+    const res = await fetch(`${API_BASE}/v1/master/initialize-bca-setup?departmentCode=${encodeURIComponent(departmentCode)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-User': adminUser
+      }
+    });
+    if (!res.ok) throw new Error('Failed to initialize BCA department setup');
+    return await res.json();
+  }
+
+  public async importStudentsBatchCsv(
+    file: File,
+    departmentCode = 'BCA',
+    adminUser = 'SYSTEM_ADMIN'
+  ): Promise<{ totalRows: number; successfulImports: number; failedImports: number; errors: string[] }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('departmentCode', departmentCode);
+
+    const res = await fetch(`${API_BASE}/v1/master/students/batch-csv`, {
+      method: 'POST',
+      headers: {
+        'X-Admin-User': adminUser
+      },
+      body: formData
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Batch CSV import failed');
+    }
+    return await res.json();
+  }
+
+  public async importFacultyBatchCsv(
+    file: File,
+    departmentCode = 'BCA',
+    adminUser = 'SYSTEM_ADMIN'
+  ): Promise<{ totalRows: number; successfulImports: number; failedImports: number; errors: string[] }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('departmentCode', departmentCode);
+
+    const res = await fetch(`${API_BASE}/v1/master/faculty/batch-csv`, {
+      method: 'POST',
+      headers: {
+        'X-Admin-User': adminUser
+      },
+      body: formData
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Faculty batch CSV import failed');
+    }
+    return await res.json();
+  }
 }
 
 export const api = new ApiService();

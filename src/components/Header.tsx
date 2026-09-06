@@ -17,7 +17,8 @@ import {
   ShieldCheck,
   Building,
   GraduationCap,
-  Sparkles
+  Sparkles,
+  Database
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -45,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const isPublicScreen = currentScreen === 'home' || currentScreen === 'explore';
+  const isPublicScreen = currentScreen === 'home' || currentScreen === 'explore' || (currentScreen as string) === 'database-studio';
 
   const facultyName =
     currentUser?.name?.trim() ||
@@ -135,6 +136,15 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 Support
               </button>
+              <button
+                onClick={() => onNavigate('database-studio')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-colors cursor-pointer text-xs font-semibold ${
+                  currentScreen === 'database-studio' ? 'bg-indigo-600 text-white' : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200'
+                }`}
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>Database Studio</span>
+              </button>
             </nav>
           ) : (
             /* Authenticated Role-Specific Nav Links */
@@ -205,13 +215,33 @@ export const Header: React.FC<HeaderProps> = ({
                   🔒 Confidential Counseling Vault
                 </span>
               )}
+
+              <button
+                onClick={() => onNavigate('database-studio')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-colors cursor-pointer ${
+                  currentScreen === 'database-studio' ? 'bg-indigo-600 text-white' : 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200'
+                }`}
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>Database Studio</span>
+              </button>
             </nav>
           )}
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-3 sm:space-x-4">
             {!isAuthenticated ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <button
+                  id="header-database-btn"
+                  onClick={() => onNavigate('database-studio')}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-full border border-indigo-200 bg-indigo-50/90 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition-all cursor-pointer shadow-2xs"
+                  title="Inspect PostgreSQL Database & Live Data"
+                >
+                  <Database className="w-3.5 h-3.5 text-indigo-600" />
+                  <span className="hidden sm:inline">Database &amp; Schema</span>
+                  <span className="sm:hidden">DB</span>
+                </button>
                 <button
                   id="header-explore-btn"
                   onClick={() => onNavigate('explore')}
@@ -324,6 +354,17 @@ export const Header: React.FC<HeaderProps> = ({
                             Audit Ledger
                           </button>
                         )}
+
+                        <button
+                          onClick={() => {
+                            setProfileDropdownOpen(false);
+                            onNavigate('database-studio');
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl bg-indigo-50/70 hover:bg-indigo-100/70 text-indigo-700 font-medium transition-colors cursor-pointer flex items-center gap-2"
+                        >
+                          <Database className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Database Studio &amp; Schema</span>
+                        </button>
                       </div>
 
                       <div className="pt-2 border-t border-slate-100">

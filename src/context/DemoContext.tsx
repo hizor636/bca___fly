@@ -30,99 +30,127 @@ import {
   Batch
 } from '../types';
 import {
+  DEPARTMENTS as INITIAL_DEPARTMENTS,
+  ACADEMIC_YEARS as INITIAL_ACADEMIC_YEARS,
+  BATCHES as INITIAL_BATCHES,
+  SEMESTERS as DEFAULT_SEMESTERS,
+  CLASSES,
+  INITIAL_FACULTY,
+  INITIAL_ADMINS,
+  INITIAL_SUPER_ADMINS,
+  INITIAL_PARENTS,
+  INITIAL_COUNSELORS,
+  INITIAL_STUDENTS,
+  INITIAL_ASSIGNMENTS,
   INITIAL_WORKING_DAYS,
   INITIAL_ATTENDANCE_SETTINGS,
   INITIAL_SMS_TEMPLATES,
-  SEMESTERS as DEFAULT_SEMESTERS,
-  CLASSES
+  INITIAL_AUDIT_LOGS,
+  INITIAL_NOTICES,
+  INITIAL_TIMETABLES,
+  INITIAL_TENANTS,
+  INITIAL_COURSES,
+  INITIAL_FACULTY_COURSE_ASSIGNMENTS,
+  INITIAL_STUDENT_COURSE_ENROLLMENTS,
+  INITIAL_COURSE_MARKS,
+  INITIAL_COURSE_ATTENDANCE
 } from '../data/mockStore';
 import { api } from '../services/api';
 
-export const DEFAULT_ROOT_ADMIN: User = {
-  id: 'admin-root',
-  name: 'System Administrator',
+export const DEFAULT_ROOT_ADMIN: User = INITIAL_ADMINS[0] || {
+  id: 'admin-1',
+  username: 'admin',
+  password: 'admin123',
+  name: 'Dr. V. Swaminathan (HOD)',
   email: 'admin@bcafly.edu',
   role: 'admin',
-  phone: '+1 (555) 000-0000',
+  phone: '+91 98765 00001',
   departmentId: 'dept-bca',
   isActive: true,
   createdAt: '2026-08-01',
-  designation: 'Institutional Administrator'
+  designation: 'Head of Department & Administrator'
 };
 
-export const DEFAULT_SUPER_ADMIN: User = {
-  id: 'super-admin-root',
-  name: 'Platform Administrator',
+export const DEFAULT_SUPER_ADMIN: User = INITIAL_SUPER_ADMINS[0] || {
+  id: 'super-admin-1',
+  username: 'superadmin',
+  password: 'superadmin123',
+  name: 'Platform Director Sarah Vance',
   email: 'superadmin@bcafly.edu',
   role: 'super_admin',
-  phone: '+1 (555) 000-0001',
+  phone: '+1 (555) 001-9999',
   departmentId: 'PLATFORM',
   isActive: true,
   createdAt: '2026-08-01',
   designation: 'Global Platform Architect'
 };
 
-export const DEFAULT_FALLBACK_FACULTY: FacultyMember = {
-  id: 'fac-default',
-  name: 'Faculty',
-  designation: 'Assistant Professor',
-  department: 'Computer Applications',
-  email: 'faculty@bcafly.edu',
-  phone: '+1 (555) 000-0002',
-  office: 'Faculty Cabin',
-  assignedStudentsCount: 0,
-  specialization: 'Computer Applications',
-  courses: []
+export const DEFAULT_FALLBACK_FACULTY: FacultyMember = INITIAL_FACULTY[0] || {
+  id: 'faculty-1',
+  name: 'Dr. Sarah Jenkins',
+  designation: 'Associate Professor & Group A Mentor',
+  department: 'Department of Computer Applications',
+  email: 'sarah.jenkins@bcafly.edu',
+  phone: '+1 (555) 234-5678',
+  office: 'Block B, Room 402',
+  assignedStudentsCount: 5,
+  specialization: 'Web Architecture & Cloud Systems',
+  courses: ['BCA-501 Web Application Architecture', 'BCA-502 Cloud & Distributed Systems']
 };
 
-export const DEFAULT_FALLBACK_STUDENT: Student = {
-  id: 'student-default',
-  studentId: 'STU001',
-  name: 'Student',
-  initials: 'ST',
-  avatarBg: 'bg-slate-100',
-  avatarText: 'text-slate-800',
-  course: 'BCA',
-  semester: 1,
+export const DEFAULT_FALLBACK_STUDENT: Student = INITIAL_STUDENTS[0] || {
+  id: 'student-1',
+  studentId: 'BCA-2026-001',
+  name: 'Alexander Wright',
+  initials: 'AW',
+  avatarBg: 'bg-indigo-100',
+  avatarText: 'text-indigo-700',
+  course: 'Bachelor of Computer Applications',
+  semester: 5,
   section: 'A',
-  email: 'student@bcafly.edu',
-  phone: '+1 (555) 000-0003',
-  attendanceRate: 0,
+  email: 'alexander.wright@student.bcafly.edu',
+  phone: '+1 (555) 301-8841',
+  attendanceRate: 88.5,
   mentoringStatus: 'Regular',
-  cgpa: 0,
-  sgpaHistory: [],
-  assignedFaculty: 'Faculty',
-  assignedFacultyId: 'fac-default',
-  weeklyAttendance: [0, 0, 0, 0, 0, 0],
-  totalClassesHeld: 0,
-  totalClassesAttended: 0,
-  condonationEligible: false,
+  cgpa: 3.82,
+  sgpaHistory: [3.75, 3.8, 3.9, 3.85, 3.82],
+  assignedFaculty: 'Dr. Sarah Jenkins',
+  assignedFacultyId: 'faculty-1',
+  weeklyAttendance: [90, 85, 92, 88, 85, 90],
+  totalClassesHeld: 140,
+  totalClassesAttended: 124,
+  condonationEligible: true,
   mentoringNotes: [],
   subjectGrades: []
 };
 
-export const DEFAULT_FALLBACK_COUNSELOR: User = {
-  id: 'counselor-default',
-  name: 'Student Counselor',
-  email: 'counselor@bcafly.edu',
+export const DEFAULT_FALLBACK_COUNSELOR: User = INITIAL_COUNSELORS[0] || {
+  id: 'counselor-1',
+  username: 'counselor1',
+  password: 'counselor123',
+  name: 'Dr. Priya Sharma',
+  email: 'priya.counselor@bcafly.edu',
   role: 'counselor',
-  phone: '+1 (555) 000-0004',
+  phone: '+1 (555) 880-3322',
   departmentId: 'dept-bca',
   isActive: true,
   createdAt: '2026-08-01',
-  designation: 'Student Counselor'
+  designation: 'Student Wellness Counselor'
 };
 
-export const DEFAULT_FALLBACK_PARENT: User = {
-  id: 'parent-default',
-  name: 'Guardian User',
-  email: 'parent@bcafly.edu',
+export const DEFAULT_FALLBACK_PARENT: User = INITIAL_PARENTS[0] || {
+  id: 'parent-1',
+  username: 'parent1',
+  password: 'parent123',
+  name: 'Robert Wright',
+  email: 'robert.wright@parent.bcafly.edu',
   role: 'parent',
-  phone: '+1 (555) 000-0005',
+  phone: '+1 (555) 301-9900',
   departmentId: 'dept-bca',
   isActive: true,
   createdAt: '2026-08-01',
-  designation: 'Parent / Guardian'
+  designation: 'Parent / Guardian (Ward: Alexander Wright)',
+  studentId: 'BCA-2026-001'
 };
 
 export interface SixSemesterRecord {
@@ -305,32 +333,32 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
 
   // Master Data State (PostgreSQL Source of Truth)
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+  const [departments, setDepartments] = useState<Department[]>(INITIAL_DEPARTMENTS);
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>(INITIAL_ACADEMIC_YEARS);
   const [semesters, setSemesters] = useState<SemesterInfo[]>(DEFAULT_SEMESTERS);
-  const [batches, setBatches] = useState<Batch[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [facultyList, setFacultyList] = useState<FacultyMember[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [facultyCourseAssignments, setFacultyCourseAssignments] = useState<FacultyCourseAssignment[]>([]);
-  const [studentCourseEnrollments, setStudentCourseEnrollments] = useState<StudentCourseEnrollment[]>([]);
-  const [assignments, setAssignments] = useState<StudentAssignment[]>([]);
-  const [courseMarks, setCourseMarks] = useState<CourseMarks[]>([]);
-  const [courseAttendance, setCourseAttendance] = useState<CourseAttendanceRecord[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [batches, setBatches] = useState<Batch[]>(INITIAL_BATCHES);
+  const [courses, setCourses] = useState<Course[]>(INITIAL_COURSES);
+  const [facultyList, setFacultyList] = useState<FacultyMember[]>(INITIAL_FACULTY);
+  const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
+  const [facultyCourseAssignments, setFacultyCourseAssignments] = useState<FacultyCourseAssignment[]>(INITIAL_FACULTY_COURSE_ASSIGNMENTS);
+  const [studentCourseEnrollments, setStudentCourseEnrollments] = useState<StudentCourseEnrollment[]>(INITIAL_STUDENT_COURSE_ENROLLMENTS);
+  const [assignments, setAssignments] = useState<StudentAssignment[]>(INITIAL_ASSIGNMENTS);
+  const [courseMarks, setCourseMarks] = useState<CourseMarks[]>(INITIAL_COURSE_MARKS);
+  const [courseAttendance, setCourseAttendance] = useState<CourseAttendanceRecord[]>(INITIAL_COURSE_ATTENDANCE);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(INITIAL_AUDIT_LOGS);
 
   // User Accounts
-  const [adminList] = useState<User[]>([DEFAULT_ROOT_ADMIN]);
-  const [superAdminList] = useState<User[]>([DEFAULT_SUPER_ADMIN]);
-  const [counselorList] = useState<User[]>([DEFAULT_FALLBACK_COUNSELOR]);
-  const [parentList] = useState<User[]>([DEFAULT_FALLBACK_PARENT]);
+  const [adminList] = useState<User[]>(INITIAL_ADMINS);
+  const [superAdminList] = useState<User[]>(INITIAL_SUPER_ADMINS);
+  const [counselorList] = useState<User[]>(INITIAL_COUNSELORS);
+  const [parentList] = useState<User[]>(INITIAL_PARENTS);
 
   // Active Users per portal
-  const [activeFaculty, setActiveFacultyState] = useState<FacultyMember>(DEFAULT_FALLBACK_FACULTY);
-  const [activeStudent, setActiveStudentState] = useState<Student>(DEFAULT_FALLBACK_STUDENT);
-  const [activeCounselor, setActiveCounselorState] = useState<User>(DEFAULT_FALLBACK_COUNSELOR);
-  const [activeParent, setActiveParentState] = useState<User>(DEFAULT_FALLBACK_PARENT);
-  const [activeSuperAdmin, setActiveSuperAdminState] = useState<User>(DEFAULT_SUPER_ADMIN);
+  const [activeFaculty, setActiveFacultyState] = useState<FacultyMember>(INITIAL_FACULTY[0] || DEFAULT_FALLBACK_FACULTY);
+  const [activeStudent, setActiveStudentState] = useState<Student>(INITIAL_STUDENTS[0] || DEFAULT_FALLBACK_STUDENT);
+  const [activeCounselor, setActiveCounselorState] = useState<User>(INITIAL_COUNSELORS[0] || DEFAULT_FALLBACK_COUNSELOR);
+  const [activeParent, setActiveParentState] = useState<User>(INITIAL_PARENTS[0] || DEFAULT_FALLBACK_PARENT);
+  const [activeSuperAdmin, setActiveSuperAdminState] = useState<User>(INITIAL_SUPER_ADMINS[0] || DEFAULT_SUPER_ADMIN);
 
   // Supporting modules
   const [classes] = useState<ClassSection[]>(CLASSES);
@@ -340,10 +368,10 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [smsMessages, setSmsMessages] = useState<SmsMessage[]>([]);
   const [counselingReferrals, setCounselingReferrals] = useState<CounselingReferral[]>([]);
   const [counselingNotes, setCounselingNotes] = useState<CounselingNote[]>([]);
-  const [timetables] = useState<TimetableSlot[]>([]);
+  const [timetables] = useState<TimetableSlot[]>(INITIAL_TIMETABLES);
   const [correctionRequests, setCorrectionRequests] = useState<AttendanceCorrectionRequest[]>([]);
   const [documents, setDocuments] = useState<StudentDocument[]>([]);
-  const [tenants, setTenants] = useState<TenantInfo[]>([]);
+  const [tenants, setTenants] = useState<TenantInfo[]>(INITIAL_TENANTS);
   const [securityIncidents, setSecurityIncidents] = useState<SecurityIncident[]>([]);
 
   // Refresh all state directly from backend APIs (Single Source of Truth)
@@ -466,46 +494,101 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = (email: string, password: string, roleHint?: UserRole): { success: boolean; error?: string; role?: UserRole } => {
-    if (failedLoginAttempts >= 3) {
+  const login = (emailOrUsername: string, password: string, roleHint?: UserRole): { success: boolean; error?: string; role?: UserRole } => {
+    if (failedLoginAttempts >= 5) {
       return { success: false, error: 'Too many failed login attempts. Rate limiting engaged.' };
     }
 
-    const trimmedEmail = email.trim().toLowerCase();
+    const trimmed = emailOrUsername.trim().toLowerCase();
 
     let matchedRole: UserRole | null = null;
     let targetUser: { id: string; name: string; email: string } | null = null;
 
-    if (roleHint === 'super_admin' || trimmedEmail.includes('superadmin')) {
+    if (roleHint === 'super_admin' || trimmed === 'superadmin' || trimmed.includes('superadmin')) {
       matchedRole = 'super_admin';
       targetUser = superAdminList[0] || DEFAULT_SUPER_ADMIN;
-    } else if (roleHint === 'parent' || trimmedEmail.includes('parent')) {
+    } else if (roleHint === 'parent' || trimmed === 'parent1' || trimmed.includes('parent') || trimmed.includes('robert.wright')) {
       matchedRole = 'parent';
       targetUser = parentList[0] || DEFAULT_FALLBACK_PARENT;
-    } else if (roleHint === 'admin' || trimmedEmail.includes('admin') || trimmedEmail === 'admin@bcafly.edu') {
-      matchedRole = 'admin';
-      targetUser = adminList[0] || DEFAULT_ROOT_ADMIN;
-    } else if (roleHint === 'student' || trimmedEmail.includes('student')) {
-      matchedRole = 'student';
-      const st = students.find((s) => s.email.toLowerCase() === trimmedEmail) || students[0] || DEFAULT_FALLBACK_STUDENT;
-      targetUser = { id: st.id, name: st.name, email: st.email };
-      setActiveStudentState(st);
-    } else if (roleHint === 'counselor' || trimmedEmail.includes('counselor')) {
+    } else if (roleHint === 'counselor' || trimmed === 'counselor1' || trimmed.includes('counselor') || trimmed.includes('priya')) {
       matchedRole = 'counselor';
-      const cn = counselorList.find((c) => c.email.toLowerCase() === trimmedEmail) || counselorList[0] || DEFAULT_FALLBACK_COUNSELOR;
+      const cn = counselorList[0] || DEFAULT_FALLBACK_COUNSELOR;
       targetUser = cn;
       setActiveCounselorState(cn);
-    } else if (roleHint === 'faculty' || trimmedEmail.includes('faculty') || trimmedEmail.endsWith('@bcafly.edu')) {
+    } else if (roleHint === 'admin' || trimmed === 'admin' || trimmed.includes('admin') || trimmed === 'admin@bcafly.edu') {
+      matchedRole = 'admin';
+      targetUser = adminList[0] || DEFAULT_ROOT_ADMIN;
+    } else if (
+      trimmed === 'faculty1' ||
+      trimmed.includes('sarah') ||
+      trimmed === 'faculty-1'
+    ) {
       matchedRole = 'faculty';
-      const fac = facultyList.find((f) => f.email.toLowerCase() === trimmedEmail) || facultyList[0] || DEFAULT_FALLBACK_FACULTY;
+      const fac = facultyList[0] || DEFAULT_FALLBACK_FACULTY;
       targetUser = fac;
       setActiveFacultyState(fac);
+    } else if (
+      trimmed === 'faculty2' ||
+      trimmed.includes('rajesh') ||
+      trimmed === 'faculty-2'
+    ) {
+      matchedRole = 'faculty';
+      const fac = facultyList[1] || facultyList[0] || DEFAULT_FALLBACK_FACULTY;
+      targetUser = fac;
+      setActiveFacultyState(fac);
+    } else if (roleHint === 'faculty' || trimmed.includes('faculty') || trimmed.endsWith('@bcafly.edu')) {
+      matchedRole = 'faculty';
+      const fac = facultyList.find((f) => f.email.toLowerCase() === trimmed) || facultyList[0] || DEFAULT_FALLBACK_FACULTY;
+      targetUser = fac;
+      setActiveFacultyState(fac);
+    } else if (
+      roleHint === 'student' ||
+      trimmed.startsWith('student') ||
+      trimmed.includes('alexander') ||
+      trimmed.includes('elena') ||
+      trimmed.includes('marcus') ||
+      trimmed.includes('chloe') ||
+      trimmed.includes('devon') ||
+      trimmed.includes('aarav') ||
+      trimmed.includes('sophie') ||
+      trimmed.includes('liam') ||
+      trimmed.includes('ananya') ||
+      trimmed.includes('lucas') ||
+      trimmed.includes('@student')
+    ) {
+      matchedRole = 'student';
+      // Match student1..student10 or email
+      let matchedStudent = students.find((s) => s.email.toLowerCase() === trimmed);
+      if (!matchedStudent && trimmed.startsWith('student')) {
+        const indexStr = trimmed.replace('student', '');
+        const index = parseInt(indexStr, 10);
+        if (!isNaN(index) && index >= 1 && index <= students.length) {
+          matchedStudent = students[index - 1];
+        }
+      }
+      if (!matchedStudent) {
+        matchedStudent = students[0] || DEFAULT_FALLBACK_STUDENT;
+      }
+      targetUser = { id: matchedStudent.id, name: matchedStudent.name, email: matchedStudent.email };
+      setActiveStudentState(matchedStudent);
     } else {
       matchedRole = roleHint || 'admin';
       targetUser = DEFAULT_ROOT_ADMIN;
     }
 
-    const validPasswords = ['bca2026!', 'bca2026', 'password', 'faculty123', 'admin123', 'student123', 'counselor123', '••••••••••••'];
+    const validPasswords = [
+      'password123',
+      'superadmin123',
+      'admin123',
+      'faculty123',
+      'student123',
+      'parent123',
+      'counselor123',
+      'bca2026!',
+      'bca2026',
+      'password',
+      '••••••••••••'
+    ];
     const isPasswordValid = validPasswords.includes(password) || Boolean(roleHint) || password.length >= 6;
 
     if (!matchedRole || !targetUser || !isPasswordValid) {

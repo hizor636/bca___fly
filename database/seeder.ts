@@ -6,13 +6,24 @@ export async function wipeDatabase(): Promise<{ clearedTables: string[]; executi
 }
 
 export async function cleanDatabase(): Promise<void> {
-  console.log('[Database Seeder] Ensuring database is clean with zero demo data...');
-  // Database schema is already created by dbManager.init()
+  console.log('[Database Seeder] Checking if database requires initial seeding...');
+  try {
+    const res = await dbManager.query('SELECT COUNT(*) as count FROM users');
+    const count = parseInt(res.rows[0]?.count || '0', 10);
+    if (count === 0) {
+      console.log('[Database Seeder] Database is empty. Seeding multi-role accounts, 2 faculties, and 10 students...');
+      await seedDatabase(true);
+    } else {
+      console.log(`[Database Seeder] Database already populated with ${count} users. Skipping auto-seed.`);
+    }
+  } catch (err) {
+    console.error('[Database Seeder] Database check/seed notice:', err);
+  }
 }
 
 export async function seedDatabase(force = false): Promise<void> {
   if (!force) {
-    console.log('[Database Seeder] Skipping auto-seed (clean platform mode enabled).');
+    console.log('[Database Seeder] Skipping auto-seed (force flag not provided).');
     return;
   }
 
@@ -25,24 +36,35 @@ export async function seedDatabase(force = false): Promise<void> {
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT DO NOTHING`,
     [
       'tenant-1',
-      'Apex University - Department of Computer Applications',
+      'Apex Institute of Computer Applications',
       'APEX-BCA',
-      'apex.edu',
+      'apex.bcafly.edu',
       'Enterprise Academic',
       'ACTIVE',
       2500,
-      'superadmin@bcafly.edu'
+      'admin@bcafly.edu'
     ]
   );
 
   // 2. Core Departments
   await dbManager.run(
-    'INSERT INTO departments (id, name, code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+    'INSERT INTO departments (id, name, code, is_active) VALUES ($1, $2, $3, 1) ON CONFLICT DO NOTHING',
     ['dept-bca', 'Department of Computer Applications', 'BCA']
   );
+
+  // 2b. Academic Years & Batches
   await dbManager.run(
-    'INSERT INTO departments (id, name, code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-    ['dept-mca', 'Department of Master in Computer Applications', 'MCA']
+    'INSERT INTO academic_years (id, name, start_date, end_date, attendance_rule, is_active) VALUES ($1, $2, $3, $4, $5, 1) ON CONFLICT DO NOTHING',
+    ['ay-2026-27', 'Academic Year 2026-2027', '2026-08-01', '2027-05-31', 75.0]
+  );
+
+  await dbManager.run(
+    'INSERT INTO batches (id, name, department_id, academic_year, section, shift, start_year, end_year, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1) ON CONFLICT DO NOTHING',
+    ['batch-2024-27-a', 'BCA Batch 2024-2027 (Group A)', 'dept-bca', '2026-2027', 'A', 'Day', 2024, 2027]
+  );
+  await dbManager.run(
+    'INSERT INTO batches (id, name, department_id, academic_year, section, shift, start_year, end_year, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1) ON CONFLICT DO NOTHING',
+    ['batch-2024-27-b', 'BCA Batch 2024-2027 (Group B)', 'dept-bca', '2026-2027', 'B', 'Day', 2024, 2027]
   );
 
   // 3. Semesters Structure (1 to 6)
@@ -57,18 +79,23 @@ export async function seedDatabase(force = false): Promise<void> {
 
   for (const sem of semesters) {
     await dbManager.run(
-      'INSERT INTO semesters (id, number, name, year, start_date, end_date, is_current, total_enrolled) VALUES ($1, $2, $3, $4, $5, $6, $7, 42) ON CONFLICT DO NOTHING',
+      'INSERT INTO semesters (id, number, name, year, start_date, end_date, is_current, total_enrolled) VALUES ($1, $2, $3, $4, $5, $6, $7, 10) ON CONFLICT DO NOTHING',
       [sem.id, sem.number, sem.name, sem.year, sem.startDate, sem.endDate, sem.number === 5 ? 1 : 0]
     );
   }
 
-  // 4. Multi-Role User Accounts
-  // 4.1 Super Admin
+  // =========================================================================
+  // 4. MULTI-ROLE PLATFORM USER ACCOUNTS (WITH USERNAMES & PASSWORDS)
+  // =========================================================================
+
+  // 4.1 Super Admin (Platform Oversight)
   await dbManager.run(
-    `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
-     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, 'bg-slate-900', 'text-white', $8) ON CONFLICT DO NOTHING`,
+    `INSERT INTO users (id, username, password, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, 'bg-slate-900', 'text-white', $10) ON CONFLICT DO NOTHING`,
     [
       'super-admin-1',
+      'superadmin',
+      'superadmin123',
       'Platform Director Sarah Vance',
       'superadmin@bcafly.edu',
       'super_admin',
@@ -79,187 +106,516 @@ export async function seedDatabase(force = false): Promise<void> {
     ]
   );
 
-  // 4.2 Department Admin
+  // 4.2 Department Admin (Institutional Head)
   await dbManager.run(
-    `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
-     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, 'bg-purple-100', 'text-purple-700', $8) ON CONFLICT DO NOTHING`,
+    `INSERT INTO users (id, username, password, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, 'bg-purple-100', 'text-purple-700', $10) ON CONFLICT DO NOTHING`,
     [
       'admin-1',
+      'admin',
+      'admin123',
       'Dr. V. Swaminathan (HOD)',
       'admin@bcafly.edu',
       'admin',
       '+91 98765 00001',
-      'BCA',
+      'dept-bca',
       new Date().toISOString(),
       'Head of Department & Academic Administrator'
     ]
   );
 
-  // 4.3 Faculty Members
+  // 4.3 Two Faculties (Divided into Group A & Group B Mentors)
+  // Faculty 1: Dr. Sarah Jenkins (Group A)
   await dbManager.run(
-    `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
-     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, 'bg-indigo-100', 'text-indigo-700', $8) ON CONFLICT DO NOTHING`,
+    `INSERT INTO users (id, username, password, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, 'bg-indigo-100', 'text-indigo-700', $10) ON CONFLICT DO NOTHING`,
     [
       'faculty-1',
-      'Prof. Sarah Jenkins',
+      'faculty1',
+      'faculty123',
+      'Dr. Sarah Jenkins',
       'sarah.jenkins@bcafly.edu',
       'faculty',
       '+1 (555) 234-5678',
-      'BCA',
+      'dept-bca',
       new Date().toISOString(),
-      'Associate Professor & Mentor'
+      'Associate Professor & Group A Mentor'
     ]
   );
+
   await dbManager.run(
-    `INSERT INTO faculty (id, name, designation, department, email, phone, office, assigned_students_count, specialization, courses)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT DO NOTHING`,
+    `INSERT INTO faculty (id, name, designation, department, email, phone, office, assigned_students_count, specialization, courses, is_active)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1) ON CONFLICT DO NOTHING`,
     [
       'faculty-1',
-      'Prof. Sarah Jenkins',
-      'Associate Professor & Mentor',
-      'Computer Applications',
+      'Dr. Sarah Jenkins',
+      'Associate Professor & Group A Mentor',
+      'Department of Computer Applications',
       'sarah.jenkins@bcafly.edu',
       '+1 (555) 234-5678',
       'Block B, Room 402',
-      42,
-      'Data Structures & Algorithms',
-      JSON.stringify(['BCA-301 Data Structures', 'BCA-501 Web Technologies'])
-    ]
-  );
-
-  // 4.4 Students
-  await dbManager.run(
-    `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id, semester)
-     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, 'bg-emerald-100', 'text-emerald-700', 'Student', $8, 5) ON CONFLICT DO NOTHING`,
-    [
-      'student-1',
-      'Alexander Wright',
-      'alexander.wright@student.bcafly.edu',
-      'student',
-      '+1 (555) 301-8841',
-      'BCA',
-      new Date().toISOString(),
-      'BCA2024001'
-    ]
-  );
-  await dbManager.run(
-    `INSERT INTO students (id, student_id, name, initials, avatar_bg, avatar_text, course, semester, section, email, phone, parent_phone, attendance_rate, mentoring_status, cgpa, sgpa_history, assigned_faculty, assigned_faculty_id, weekly_attendance, total_classes_held, total_classes_attended, condonation_eligible, condonation_status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) ON CONFLICT DO NOTHING`,
-    [
-      'student-1',
-      'BCA2024001',
-      'Alexander Wright',
-      'AW',
-      'bg-indigo-100',
-      'text-indigo-700',
-      'Bachelor of Computer Applications',
       5,
-      'A',
-      'alexander.wright@student.bcafly.edu',
-      '+1 (555) 301-8841',
-      '+1 (555) 301-9900',
-      88.5,
-      'Regular',
-      3.82,
-      JSON.stringify([3.75, 3.8, 3.9, 3.85, 3.82]),
-      'Prof. Sarah Jenkins',
-      'faculty-1',
-      JSON.stringify([90, 85, 92, 88, 85, 90]),
-      140,
-      124,
-      1,
-      'Eligible'
+      'Web Architecture & Cloud Systems',
+      JSON.stringify(['BCA-501 Web Application Architecture', 'BCA-502 Cloud & Distributed Systems'])
     ]
   );
 
-  // 4.5 Parent Account
+  // Faculty 2: Prof. Rajesh Kumar (Group B)
   await dbManager.run(
-    `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id)
-     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, 'bg-amber-100', 'text-amber-700', 'Parent / Guardian', $8) ON CONFLICT DO NOTHING`,
+    `INSERT INTO users (id, username, password, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, 'bg-emerald-100', 'text-emerald-700', $10) ON CONFLICT DO NOTHING`,
+    [
+      'faculty-2',
+      'faculty2',
+      'faculty123',
+      'Prof. Rajesh Kumar',
+      'rajesh.kumar@bcafly.edu',
+      'faculty',
+      '+1 (555) 234-8765',
+      'dept-bca',
+      new Date().toISOString(),
+      'Assistant Professor & Group B Mentor'
+    ]
+  );
+
+  await dbManager.run(
+    `INSERT INTO faculty (id, name, designation, department, email, phone, office, assigned_students_count, specialization, courses, is_active)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1) ON CONFLICT DO NOTHING`,
+    [
+      'faculty-2',
+      'Prof. Rajesh Kumar',
+      'Assistant Professor & Group B Mentor',
+      'Department of Computer Applications',
+      'rajesh.kumar@bcafly.edu',
+      '+1 (555) 234-8765',
+      'Block B, Room 405',
+      5,
+      'Artificial Intelligence & Information Security',
+      JSON.stringify(['BCA-503 Artificial Intelligence & ML', 'BCA-504 Information Security & Cryptography'])
+    ]
+  );
+
+  // 4.4 Parent Account (Robert Wright - Parent of Alexander Wright)
+  await dbManager.run(
+    `INSERT INTO users (id, username, password, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, 'bg-amber-100', 'text-amber-700', 'Parent / Guardian', $10) ON CONFLICT DO NOTHING`,
     [
       'parent-1',
+      'parent1',
+      'parent123',
       'Robert Wright (Parent of Alexander)',
       'robert.wright@parent.bcafly.edu',
       'parent',
       '+1 (555) 301-9900',
-      'BCA',
+      'dept-bca',
       new Date().toISOString(),
-      'BCA2024001'
+      'BCA-2026-001'
     ]
   );
 
-  // 4.6 Counselor Account
+  // 4.5 Counselor Account
   await dbManager.run(
-    `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
-     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, 'bg-teal-100', 'text-teal-700', $8) ON CONFLICT DO NOTHING`,
+    `INSERT INTO users (id, username, password, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, 'bg-teal-100', 'text-teal-700', $10) ON CONFLICT DO NOTHING`,
     [
       'counselor-1',
-      'Dr. Elena Rostova',
-      'counselor@bcafly.edu',
+      'counselor1',
+      'counselor123',
+      'Dr. Priya Sharma',
+      'priya.counselor@bcafly.edu',
       'counselor',
       '+1 (555) 880-3322',
-      'BCA',
+      'dept-bca',
       new Date().toISOString(),
-      'Campus Wellness Psychologist'
+      'Campus Student Wellness Counselor'
     ]
   );
 
-  // 5. Courses Master
-  const initialCourses = [
-    { id: 'crs-501', code: 'BCA-501', name: 'Web Application Architecture', credits: 4, sem: 5, type: 'Theory + Lab' },
-    { id: 'crs-502', code: 'BCA-502', name: 'Cloud & Distributed Systems', credits: 4, sem: 5, type: 'Theory' },
-    { id: 'crs-503', code: 'BCA-503', name: 'Artificial Intelligence & Machine Learning', credits: 4, sem: 5, type: 'Theory + Lab' },
-    { id: 'crs-504', code: 'BCA-504', name: 'Information Security & Cryptography', credits: 3, sem: 5, type: 'Theory' },
-    { id: 'crs-505', code: 'BCA-505', name: 'Full-Stack Capstone Lab', credits: 2, sem: 5, type: 'Lab' }
+  // =========================================================================
+  // 5. TEN STUDENTS (5 in Group A under Sarah Jenkins, 5 in Group B under Rajesh Kumar)
+  // =========================================================================
+  const rawStudents = [
+    // GROUP A (Mentored by Dr. Sarah Jenkins)
+    {
+      id: 'student-1',
+      roll: 'BCA-2026-001',
+      username: 'student1',
+      name: 'Alexander Wright',
+      initials: 'AW',
+      email: 'alexander.wright@student.bcafly.edu',
+      phone: '+1 (555) 301-8841',
+      parentPhone: '+1 (555) 301-9900',
+      section: 'A',
+      groupName: 'Group A',
+      attRate: 88.5,
+      cgpa: 3.82,
+      facultyId: 'faculty-1',
+      facultyName: 'Dr. Sarah Jenkins',
+      sgpa: [3.75, 3.8, 3.9, 3.85, 3.82],
+      weeklyAtt: [90, 85, 92, 88, 85, 90],
+      totalHeld: 140,
+      totalAttended: 124,
+      status: 'Regular',
+      condonation: 'Eligible'
+    },
+    {
+      id: 'student-2',
+      roll: 'BCA-2026-002',
+      username: 'student2',
+      name: 'Elena Rostova',
+      initials: 'ER',
+      email: 'elena.rostova@student.bcafly.edu',
+      phone: '+1 (555) 301-8842',
+      parentPhone: '+1 (555) 301-9901',
+      section: 'A',
+      groupName: 'Group A',
+      attRate: 92.0,
+      cgpa: 3.95,
+      facultyId: 'faculty-1',
+      facultyName: 'Dr. Sarah Jenkins',
+      sgpa: [3.9, 3.92, 3.95, 3.94, 3.95],
+      weeklyAtt: [95, 92, 90, 95, 90, 92],
+      totalHeld: 140,
+      totalAttended: 129,
+      status: 'Regular',
+      condonation: 'Eligible'
+    },
+    {
+      id: 'student-3',
+      roll: 'BCA-2026-003',
+      username: 'student3',
+      name: 'Marcus Vance',
+      initials: 'MV',
+      email: 'marcus.vance@student.bcafly.edu',
+      phone: '+1 (555) 301-8843',
+      parentPhone: '+1 (555) 301-9902',
+      section: 'A',
+      groupName: 'Group A',
+      attRate: 71.4,
+      cgpa: 2.85,
+      facultyId: 'faculty-1',
+      facultyName: 'Dr. Sarah Jenkins',
+      sgpa: [2.8, 2.9, 2.75, 2.82, 2.85],
+      weeklyAtt: [70, 68, 75, 72, 70, 74],
+      totalHeld: 140,
+      totalAttended: 100,
+      status: 'Critical Alert',
+      condonation: 'Conditionally Eligible'
+    },
+    {
+      id: 'student-4',
+      roll: 'BCA-2026-004',
+      username: 'student4',
+      name: 'Chloe Bennett',
+      initials: 'CB',
+      email: 'chloe.bennett@student.bcafly.edu',
+      phone: '+1 (555) 301-8844',
+      parentPhone: '+1 (555) 301-9903',
+      section: 'A',
+      groupName: 'Group A',
+      attRate: 84.0,
+      cgpa: 3.40,
+      facultyId: 'faculty-1',
+      facultyName: 'Dr. Sarah Jenkins',
+      sgpa: [3.3, 3.35, 3.4, 3.42, 3.4],
+      weeklyAtt: [85, 82, 86, 84, 85, 82],
+      totalHeld: 140,
+      totalAttended: 118,
+      status: 'Regular',
+      condonation: 'Eligible'
+    },
+    {
+      id: 'student-5',
+      roll: 'BCA-2026-005',
+      username: 'student5',
+      name: 'Devon Miller',
+      initials: 'DM',
+      email: 'devon.miller@student.bcafly.edu',
+      phone: '+1 (555) 301-8845',
+      parentPhone: '+1 (555) 301-9904',
+      section: 'A',
+      groupName: 'Group A',
+      attRate: 79.5,
+      cgpa: 3.10,
+      facultyId: 'faculty-1',
+      facultyName: 'Dr. Sarah Jenkins',
+      sgpa: [3.0, 3.1, 3.05, 3.15, 3.1],
+      weeklyAtt: [80, 78, 82, 80, 79, 78],
+      totalHeld: 140,
+      totalAttended: 111,
+      status: 'Monitor',
+      condonation: 'Eligible'
+    },
+
+    // GROUP B (Mentored by Prof. Rajesh Kumar)
+    {
+      id: 'student-6',
+      roll: 'BCA-2026-006',
+      username: 'student6',
+      name: 'Aarav Patel',
+      initials: 'AP',
+      email: 'aarav.patel@student.bcafly.edu',
+      phone: '+1 (555) 301-8846',
+      parentPhone: '+1 (555) 301-9905',
+      section: 'B',
+      groupName: 'Group B',
+      attRate: 89.2,
+      cgpa: 3.75,
+      facultyId: 'faculty-2',
+      facultyName: 'Prof. Rajesh Kumar',
+      sgpa: [3.7, 3.72, 3.78, 3.75, 3.75],
+      weeklyAtt: [90, 88, 92, 90, 88, 87],
+      totalHeld: 140,
+      totalAttended: 125,
+      status: 'Regular',
+      condonation: 'Eligible'
+    },
+    {
+      id: 'student-7',
+      roll: 'BCA-2026-007',
+      username: 'student7',
+      name: 'Sophie Zhang',
+      initials: 'SZ',
+      email: 'sophie.zhang@student.bcafly.edu',
+      phone: '+1 (555) 301-8847',
+      parentPhone: '+1 (555) 301-9906',
+      section: 'B',
+      groupName: 'Group B',
+      attRate: 94.5,
+      cgpa: 3.98,
+      facultyId: 'faculty-2',
+      facultyName: 'Prof. Rajesh Kumar',
+      sgpa: [3.95, 3.98, 4.0, 3.97, 3.98],
+      weeklyAtt: [96, 95, 94, 95, 94, 93],
+      totalHeld: 140,
+      totalAttended: 132,
+      status: 'Regular',
+      condonation: 'Eligible'
+    },
+    {
+      id: 'student-8',
+      roll: 'BCA-2026-008',
+      username: 'student8',
+      name: 'Liam O\'Connor',
+      initials: 'LO',
+      email: 'liam.oconnor@student.bcafly.edu',
+      phone: '+1 (555) 301-8848',
+      parentPhone: '+1 (555) 301-9907',
+      section: 'B',
+      groupName: 'Group B',
+      attRate: 68.0,
+      cgpa: 2.70,
+      facultyId: 'faculty-2',
+      facultyName: 'Prof. Rajesh Kumar',
+      sgpa: [2.6, 2.7, 2.65, 2.75, 2.7],
+      weeklyAtt: [65, 70, 68, 66, 70, 69],
+      totalHeld: 140,
+      totalAttended: 95,
+      status: 'Severe Risk',
+      condonation: 'Special Case Review'
+    },
+    {
+      id: 'student-9',
+      roll: 'BCA-2026-009',
+      username: 'student9',
+      name: 'Ananya Sharma',
+      initials: 'AS',
+      email: 'ananya.sharma@student.bcafly.edu',
+      phone: '+1 (555) 301-8849',
+      parentPhone: '+1 (555) 301-9908',
+      section: 'B',
+      groupName: 'Group B',
+      attRate: 86.0,
+      cgpa: 3.55,
+      facultyId: 'faculty-2',
+      facultyName: 'Prof. Rajesh Kumar',
+      sgpa: [3.5, 3.52, 3.6, 3.55, 3.55],
+      weeklyAtt: [86, 85, 88, 86, 85, 86],
+      totalHeld: 140,
+      totalAttended: 120,
+      status: 'Regular',
+      condonation: 'Eligible'
+    },
+    {
+      id: 'student-10',
+      roll: 'BCA-2026-010',
+      username: 'student10',
+      name: 'Lucas Garcia',
+      initials: 'LG',
+      email: 'lucas.garcia@student.bcafly.edu',
+      phone: '+1 (555) 301-8850',
+      parentPhone: '+1 (555) 301-9909',
+      section: 'B',
+      groupName: 'Group B',
+      attRate: 81.5,
+      cgpa: 3.25,
+      facultyId: 'faculty-2',
+      facultyName: 'Prof. Rajesh Kumar',
+      sgpa: [3.2, 3.22, 3.28, 3.25, 3.25],
+      weeklyAtt: [82, 80, 84, 82, 81, 80],
+      totalHeld: 140,
+      totalAttended: 114,
+      status: 'Regular',
+      condonation: 'Eligible'
+    }
   ];
 
-  for (const c of initialCourses) {
+  for (const st of rawStudents) {
+    // 5.1 Insert User Account
     await dbManager.run(
-      `INSERT INTO courses (id, course_code, course_name, semester, department_id, academic_scheme, credits, course_type, max_marks, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 1) ON CONFLICT DO NOTHING`,
-      [c.id, c.code, c.name, c.sem, 'dept-bca', 'BCA-2024-REG', c.credits, c.type, 100]
+      `INSERT INTO users (id, username, password, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id, semester)
+       VALUES ($1, $2, 'student123', $3, $4, 'student', $5, 'dept-bca', 1, $6, 'bg-emerald-100', 'text-emerald-700', 'Student', $7, 5) ON CONFLICT DO NOTHING`,
+      [st.id, st.username, st.name, st.email, st.phone, new Date().toISOString(), st.roll]
     );
 
-    // Faculty Allocation
+    // 5.2 Insert Student Profile
     await dbManager.run(
-      `INSERT INTO faculty_course_assignments (id, faculty_id, course_id, section, batch, academic_year, term, is_active)
-       VALUES ($1, $2, $3, 'A', '2024-27', '2026-27', 'Odd', 1) ON CONFLICT DO NOTHING`,
-      [`fca-${c.id}`, 'faculty-1', c.id]
+      `INSERT INTO students (
+        id, student_id, name, initials, avatar_bg, avatar_text, course, semester, section, email, phone, parent_phone,
+        attendance_rate, mentoring_status, cgpa, sgpa_history, assigned_faculty, assigned_faculty_id, weekly_attendance,
+        total_classes_held, total_classes_attended, condonation_eligible, condonation_status, is_active
+       ) VALUES ($1, $2, $3, $4, 'bg-emerald-100', 'text-emerald-700', 'Bachelor of Computer Applications', 5, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 1, $18, 1) ON CONFLICT DO NOTHING`,
+      [
+        st.id,
+        st.roll,
+        st.name,
+        st.initials,
+        st.section,
+        st.email,
+        st.phone,
+        st.parentPhone,
+        st.attRate,
+        st.status,
+        st.cgpa,
+        JSON.stringify(st.sgpa),
+        st.facultyName,
+        st.facultyId,
+        JSON.stringify(st.weeklyAtt),
+        st.totalHeld,
+        st.totalAttended,
+        st.condonation
+      ]
     );
 
-    // Student Enrollment
+    // 5.3 Insert Student Faculty Mentorship Assignment
     await dbManager.run(
-      `INSERT INTO student_course_enrollments (id, student_id, course_id, academic_year, section, enrollment_status)
-       VALUES ($1, $2, $3, '2026-27', 'A', 'Enrolled') ON CONFLICT DO NOTHING`,
-      [`sce-${c.id}-st1`, 'student-1', c.id]
-    );
-
-    // Initial CIA Marks
-    await dbManager.run(
-      `INSERT INTO course_marks (id, student_id, course_id, semester, academic_year, cia1, cia2, cia3, assignment_marks, practical_marks, internal_total, final_grade, updated_by, status)
-       VALUES ($1, $2, $3, 5, '2026-27', 18.5, 19.0, 18.0, 9.5, 19.0, 47.0, 'A+', 'faculty-1', 'Finalized') ON CONFLICT DO NOTHING`,
-      [`cm-${c.id}-st1`, 'student-1', c.id]
+      `INSERT INTO student_assignments (id, student_id, faculty_id, semester_id, reason, start_date, is_active)
+       VALUES ($1, $2, $3, 'sem-5', 'Cohort Mentor Allocation', '2026-08-01', 1) ON CONFLICT DO NOTHING`,
+      [`assign-${st.id}`, st.id, st.facultyId]
     );
   }
 
-  // 6. Timetable Schedules
+  // =========================================================================
+  // 6. COURSES & ALLOCATIONS
+  // =========================================================================
+  const courses = [
+    { id: 'crs-501', code: 'BCA-501', name: 'Web Application Architecture', credits: 4, sem: 5, type: 'Theory + Lab', facultyId: 'faculty-1' },
+    { id: 'crs-502', code: 'BCA-502', name: 'Cloud & Distributed Systems', credits: 4, sem: 5, type: 'Theory', facultyId: 'faculty-1' },
+    { id: 'crs-503', code: 'BCA-503', name: 'Artificial Intelligence & Machine Learning', credits: 4, sem: 5, type: 'Theory + Lab', facultyId: 'faculty-2' },
+    { id: 'crs-504', code: 'BCA-504', name: 'Information Security & Cryptography', credits: 3, sem: 5, type: 'Theory', facultyId: 'faculty-2' },
+    { id: 'crs-505', code: 'BCA-505', name: 'Full-Stack Capstone Project Lab', credits: 2, sem: 5, type: 'Lab', facultyId: 'faculty-1' }
+  ];
+
+  for (const c of courses) {
+    await dbManager.run(
+      `INSERT INTO courses (id, course_code, course_name, semester, department_id, academic_scheme, credits, course_type, max_marks, is_active)
+       VALUES ($1, $2, $3, $4, 'dept-bca', 'BCA-2024-REG', $5, $6, 100, 1) ON CONFLICT DO NOTHING`,
+      [c.id, c.code, c.name, c.sem, c.credits, c.type]
+    );
+
+    // Faculty Course Allocation (Group A & Group B sections)
+    await dbManager.run(
+      `INSERT INTO faculty_course_assignments (id, faculty_id, course_id, section, batch, academic_year, term, is_active)
+       VALUES ($1, $2, $3, 'A', '2024-27', '2026-27', 'Odd', 1) ON CONFLICT DO NOTHING`,
+      [`fca-${c.id}-a`, c.facultyId, c.id]
+    );
+    await dbManager.run(
+      `INSERT INTO faculty_course_assignments (id, faculty_id, course_id, section, batch, academic_year, term, is_active)
+       VALUES ($1, $2, $3, 'B', '2024-27', '2026-27', 'Odd', 1) ON CONFLICT DO NOTHING`,
+      [`fca-${c.id}-b`, c.facultyId, c.id]
+    );
+
+    // Enroll all 10 students into each course
+    for (const st of rawStudents) {
+      await dbManager.run(
+        `INSERT INTO student_course_enrollments (id, student_id, course_id, academic_year, section, enrollment_status)
+         VALUES ($1, $2, $3, '2026-27', $4, 'Enrolled') ON CONFLICT DO NOTHING`,
+        [`sce-${c.id}-${st.id}`, st.id, c.id, st.section]
+      );
+
+      // Seed Course Marks
+      const cia1 = Number((16 + Math.random() * 4).toFixed(1));
+      const cia2 = Number((15 + Math.random() * 5).toFixed(1));
+      const cia3 = Number((16 + Math.random() * 4).toFixed(1));
+      const assign = Number((8 + Math.random() * 2).toFixed(1));
+      const practical = Number((16 + Math.random() * 4).toFixed(1));
+      const total = Number(((cia1 + cia2) / 2 + assign + practical).toFixed(1));
+
+      await dbManager.run(
+        `INSERT INTO course_marks (id, student_id, course_id, semester, academic_year, cia1, cia2, cia3, assignment_marks, practical_marks, internal_total, final_grade, updated_by, status)
+         VALUES ($1, $2, $3, 5, '2026-27', $4, $5, $6, $7, $8, $9, 'A', $10, 'Finalized') ON CONFLICT DO NOTHING`,
+        [`cm-${c.id}-${st.id}`, st.id, c.id, cia1, cia2, cia3, assign, practical, total, c.facultyId]
+      );
+
+      // Course attendance record
+      await dbManager.run(
+        `INSERT INTO course_attendance_records (id, student_id, course_id, faculty_id, date, session_type, status, marked_by)
+         VALUES ($1, $2, $3, $4, '2026-09-04', 'THEORY', 'PRESENT', $5) ON CONFLICT DO NOTHING`,
+        [`att-${c.id}-${st.id}`, st.id, c.id, c.facultyId, c.facultyId]
+      );
+    }
+  }
+
+  // 7. Timetable Slots
   const scheduleSlots = [
-    { id: 'tt-1', sem: 5, day: 'Monday', start: '09:00 AM', end: '10:30 AM', crsId: 'crs-501', code: 'BCA-501', name: 'Web Application Architecture', room: 'Lab 3 (Ground Floor)' },
-    { id: 'tt-2', sem: 5, day: 'Monday', start: '11:00 AM', end: '12:30 PM', crsId: 'crs-502', code: 'BCA-502', name: 'Cloud & Distributed Systems', room: 'Room 402' },
-    { id: 'tt-3', sem: 5, day: 'Tuesday', start: '09:00 AM', end: '10:30 AM', crsId: 'crs-503', code: 'BCA-503', name: 'Artificial Intelligence & Machine Learning', room: 'Lab 2' },
-    { id: 'tt-4', sem: 5, day: 'Wednesday', start: '10:00 AM', end: '11:30 AM', crsId: 'crs-504', code: 'BCA-504', name: 'Information Security & Cryptography', room: 'Room 305' },
-    { id: 'tt-5', sem: 5, day: 'Thursday', start: '02:00 PM', end: '05:00 PM', crsId: 'crs-505', code: 'BCA-505', name: 'Full-Stack Capstone Lab', room: 'Advanced Software Lab' }
+    { id: 'tt-1', sem: 5, sec: 'A', day: 'Monday', start: '09:00 AM', end: '10:30 AM', crsId: 'crs-501', code: 'BCA-501', name: 'Web Application Architecture', facId: 'faculty-1', facName: 'Dr. Sarah Jenkins', room: 'Lab 3 (Ground Floor)' },
+    { id: 'tt-2', sem: 5, sec: 'A', day: 'Monday', start: '11:00 AM', end: '12:30 PM', crsId: 'crs-502', code: 'BCA-502', name: 'Cloud & Distributed Systems', facId: 'faculty-1', facName: 'Dr. Sarah Jenkins', room: 'Room 402' },
+    { id: 'tt-3', sem: 5, sec: 'B', day: 'Tuesday', start: '09:00 AM', end: '10:30 AM', crsId: 'crs-503', code: 'BCA-503', name: 'Artificial Intelligence & Machine Learning', facId: 'faculty-2', facName: 'Prof. Rajesh Kumar', room: 'Lab 2' },
+    { id: 'tt-4', sem: 5, sec: 'B', day: 'Wednesday', start: '10:00 AM', end: '11:30 AM', crsId: 'crs-504', code: 'BCA-504', name: 'Information Security & Cryptography', facId: 'faculty-2', facName: 'Prof. Rajesh Kumar', room: 'Room 305' },
+    { id: 'tt-5', sem: 5, sec: 'A', day: 'Thursday', start: '02:00 PM', end: '05:00 PM', crsId: 'crs-505', code: 'BCA-505', name: 'Full-Stack Capstone Project Lab', facId: 'faculty-1', facName: 'Dr. Sarah Jenkins', room: 'Advanced Software Lab' }
   ];
 
   for (const s of scheduleSlots) {
     await dbManager.run(
       `INSERT INTO timetables (id, semester, section, day_of_week, start_time, end_time, course_id, course_code, subject_name, faculty_id, faculty_name, room_no)
-       VALUES ($1, $2, 'A', $3, $4, $5, $6, $7, $8, 'faculty-1', 'Prof. Sarah Jenkins', $9) ON CONFLICT DO NOTHING`,
-      [s.id, s.sem, s.day, s.start, s.end, s.crsId, s.code, s.name, s.room]
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) ON CONFLICT DO NOTHING`,
+      [s.id, s.sem, s.sec, s.day, s.start, s.end, s.crsId, s.code, s.name, s.facId, s.facName, s.room]
     );
   }
 
-  // 7. Attendance Correction Requests
+  // 8. Mentoring Notes
+  await dbManager.run(
+    `INSERT INTO mentoring_notes (id, student_id, date, faculty_name, faculty_id, topic, notes, action_items, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT DO NOTHING`,
+    [
+      'mn-1',
+      'student-1',
+      '2026-08-28',
+      'Dr. Sarah Jenkins',
+      'faculty-1',
+      'Semester 5 Honors Project & Career Roadmap',
+      'Alexander discussed his plan for a full-stack cloud microservices capstone. Encouraged to take leading role in Group A.',
+      'Prepare system architecture document by next week.',
+      'Resolved'
+    ]
+  );
+  await dbManager.run(
+    `INSERT INTO mentoring_notes (id, student_id, date, faculty_name, faculty_id, topic, notes, action_items, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT DO NOTHING`,
+    [
+      'mn-2',
+      'student-8',
+      '2026-08-30',
+      'Prof. Rajesh Kumar',
+      'faculty-2',
+      'Attendance Deficit & Remedial Intervention',
+      'Liam attendance fell to 68%. Identified transit complications. Provided makeup tutorial sessions.',
+      'Attend Saturday remedial lab session.',
+      'In Progress'
+    ]
+  );
+
+  // 9. Attendance Correction Request
   await dbManager.run(
     `INSERT INTO attendance_correction_requests (id, student_id, student_name, roll_number, course_id, course_name, date, request_type, reason, attachment_url, status, admin_remarks, reviewed_by, reviewed_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT DO NOTHING`,
@@ -267,7 +623,7 @@ export async function seedDatabase(force = false): Promise<void> {
       'req-1',
       'student-1',
       'Alexander Wright',
-      'BCA2024001',
+      'BCA-2026-001',
       'crs-501',
       'Web Application Architecture',
       '2026-09-02',
@@ -281,51 +637,26 @@ export async function seedDatabase(force = false): Promise<void> {
     ]
   );
 
-  // 8. Student Private Documents
+  // 10. Audit Log
   await dbManager.run(
-    `INSERT INTO student_documents (id, student_id, title, category, file_name, file_size_kb, upload_date, is_verified, access_token)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8) ON CONFLICT DO NOTHING`,
-    ['doc-1', 'student-1', 'Official Semester 4 Marksheet & Grade Ledger', 'Transcript', 'transcript_sem4_alexander_wright.pdf', 340, '2026-08-10', 'tok_sec_9941a87b']
-  );
-  await dbManager.run(
-    `INSERT INTO student_documents (id, student_id, title, category, file_name, file_size_kb, upload_date, is_verified, access_token)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8) ON CONFLICT DO NOTHING`,
-    ['doc-2', 'student-1', 'Bonafide Certificate & University Verification Proof', 'Certificate', 'bonafide_bca_2026_alexander.pdf', 180, '2026-08-20', 'tok_sec_1120f44e']
-  );
-
-  // 9. Default Attendance Settings
-  await dbManager.run(
-    'INSERT INTO attendance_settings (id, daily_cutoff_time, cutoff_enforced, auto_sms_on_finalize, sms_working_days_only) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING',
-    ['primary', '11:30', 1, 1, 1]
-  );
-
-  // 10. Default SMS Templates
-  await dbManager.run(
-    'INSERT INTO sms_templates (id, name, body, variables, is_active) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING',
-    ['sms-1', 'Attendance Shortage Alert', 'Dear Parent, your ward {{student_name}} is absent today. Attendance is {{attendance_rate}}%.', JSON.stringify(['student_name', 'attendance_rate']), 1]
-  );
-
-  // 11. Security Incidents Telemetry
-  await dbManager.run(
-    `INSERT INTO security_incidents (id, event_type, severity, description, ip_address, user_email, resolved)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING`,
-    ['sec-1', 'BRUTE_FORCE_PREVENTION', 'LOW', 'Automated rate limiter throttled 5 rapid unauthorized requests from external subnet.', '192.168.1.104', 'unknown@bot.net', 1]
-  );
-
-  // 12. Department Notices
-  await dbManager.run(
-    `INSERT INTO notices (id, title, subtitle, date, is_new, priority, body, action_label, deadline)
-     VALUES ($1, $2, $3, $4, 1, 'High', $5, 'View Guidelines', '2026-09-15') ON CONFLICT DO NOTHING`,
+    `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, before_json, after_json, ip, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT DO NOTHING`,
     [
-      'not-1',
-      'CIA-2 Continuous Internal Assessment Schedule Published',
-      'Mandatory assessment for Semester 1, 3, and 5 cohorts',
-      '2026-09-04',
-      'Continuous Internal Evaluation CIA-2 tests commence from September 22. All student attendance shortage condonations must be closed by September 15.'
+      'aud-init-1',
+      'admin-1',
+      'Dr. V. Swaminathan (HOD)',
+      'admin',
+      'INITIALIZE_MASTER_DATA',
+      'institution',
+      'dept-bca',
+      null,
+      JSON.stringify({ seededStudents: 10, seededFaculties: 2, groups: ['Group A', 'Group B'] }),
+      '127.0.0.1',
+      new Date().toISOString()
     ]
   );
 
-  console.log('[Database Seeder] Multi-role test database ready.');
+  console.log('✅ [Database Seeder] 10 Students, 2 Faculties (2 Groups) & Multi-Role credentials seeded successfully.');
 }
 
 // Allow running directly: tsx database/seeder.ts

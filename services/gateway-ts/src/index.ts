@@ -50,13 +50,18 @@ app.use(
   createProxyMiddleware({
     target: JAVA_CORE_URL,
     changeOrigin: true,
-    onError: (err, req, res) => {
-      console.warn(`[Gateway -> Java Core Proxy Warning] Target unavailable at ${JAVA_CORE_URL}: ${err.message}`);
-      res.status(503).json({
-        error: 'JAVA_CORE_SERVICE_UNAVAILABLE',
-        message: 'Master Data & Governance core service is currently offline or unreachable.',
-        target: JAVA_CORE_URL
-      });
+    on: {
+      error: (err, req, res) => {
+        console.warn(`[Gateway -> Java Core Proxy Warning] Target unavailable at ${JAVA_CORE_URL}: ${(err as Error).message}`);
+        const response = res as express.Response;
+        if (response && typeof response.status === 'function' && !response.headersSent) {
+          response.status(503).json({
+            error: 'JAVA_CORE_SERVICE_UNAVAILABLE',
+            message: 'Master Data & Governance core service is currently offline or unreachable.',
+            target: JAVA_CORE_URL
+          });
+        }
+      }
     }
   })
 );
@@ -67,13 +72,18 @@ app.use(
   createProxyMiddleware({
     target: PYTHON_ANALYTICS_URL,
     changeOrigin: true,
-    onError: (err, req, res) => {
-      console.warn(`[Gateway -> Python Analytics Proxy Warning] Target unavailable at ${PYTHON_ANALYTICS_URL}: ${err.message}`);
-      res.status(503).json({
-        error: 'PYTHON_ANALYTICS_SERVICE_UNAVAILABLE',
-        message: 'Predictive analytics & forecast engine is currently offline or unreachable.',
-        target: PYTHON_ANALYTICS_URL
-      });
+    on: {
+      error: (err, req, res) => {
+        console.warn(`[Gateway -> Python Analytics Proxy Warning] Target unavailable at ${PYTHON_ANALYTICS_URL}: ${(err as Error).message}`);
+        const response = res as express.Response;
+        if (response && typeof response.status === 'function' && !response.headersSent) {
+          response.status(503).json({
+            error: 'PYTHON_ANALYTICS_SERVICE_UNAVAILABLE',
+            message: 'Predictive analytics & forecast engine is currently offline or unreachable.',
+            target: PYTHON_ANALYTICS_URL
+          });
+        }
+      }
     }
   })
 );

@@ -27,8 +27,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 }) => {
   const { login, requestPasswordReset } = useDemoStore();
 
-  const [email, setEmail] = useState('admin@bcafly.edu');
-  const [password, setPassword] = useState('bca2026!');
+  const [email, setEmail] = useState('admin');
+  const [password, setPassword] = useState('admin123');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
@@ -42,6 +42,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginSuccessRole, setLoginSuccessRole] = useState<UserRole | null>(null);
+  const [showAllStudents, setShowAllStudents] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,14 +89,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     }, 600);
   };
 
-  const handleQuickRoleLogin = (role: UserRole, demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('bca2026!');
+  const handleQuickRoleLogin = (role: UserRole, demoIdentifier: string, demoPassword = 'password123') => {
+    setEmail(demoIdentifier);
+    setPassword(demoPassword);
     setErrorMessage(null);
     setIsSubmitting(true);
 
     setTimeout(() => {
-      const res = login(demoEmail, 'bca2026!', role);
+      const res = login(demoIdentifier, demoPassword, role);
       setIsSubmitting(false);
 
       if (res.success && res.role) {
@@ -111,9 +112,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     }, 300);
   };
 
-  const handleSelectPersonaOnly = (role: UserRole, demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('bca2026!');
+  const handleSelectPersonaOnly = (role: UserRole, demoIdentifier: string, demoPassword = 'password123') => {
+    setEmail(demoIdentifier);
+    setPassword(demoPassword);
     setErrorMessage(null);
   };
 
@@ -185,58 +186,165 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         {!loginSuccessRole && viewMode === 'login' && (
           <>
             {/* Demo Credentials Helper Box */}
-            <div className="mb-6 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+            <div className="mb-5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                  Evaluation Demo Accounts
+                <span className="text-[11px] font-bold text-slate-700 tracking-tight flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
+                  Quick Login Credentials (1-Click Fill)
                 </span>
-                <span className="text-[10px] text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full font-bold">
-                  Auto-Fills Form
+                <span className="text-[10px] text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded-md font-semibold">
+                  Pre-configured
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-1.5 text-[11px] font-semibold">
+
+              <div className="grid grid-cols-2 gap-1.5 text-[11px] font-medium">
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('faculty', 'sarah.jenkins@bcafly.edu')}
-                  className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-center shadow-2xs"
+                  onClick={() => handleQuickRoleLogin('super_admin', 'superadmin', 'superadmin123')}
+                  className="py-1.5 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
                 >
-                  Faculty
+                  <span className="font-semibold">Super Admin</span>
+                  <span className="text-[10px] font-mono text-slate-500">superadmin</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('student', 'alexander.wright@student.bcafly.edu')}
-                  className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-center shadow-2xs"
+                  onClick={() => handleQuickRoleLogin('admin', 'admin', 'admin123')}
+                  className="py-1.5 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
                 >
-                  Student
+                  <span className="font-semibold">Dept Admin (HOD)</span>
+                  <span className="text-[10px] font-mono text-slate-500">admin</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickRoleLogin('faculty', 'faculty1', 'faculty123')}
+                  className="py-1.5 px-2.5 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/80 rounded-xl text-indigo-950 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
+                >
+                  <div>
+                    <span className="font-semibold block leading-tight">Faculty 1</span>
+                    <span className="text-[9px] text-indigo-600">Dr. Sarah (Group A)</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-indigo-700">faculty1</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('admin', 'dean.academic@bcafly.edu')}
-                  className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-center shadow-2xs"
+                  onClick={() => handleQuickRoleLogin('faculty', 'faculty2', 'faculty123')}
+                  className="py-1.5 px-2.5 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/80 rounded-xl text-indigo-950 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
                 >
-                  Dept Admin
+                  <div>
+                    <span className="font-semibold block leading-tight">Faculty 2</span>
+                    <span className="text-[9px] text-indigo-600">Prof. Rajesh (Group B)</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-indigo-700">faculty2</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickRoleLogin('student', 'student1', 'student123')}
+                  className="py-1.5 px-2.5 bg-emerald-50/70 hover:bg-emerald-100 border border-emerald-200/80 rounded-xl text-emerald-950 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
+                >
+                  <div>
+                    <span className="font-semibold block leading-tight">Student (Group A)</span>
+                    <span className="text-[9px] text-emerald-600">Alexander Wright</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-emerald-700">student1</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('super_admin', 'superadmin@bcafly.edu')}
-                  className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-center shadow-2xs"
+                  onClick={() => handleQuickRoleLogin('student', 'student6', 'student123')}
+                  className="py-1.5 px-2.5 bg-emerald-50/70 hover:bg-emerald-100 border border-emerald-200/80 rounded-xl text-emerald-950 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
                 >
-                  Super Admin
+                  <div>
+                    <span className="font-semibold block leading-tight">Student (Group B)</span>
+                    <span className="text-[9px] text-emerald-600">Aarav Patel</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-emerald-700">student6</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickRoleLogin('parent', 'parent1', 'parent123')}
+                  className="py-1.5 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
+                >
+                  <span className="font-semibold">Parent</span>
+                  <span className="text-[10px] font-mono text-slate-500">parent1</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('parent', 'robert.wright@parent.bcafly.edu')}
-                  className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-center shadow-2xs"
+                  onClick={() => handleQuickRoleLogin('counselor', 'counselor1', 'counselor123')}
+                  className="py-1.5 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
                 >
-                  Parent
+                  <span className="font-semibold">Counselor</span>
+                  <span className="text-[10px] font-mono text-slate-500">counselor1</span>
                 </button>
+              </div>
+
+              {/* Toggle to view all 10 students */}
+              <div className="mt-2.5 pt-2 border-t border-slate-200">
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('counselor', 'priya.counselor@bcafly.edu')}
-                  className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-center shadow-2xs"
+                  onClick={() => setShowAllStudents(!showAllStudents)}
+                  className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer flex items-center justify-between w-full"
                 >
-                  Counselor
+                  <span>{showAllStudents ? 'Hide All 10 Students' : 'View All 10 Students (5 in Group A, 5 in Group B)'}</span>
+                  <span className="text-[10px] font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                    pw: student123
+                  </span>
                 </button>
+
+                {showAllStudents && (
+                  <div className="mt-2 space-y-2 max-h-44 overflow-y-auto pr-1">
+                    <div className="p-2 bg-indigo-50/50 rounded-lg border border-indigo-100">
+                      <div className="text-[10px] font-bold text-indigo-800 uppercase tracking-wider mb-1">
+                        Group A (Mentor: Dr. Sarah Jenkins)
+                      </div>
+                      <div className="grid grid-cols-1 gap-1">
+                        {[
+                          { u: 'student1', n: 'Alexander Wright', s: 'BCA-2026-001' },
+                          { u: 'student2', n: 'Elena Rostova', s: 'BCA-2026-002' },
+                          { u: 'student3', n: 'Marcus Vance', s: 'BCA-2026-003' },
+                          { u: 'student4', n: 'Chloe Bennett', s: 'BCA-2026-004' },
+                          { u: 'student5', n: 'Devon Miller', s: 'BCA-2026-005' }
+                        ].map((item) => (
+                          <button
+                            key={item.u}
+                            type="button"
+                            onClick={() => handleQuickRoleLogin('student', item.u, 'student123')}
+                            className="w-full flex items-center justify-between px-2 py-1 bg-white hover:bg-indigo-50 rounded border border-slate-200 text-left cursor-pointer"
+                          >
+                            <span className="text-[10px] font-medium text-slate-800">{item.n} ({item.s})</span>
+                            <span className="text-[10px] font-mono text-indigo-600 font-bold">{item.u}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="p-2 bg-emerald-50/50 rounded-lg border border-emerald-100">
+                      <div className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1">
+                        Group B (Mentor: Prof. Rajesh Kumar)
+                      </div>
+                      <div className="grid grid-cols-1 gap-1">
+                        {[
+                          { u: 'student6', n: 'Aarav Patel', s: 'BCA-2026-006' },
+                          { u: 'student7', n: 'Sophie Zhang', s: 'BCA-2026-007' },
+                          { u: 'student8', n: "Liam O'Connor", s: 'BCA-2026-008' },
+                          { u: 'student9', n: 'Ananya Sharma', s: 'BCA-2026-009' },
+                          { u: 'student10', n: 'Lucas Garcia', s: 'BCA-2026-010' }
+                        ].map((item) => (
+                          <button
+                            key={item.u}
+                            type="button"
+                            onClick={() => handleQuickRoleLogin('student', item.u, 'student123')}
+                            className="w-full flex items-center justify-between px-2 py-1 bg-white hover:bg-emerald-50 rounded border border-slate-200 text-left cursor-pointer"
+                          >
+                            <span className="text-[10px] font-medium text-slate-800">{item.n} ({item.s})</span>
+                            <span className="text-[10px] font-mono text-emerald-600 font-bold">{item.u}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -244,14 +352,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Institutional Email or ID
+                  Username or Institutional Email
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     required
-                    placeholder="name@bcafly.edu"
+                    placeholder="e.g. admin, faculty1, student1, superadmin"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
