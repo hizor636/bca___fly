@@ -17,8 +17,7 @@ import {
   ShieldCheck,
   Building,
   GraduationCap,
-  Sparkles,
-  Lock
+  Sparkles
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -61,37 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <>
-      {/* Top Bar for Unauthenticated Landing Page only */}
-      {isPublicScreen && !isAuthenticated && (
-        <div className="bg-slate-950 text-slate-300 text-[11px] py-2 px-4 border-b border-slate-800">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-              <span>
-                <strong className="text-white font-semibold">Clean Academic Platform</strong> — Real-time Relational Database Engine
-              </span>
-              <span className="hidden md:inline text-slate-600">•</span>
-              <span className="hidden md:inline text-slate-400">Department of Computer Applications</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                <Lock className="w-3 h-3 text-amber-400" />
-                <span>Protected Workspaces — Authentication Required</span>
-              </span>
-              <button
-                onClick={onOpenLogin}
-                className="px-3 py-0.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold transition-all cursor-pointer shadow-xs"
-              >
-                Sign In
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 transition-all">
+    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           {/* Brand Logo */}
           <div
@@ -374,6 +343,5 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </header>
-    </>
   );
 };
