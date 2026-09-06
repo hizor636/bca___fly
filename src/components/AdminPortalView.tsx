@@ -270,44 +270,17 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/20 text-white">
                 Academic Dean &amp; Institutional Admin
               </span>
-              <span className="text-xs text-slate-400">PostgreSQL Source of Truth Active</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white mt-0.5">
               {currentUser?.name || 'Institutional Administrator'}
             </h1>
             <p className="text-xs text-slate-400">
-              Department of Computer Applications • Single Source of Truth Architecture
+              Department of Computer Applications • Institutional Governance
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => refreshData()}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-full transition-colors cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Sync Live DB</span>
-          </button>
-
-          <button
-            onClick={() => setModalType('csv-import')}
-            className="flex items-center gap-1.5 text-xs font-medium text-amber-300 hover:text-white bg-amber-950/60 hover:bg-amber-900 border border-amber-800/40 px-3.5 py-2 rounded-full transition-colors cursor-pointer"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            <span>CSV Batch Import</span>
-          </button>
-
-          {onNavigatePublic && (
-            <button
-              onClick={onNavigatePublic}
-              className="text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-full transition-colors cursor-pointer"
-            >
-              Public Site
-            </button>
-          )}
-
           <button
             onClick={() => {
               logout();

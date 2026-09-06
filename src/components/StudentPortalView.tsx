@@ -200,15 +200,6 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {onNavigatePublic && (
-            <button
-              onClick={onNavigatePublic}
-              className="text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3.5 py-1.5 rounded-full transition-colors cursor-pointer"
-            >
-              Public Site
-            </button>
-          )}
-
           <button
             onClick={() => {
               logout();

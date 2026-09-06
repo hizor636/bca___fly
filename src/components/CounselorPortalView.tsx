@@ -86,15 +86,6 @@ export const CounselorPortalView: React.FC<CounselorPortalViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {onNavigatePublic && (
-            <button
-              onClick={onNavigatePublic}
-              className="text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3.5 py-1.5 rounded-full transition-colors cursor-pointer"
-            >
-              Public Site
-            </button>
-          )}
-
           {/* Persona Switcher for Evaluators */}
           <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-full text-xs text-slate-300">
             <span className="text-[10px] uppercase font-bold text-slate-500 px-2">Role:</span>
