@@ -575,7 +575,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
                         </div>
                       ) : u.role === 'faculty' ? (
                         <div>
-                          <div className="font-medium text-slate-800">{u.designation || 'Faculty Member'}</div>
+                          <div className="font-medium text-slate-800">{u.designation || 'Faculty'}</div>
                           <div className="text-slate-400 text-[11px] mt-0.5">{u.departmentId || 'BCA'} Dept</div>
                         </div>
                       ) : (
@@ -737,7 +737,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
                     className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
                   >
                     <option value="student">Student</option>
-                    <option value="faculty">Faculty Member</option>
+                    <option value="faculty">Faculty</option>
                     <option value="admin">Administrator</option>
                     <option value="counselor">Counselor</option>
                   </select>
@@ -887,7 +887,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
                     className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
                   >
                     <option value="student">Student</option>
-                    <option value="faculty">Faculty Member</option>
+                    <option value="faculty">Faculty</option>
                     <option value="admin">Administrator</option>
                     <option value="counselor">Counselor</option>
                   </select>

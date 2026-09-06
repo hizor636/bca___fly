@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useDemoStore } from '../context/DemoContext';
-import { DashboardRibbon } from './DashboardRibbon';
 import { Student, DepartmentNotice } from '../types';
 import {
   Calendar,
@@ -44,6 +43,7 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
 }) => {
   const {
     activeFaculty,
+    currentUser,
     workingDays,
     attendanceSettings,
     classes,
@@ -137,14 +137,14 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
   const absentCount = Object.values(attendanceSheet).filter((st) => st === 'absent').length;
   const lateCount = Object.values(attendanceSheet).filter((st) => st === 'late').length;
 
+  const facultyName =
+    activeFaculty?.name?.trim() ||
+    currentUser?.name?.trim() ||
+    currentUser?.email?.split('@')[0] ||
+    'Faculty';
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 animate-in fade-in duration-150">
-      {/* Dashboard Utility Ribbon with Demo Mode, Faculty, 6-Sem Reports, Audit Trail */}
-      <DashboardRibbon
-        onOpenAudit={onOpenAudit || (() => {})}
-        onOpenReports={onOpenReports || (() => {})}
-      />
-
       {/* Top Breadcrumb & Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
         <div>
@@ -159,7 +159,7 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
             Smart Faculty Workspace
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-1">
-            Logged in as <strong className="text-slate-800">{activeFaculty?.name || 'Faculty Member'}</strong> • Access strictly scoped to assigned students.
+            Logged in as <strong className="text-slate-800">{facultyName}</strong> • Access strictly scoped to assigned students.
           </p>
         </div>
 

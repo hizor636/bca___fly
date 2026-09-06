@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useDemoStore } from '../context/DemoContext';
 import { Student, DepartmentNotice } from '../types';
-import { DashboardRibbon } from './DashboardRibbon';
 import { SixSemesterReportsModal } from './SixSemesterReportsModal';
 import { CourseAcademicWorkspace } from './CourseAcademicWorkspace';
 import {
@@ -18,6 +17,7 @@ import {
   ShieldCheck,
   HeartHandshake,
   UserCheck,
+  Database,
   X,
   Bell
 } from 'lucide-react';
@@ -27,7 +27,6 @@ interface FacultyDashboardViewProps {
   onOpenNotice?: (notice: DepartmentNotice) => void;
   onOpenAudit: () => void;
   onOpenReports: () => void;
-  onNavigateExplore?: () => void;
 }
 
 interface QuickTask {
@@ -42,10 +41,10 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
   onSelectStudent,
   onOpenNotice,
   onOpenAudit,
-  onNavigateExplore,
 }) => {
   const {
     activeFaculty,
+    currentUser,
     getScopedStudentsForActiveFaculty,
     workingDays,
     attendanceSettings,
@@ -221,39 +220,38 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
   const absentCount = Object.values(attendanceSheet).filter((st) => st === 'absent').length;
   const lateCount = Object.values(attendanceSheet).filter((st) => st === 'late').length;
 
+  const facultyName =
+    activeFaculty?.name?.trim() ||
+    currentUser?.name?.trim() ||
+    currentUser?.email?.split('@')[0] ||
+    'Faculty';
+
   return (
     <div className="w-full bg-slate-50/50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-        {/* 1. TOP DASHBOARD UTILITY RIBBON */}
-        {/* Contains: Demo Mode (Pure Free), faculty: Dr. Sarah Jenkins, 6-Sem Reports, Audit Trail */}
-        <DashboardRibbon
-          onOpenAudit={onOpenAudit}
-          onOpenReports={() => setShowReportsModal(true)}
-        />
-
-        {/* 2. DASHBOARD HERO BANNER */}
+        {/* 1. DASHBOARD HERO BANNER */}
         <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs relative overflow-hidden">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-800">
                   <UserCheck className="w-3.5 h-3.5 text-slate-700" />
-                  <span>Faculty Academic Dashboard</span>
+                  <span>Faculty Academic Workspace</span>
                 </span>
                 <span className="text-xs text-slate-400">•</span>
                 <span className="text-xs font-medium text-slate-600">
-                  Department of Computer Applications (BCA)
+                  Faculty: <strong className="text-slate-800 font-semibold">{facultyName}</strong>
                 </span>
                 <span className="text-xs text-slate-400">•</span>
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Scoped Mentoring Active
+                  <Database className="w-3.5 h-3.5" />
+                  PostgreSQL Source of Truth Active
                 </span>
               </div>
 
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
-                Welcome, {activeFaculty?.name || 'Faculty Member'}
+                Welcome, {facultyName}
               </h1>
 
               <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
@@ -297,7 +295,7 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
           </div>
         </div>
 
-        {/* 3. PRIMARY DASHBOARD TABS: "Courses & Classes (Sem 1-6)", "Assigned Students (42)" & "Smart Workspace" */}
+        {/* 2. PRIMARY DASHBOARD TABS: "Courses & Classes (Sem 1-6)", "Assigned Students (42)" & "Smart Workspace" */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
           <div className="flex items-center gap-2 bg-slate-100/90 p-1.5 rounded-2xl w-fit flex-wrap">
             <button
@@ -356,16 +354,6 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
               <ShieldCheck className="w-3.5 h-3.5 text-slate-500" />
               <span>Audit Trail</span>
             </button>
-
-            {onNavigateExplore && (
-              <button
-                onClick={onNavigateExplore}
-                className="text-xs text-slate-400 hover:text-slate-700 transition-colors px-2 py-1"
-                title="View original landing page overview"
-              >
-                Explore Landing →
-              </button>
-            )}
           </div>
         </div>
 

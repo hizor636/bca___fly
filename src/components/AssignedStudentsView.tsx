@@ -27,7 +27,13 @@ export const AssignedStudentsView: React.FC<AssignedStudentsViewProps> = ({
   onNavigateHome,
   onReferStudent,
 }) => {
-  const { activeFaculty, getScopedStudentsForActiveFaculty, counselingReferrals } = useDemoStore();
+  const { activeFaculty, currentUser, getScopedStudentsForActiveFaculty, counselingReferrals } = useDemoStore();
+
+  const facultyName =
+    activeFaculty?.name?.trim() ||
+    currentUser?.name?.trim() ||
+    currentUser?.email?.split('@')[0] ||
+    'Faculty';
 
   // STRICT ACCESS CONTROL: Only assigned students
   const scopedStudents = getScopedStudentsForActiveFaculty();
@@ -71,7 +77,7 @@ export const AssignedStudentsView: React.FC<AssignedStudentsViewProps> = ({
           <ShieldCheck className="w-4 h-4 text-slate-800 flex-shrink-0" />
           <span className="text-slate-700">
             <strong>Faculty Access Scoping Active:</strong> Displaying only students allocated to{' '}
-            <strong className="text-slate-900">{activeFaculty.name}</strong> ({effectiveStudents.length} assigned mentees). Faculty cannot access students outside their designated allocation.
+            <strong className="text-slate-900">{facultyName}</strong> ({effectiveStudents.length} assigned mentees). Faculty cannot access students outside their designated allocation.
           </span>
         </div>
         <span className="text-[10px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 flex-shrink-0">
@@ -221,7 +227,7 @@ export const AssignedStudentsView: React.FC<AssignedStudentsViewProps> = ({
           <h3 className="text-base font-semibold text-slate-800">No records yet</h3>
           <p className="text-xs text-slate-400 mt-1">
             {effectiveStudents.length === 0
-              ? 'No mentees have been assigned to this faculty member in the database.'
+              ? 'No mentees have been assigned to this faculty in the database.'
               : 'Try resetting your search query or semester filters.'}
           </p>
           {effectiveStudents.length > 0 && (

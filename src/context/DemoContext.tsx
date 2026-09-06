@@ -64,7 +64,7 @@ export const DEFAULT_SUPER_ADMIN: User = {
 
 export const DEFAULT_FALLBACK_FACULTY: FacultyMember = {
   id: 'fac-default',
-  name: 'Faculty Member',
+  name: 'Faculty',
   designation: 'Assistant Professor',
   department: 'Computer Applications',
   email: 'faculty@bcafly.edu',
@@ -91,7 +91,7 @@ export const DEFAULT_FALLBACK_STUDENT: Student = {
   mentoringStatus: 'Regular',
   cgpa: 0,
   sgpaHistory: [],
-  assignedFaculty: 'Faculty Member',
+  assignedFaculty: 'Faculty',
   assignedFacultyId: 'fac-default',
   weeklyAttendance: [0, 0, 0, 0, 0, 0],
   totalClassesHeld: 0,

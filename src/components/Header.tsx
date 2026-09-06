@@ -48,6 +48,12 @@ export const Header: React.FC<HeaderProps> = ({
 
   const isPublicScreen = currentScreen === 'home' || currentScreen === 'explore';
 
+  const facultyName =
+    currentUser?.name?.trim() ||
+    activeFaculty?.name?.trim() ||
+    currentUser?.email?.split('@')[0] ||
+    'Faculty';
+
   const handleLogout = () => {
     setProfileDropdownOpen(false);
     logout();
@@ -56,64 +62,34 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      {/* Top Demo Environment Banner (Strict Environment Notification & Authentication Status) */}
-      <div className="bg-slate-950 text-slate-300 text-[11px] py-2 px-4 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-            <span>
-              <strong className="text-white font-semibold">Clean Academic Platform</strong> — Real-time Relational Database Engine
-            </span>
-            <span className="hidden md:inline text-slate-600">•</span>
-            <span className="hidden md:inline text-slate-400">Tenant: BCA Department (NAAC A++)</span>
-          </div>
+      {/* Top Bar for Unauthenticated Landing Page only */}
+      {isPublicScreen && !isAuthenticated && (
+        <div className="bg-slate-950 text-slate-300 text-[11px] py-2 px-4 border-b border-slate-800">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+              <span>
+                <strong className="text-white font-semibold">Clean Academic Platform</strong> — Real-time Relational Database Engine
+              </span>
+              <span className="hidden md:inline text-slate-600">•</span>
+              <span className="hidden md:inline text-slate-400">Department of Computer Applications</span>
+            </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {isAuthenticated ? (
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-200 text-[10px] font-medium border border-slate-700">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  <span className="text-slate-400">Active User:</span>
-                  <strong className="text-white">{currentUser?.name || activeFaculty?.name || 'Academic User'}</strong>
-                  <span className="text-indigo-400 font-bold uppercase text-[9px]">
-                    ({currentRole.replace('_', ' ')})
-                  </span>
-                </span>
-                <button
-                  onClick={() => {
-                    logout();
-                    onOpenLogin();
-                  }}
-                  className="px-2.5 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-semibold transition-colors cursor-pointer border border-slate-700"
-                  title="Sign in with a different account"
-                >
-                  Switch Account
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="px-2.5 py-0.5 rounded-full bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 text-[10px] font-semibold transition-colors cursor-pointer border border-rose-800/60"
-                  title="Sign out of current session"
-                >
-                  Sign Out
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                  <Lock className="w-3 h-3 text-amber-400" />
-                  <span>Protected Workspaces — Authentication Required</span>
-                </span>
-                <button
-                  onClick={onOpenLogin}
-                  className="px-3 py-0.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold transition-all cursor-pointer shadow-xs"
-                >
-                  Sign In
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                <Lock className="w-3 h-3 text-amber-400" />
+                <span>Protected Workspaces — Authentication Required</span>
+              </span>
+              <button
+                onClick={onOpenLogin}
+                className="px-3 py-0.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold transition-all cursor-pointer shadow-xs"
+              >
+                Sign In
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -210,7 +186,7 @@ export const Header: React.FC<HeaderProps> = ({
                       currentScreen === 'students' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Assigned Cohort (42)
+                    Assigned Mentees ({activeFaculty?.assignedStudentsCount || 0})
                   </button>
                   <button
                     onClick={() => onNavigate('workspace')}
@@ -260,13 +236,6 @@ export const Header: React.FC<HeaderProps> = ({
                   🔒 Confidential Counseling Vault
                 </span>
               )}
-
-              <button
-                onClick={() => onNavigate('home')}
-                className="text-slate-400 hover:text-slate-700 text-xs font-medium cursor-pointer transition-colors"
-              >
-                Public Site
-              </button>
             </nav>
           )}
 
@@ -309,19 +278,26 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 )}
 
+                {/* User Identity Pill */}
+                <div className="hidden sm:flex flex-col text-right">
+                  <span className="text-xs font-bold text-slate-900 leading-tight">{facultyName}</span>
+                  <span className="text-[10px] text-slate-400 capitalize">{currentRole.replace('_', ' ')}</span>
+                </div>
+
                 {/* User Profile Avatar & Dropdown */}
                 <div className="relative">
                   <button
                     id="header-profile-avatar-btn"
                     onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                    className="h-9 w-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 flex items-center justify-center text-xs font-bold transition-all border border-slate-200/80 focus:outline-none focus:ring-2 focus:ring-slate-900 cursor-pointer"
-                    title={`${currentUser?.name || activeFaculty.name} (${currentRole.toUpperCase()})`}
+                    className="h-9 w-9 rounded-full bg-slate-900 text-white hover:bg-slate-800 flex items-center justify-center text-xs font-bold transition-all border border-slate-700/80 focus:outline-none focus:ring-2 focus:ring-slate-900 cursor-pointer shadow-xs"
+                    title={`${facultyName} (${currentRole.toUpperCase()})`}
                   >
-                    {(currentUser?.name || activeFaculty.name)
+                    {facultyName
                       .split(' ')
                       .map((n) => n[0])
                       .join('')
-                      .slice(0, 2)}
+                      .slice(0, 2)
+                      .toUpperCase()}
                   </button>
 
                   {profileDropdownOpen && (
@@ -335,9 +311,9 @@ export const Header: React.FC<HeaderProps> = ({
                             {currentRole}
                           </span>
                         </div>
-                        <h4 className="font-bold text-slate-900 text-sm mt-1">{currentUser.name}</h4>
-                        <p className="text-xs text-slate-500 truncate">{currentUser.email}</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">{currentUser.designation || 'Academic Operations'}</p>
+                        <h4 className="font-bold text-slate-900 text-sm mt-1">{facultyName}</h4>
+                        <p className="text-xs text-slate-500 truncate">{currentUser?.email || 'faculty@bcafly.edu'}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{currentUser?.designation || activeFaculty?.designation || 'Faculty'}</p>
                       </div>
 
                       <div className="space-y-1 text-xs">

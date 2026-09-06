@@ -224,7 +224,6 @@ const AppContent: React.FC = () => {
                 onOpenNotice={() => setShowNoticeModal(true)}
                 onOpenAudit={() => setShowAuditModal(true)}
                 onOpenReports={() => setShowReportsModal(true)}
-                onNavigateExplore={() => handleNavigation('explore')}
               />
             )}
 
