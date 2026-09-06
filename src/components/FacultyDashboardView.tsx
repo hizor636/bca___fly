@@ -17,7 +17,6 @@ import {
   ShieldCheck,
   HeartHandshake,
   UserCheck,
-  Database,
   X,
   Bell
 } from 'lucide-react';
@@ -241,12 +240,7 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
                 </span>
                 <span className="text-xs text-slate-400">•</span>
                 <span className="text-xs font-medium text-slate-600">
-                  Faculty: <strong className="text-slate-800 font-semibold">{facultyName}</strong>
-                </span>
-                <span className="text-xs text-slate-400">•</span>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-                  <Database className="w-3.5 h-3.5" />
-                  PostgreSQL Source of Truth Active
+                  Department of Computer Applications (BCA)
                 </span>
               </div>
 
