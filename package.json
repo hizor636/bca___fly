@@ -6,14 +6,20 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "server": "tsx server/index.ts",
+    "server:gateway": "npm run dev --prefix services/gateway-ts",
+    "server:python": "uvicorn main:app --app-dir services/analytics-python --reload --port 8000",
+    "server:java": "mvn -f services/core-java/pom.xml spring-boot:run",
     "server:ai": "python server/python/analytics_service.py",
     "dev:all": "concurrently -k \"npm run server\" \"npm run server:ai\" \"npm run dev\"",
+    "docker:up": "docker-compose up --build",
+    "docker:down": "docker-compose down",
     "sql": "tsx server/db/cli.ts",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "node -e \"const fs=require('fs');if(fs.existsSync('dist'))fs.rmSync('dist',{recursive:true,force:true})\"",
     "lint": "tsc --noEmit"
   },
+
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
