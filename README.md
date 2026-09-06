@@ -4,9 +4,38 @@ BcaFly is a modern institutional academic management platform designed for the D
 
 ---
 
+## 🛠️ Technology Stack
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  BcaFly Platform Tech Stack Breakdown                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  [TypeScript: 98.5%]                                                        │
+│  ├── Frontend: React 19 • Vite 6 • Tailwind CSS 4 • Lucide Icons            │
+│  └── Backend: Node.js 22 • Express 5 • TSX • sql.js / SQLite 3 / PostgreSQL │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  [Python: 1.3%]                                                             │
+│  └── Analytics Microservice: Python 3.12 • Flask • Pandas • NumPy           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  [Other: 0.2%]                                                              │
+│  └── DDL Relational Schemas • JSON Configuration • Automation Scripts       │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Layer Details
+
+| Technology Layer | Languages & Frameworks | Codebase Share | Purpose & Core Capabilities |
+|---|---|---|---|
+| **Frontend Application** | **TypeScript 5.8**, React 19, Vite 6, Tailwind CSS 4, Lucide Icons | **~65%** | Multi-portal interfaces (Admin, Faculty, Student, Guardian, Counselor), live reactive contexts (`DemoContext.tsx`), assignment-scoped views, clean zero-record states. |
+| **Core Backend REST API** | **TypeScript 5.8**, Node.js 22, Express 5, TSX, sql.js WASM / PostgreSQL Layer | **~33.5%** | Authoritative Single Source of Truth database engine (29 relational tables), role-based middleware, transactional CSV batch importers, immutable audit logger. |
+| **Analytics & AI Engine** | **Python 3.12**, Flask, Pandas, NumPy | **1.3%** | Attendance shortage trajectory forecaster, statistical CIA marks distribution, condonation eligibility calculator, academic risk classification (`server/python/analytics_service.py`). |
+| **Infrastructure & DDL** | SQLite 3 / PostgreSQL DDL, JSON, PowerShell / Bash | **0.2%** | Relational schemas, foreign key constraints, migration scripts, platform architecture specifications. |
+
+---
+
 ## 🏛️ Platform Architecture Components
 
-For full details on the system architecture, data flows, and security boundaries, see the [Platform Architecture Specification](docs/PLATFORM_ARCHITECTURE.md).
+For detailed architecture specifications, data flows, and security boundaries, refer to the [Platform Architecture Specification](docs/PLATFORM_ARCHITECTURE.md).
 
 - **PostgreSQL / Relational Backend — Source of Truth:** Central authoritative database maintaining departments, courses (Sem 1–6), faculty allocations, student enrollments, attendance ledgers, marks, mentoring notes, and immutable audit logs.
 - **Active Sync:** Automatically cascades administrator-approved master data across Faculty Workspaces, Student Portals, Guardian Portals, and Public Sites without requiring manual database queries or redeployments.
@@ -20,6 +49,7 @@ For full details on the system architecture, data flows, and security boundaries
 
 ### Prerequisites
 - Node.js (v18+)
+- Python 3.10+ (for optional Python analytics microservice)
 - npm or yarn
 
 ### 1. Install Dependencies
@@ -36,15 +66,24 @@ VITE_API_URL=http://localhost:5000/api
 
 ### 3. Run Locally
 
-Start the backend API server:
+**Option A — Run all services concurrently (Frontend + Backend + AI):**
 ```bash
-npm run server
+npm run dev:all
 ```
 
-In a separate terminal, start the frontend development server:
-```bash
-npm run dev
-```
+**Option B — Run individually:**
+- Start Core TypeScript Backend:
+  ```bash
+  npm run server
+  ```
+- Start Python Analytics Microservice (optional):
+  ```bash
+  npm run server:ai
+  ```
+- Start Vite Frontend:
+  ```bash
+  npm run dev
+  ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 

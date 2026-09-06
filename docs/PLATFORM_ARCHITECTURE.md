@@ -121,7 +121,34 @@ The Public Site is the outward-facing institutional portal for content accessibl
 
 ---
 
-## 4. Compliance & Acceptance Criteria
+## 4. Technology Stack Composition
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  BcaFly Language & Technology Composition                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  [TypeScript: 98.5%]                                                        │
+│  ├── Client Portal Layer: React 19 • Vite 6 • Tailwind CSS 4                │
+│  └── Server API Layer: Node.js 22 • Express 5 • TSX • sql.js / PostgreSQL   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  [Python: 1.3%]                                                             │
+│  └── Analytics & Forecaster: Python 3.12 • Flask • Pandas • NumPy           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  [Other: 0.2%]                                                              │
+│  └── DDL Schemas • JSON Configuration • Shell Automation                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Layer | Languages & Frameworks | Codebase % | Purpose & Capabilities |
+|---|---|---|---|
+| **Frontend Applications** | **TypeScript 5.8**, React 19, Vite 6, Tailwind CSS 4, Lucide Icons | **~65.0%** | Multi-role portals (Admin, Faculty, Student, Guardian, Counselor), live reactive contexts, dynamic ledger grids. |
+| **Backend REST Core** | **TypeScript 5.8**, Node.js 22, Express 5, TSX, sql.js / PostgreSQL Layer | **~33.5%** | Authoritative 29-table relational database engine, RBAC middleware, CSV batch importer, audit logger. |
+| **Analytics Microservice** | **Python 3.12**, Flask, Pandas, NumPy | **1.3%** | Attendance deficit trajectory forecaster, statistical CIA regression modeling, condonation eligibility calculator. |
+| **DDL & Configuration** | SQLite 3 / PostgreSQL DDL, JSON, PowerShell / Bash | **0.2%** | Relational schemas, foreign key constraints, migration scripts, CI/CD and deployment manifests. |
+
+---
+
+## 5. Compliance & Acceptance Criteria
 
 | Criteria | Enforcement Mechanism | Status |
 |---|---|---|
