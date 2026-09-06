@@ -3,7 +3,7 @@ import { SCHEMA_SQL } from './schema.js';
 
 // PostgreSQL connection pool
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://bcafly_admin@localhost:5434/bcafly',
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/bcafly',
 });
 
 export interface QueryResult {
@@ -365,7 +365,7 @@ class DatabaseManager {
       databaseSizeKb,
       tableCount: tables.length,
       totalRows,
-      dbFilePath: process.env.DATABASE_URL || 'postgresql://bcafly_admin@localhost:5434/bcafly',
+      dbFilePath: process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/bcafly',
       engine: 'PostgreSQL 18',
       tables: tables.map(t => ({ name: t.name, rows: t.rowCount }))
     };
