@@ -1,3 +1,6 @@
+// BCAFly PostgreSQL Schema
+// Production PostgreSQL Schema
+
 export const SCHEMA_SQL = `
 -- 1. Departments
 CREATE TABLE IF NOT EXISTS departments (
@@ -8,7 +11,7 @@ CREATE TABLE IF NOT EXISTS departments (
   is_active INTEGER DEFAULT 1,
   archived_at TEXT,
   archived_by TEXT,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT DEFAULT (NOW()::TEXT)
 );
 
 -- 1b. Academic Years
@@ -17,11 +20,11 @@ CREATE TABLE IF NOT EXISTS academic_years (
   name TEXT NOT NULL UNIQUE,
   start_date TEXT NOT NULL,
   end_date TEXT NOT NULL,
-  attendance_rule REAL DEFAULT 75.0,
+  attendance_rule NUMERIC(5,2) DEFAULT 75.0,
   is_active INTEGER DEFAULT 1,
   archived_at TEXT,
   archived_by TEXT,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT DEFAULT (NOW()::TEXT)
 );
 
 -- 2. Semesters
@@ -34,7 +37,7 @@ CREATE TABLE IF NOT EXISTS semesters (
   start_date TEXT NOT NULL,
   end_date TEXT NOT NULL,
   credits INTEGER DEFAULT 24,
-  min_attendance REAL DEFAULT 75.0,
+  min_attendance NUMERIC(5,2) DEFAULT 75.0,
   is_current INTEGER DEFAULT 0,
   total_enrolled INTEGER DEFAULT 0,
   is_active INTEGER DEFAULT 1,
@@ -54,7 +57,7 @@ CREATE TABLE IF NOT EXISTS batches (
   is_active INTEGER DEFAULT 1,
   archived_at TEXT,
   archived_by TEXT,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT DEFAULT (NOW()::TEXT)
 );
 
 -- 3. Classes / Sections
@@ -82,7 +85,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_active INTEGER DEFAULT 1,
   archived_at TEXT,
   archived_by TEXT,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT DEFAULT (NOW()::TEXT),
   avatar_bg TEXT,
   avatar_text TEXT,
   designation TEXT,
@@ -101,7 +104,7 @@ CREATE TABLE IF NOT EXISTS faculty (
   office TEXT,
   assigned_students_count INTEGER DEFAULT 0,
   specialization TEXT,
-  courses TEXT, -- JSON array of strings
+  courses TEXT,
   is_active INTEGER DEFAULT 1,
   archived_at TEXT,
   archived_by TEXT
@@ -121,14 +124,14 @@ CREATE TABLE IF NOT EXISTS students (
   email TEXT NOT NULL UNIQUE,
   phone TEXT NOT NULL,
   parent_phone TEXT,
-  attendance_rate REAL DEFAULT 0,
+  attendance_rate NUMERIC(5,2) DEFAULT 0,
   mentoring_status TEXT DEFAULT 'Regular',
-  cgpa REAL DEFAULT 0,
-  sgpa_history TEXT, -- JSON array of floats
+  cgpa NUMERIC(5,2) DEFAULT 0,
+  sgpa_history TEXT,
   assigned_faculty TEXT NOT NULL,
   assigned_faculty_id TEXT,
   last_mentoring_date TEXT,
-  weekly_attendance TEXT, -- JSON array of integers
+  weekly_attendance TEXT,
   total_classes_held INTEGER DEFAULT 0,
   total_classes_attended INTEGER DEFAULT 0,
   condonation_eligible INTEGER DEFAULT 0,
@@ -168,12 +171,12 @@ CREATE TABLE IF NOT EXISTS courses (
   cia1_max_marks INTEGER DEFAULT 20,
   cia2_max_marks INTEGER DEFAULT 20,
   cia3_max_marks INTEGER DEFAULT 20,
-  attendance_required REAL DEFAULT 75.0,
+  attendance_required NUMERIC(5,2) DEFAULT 75.0,
   is_active INTEGER DEFAULT 1,
   archived_at TEXT,
   archived_by TEXT,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT DEFAULT (NOW()::TEXT),
+  updated_at TEXT DEFAULT (NOW()::TEXT)
 );
 
 -- 8b. Student Semester Enrollments
@@ -184,7 +187,7 @@ CREATE TABLE IF NOT EXISTS student_semester_enrollments (
   academic_year_id TEXT NOT NULL,
   batch_id TEXT,
   enrollment_status TEXT NOT NULL DEFAULT 'Enrolled',
-  enrolled_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  enrolled_at TEXT DEFAULT (NOW()::TEXT),
   is_active INTEGER DEFAULT 1,
   FOREIGN KEY (student_id) REFERENCES students(id)
 );
@@ -225,7 +228,7 @@ CREATE TABLE IF NOT EXISTS course_attendance_records (
   date TEXT NOT NULL,
   session_type TEXT NOT NULL DEFAULT 'THEORY',
   status TEXT NOT NULL DEFAULT 'PRESENT',
-  marked_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  marked_at TEXT DEFAULT (NOW()::TEXT),
   marked_by TEXT NOT NULL,
   finalized INTEGER DEFAULT 1,
   remarks TEXT,
@@ -233,23 +236,23 @@ CREATE TABLE IF NOT EXISTS course_attendance_records (
   FOREIGN KEY (course_id) REFERENCES courses(id)
 );
 
--- 12. Course Marks (Continuous Internal Assessments + Exam)
+-- 12. Course Marks
 CREATE TABLE IF NOT EXISTS course_marks (
   id TEXT PRIMARY KEY,
   student_id TEXT NOT NULL,
   course_id TEXT NOT NULL,
   semester INTEGER NOT NULL,
   academic_year TEXT NOT NULL DEFAULT '2026-27',
-  cia1 REAL,
-  cia2 REAL,
-  cia3 REAL,
-  assignment_marks REAL,
-  practical_marks REAL,
-  internal_total REAL,
-  final_exam_marks REAL,
+  cia1 NUMERIC(5,2),
+  cia2 NUMERIC(5,2),
+  cia3 NUMERIC(5,2),
+  assignment_marks NUMERIC(5,2),
+  practical_marks NUMERIC(5,2),
+  internal_total NUMERIC(5,2),
+  final_exam_marks NUMERIC(5,2),
   final_grade TEXT,
   updated_by TEXT NOT NULL,
-  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT (NOW()::TEXT),
   status TEXT DEFAULT 'Finalized',
   FOREIGN KEY (student_id) REFERENCES students(id),
   FOREIGN KEY (course_id) REFERENCES courses(id)
@@ -283,7 +286,7 @@ CREATE TABLE IF NOT EXISTS counseling_referrals (
   faculty_remarks TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   mentor_visible_status TEXT NOT NULL DEFAULT 'Under Review',
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT DEFAULT (NOW()::TEXT),
   closed_at TEXT,
   notes_count INTEGER DEFAULT 0,
   FOREIGN KEY (student_id) REFERENCES students(id)
@@ -297,7 +300,7 @@ CREATE TABLE IF NOT EXISTS counseling_notes (
   treatment_plan TEXT NOT NULL,
   created_by_counselor_id TEXT NOT NULL,
   created_by_counselor_name TEXT NOT NULL,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT DEFAULT (NOW()::TEXT),
   is_confidential INTEGER DEFAULT 1,
   FOREIGN KEY (referral_id) REFERENCES counseling_referrals(id)
 );
@@ -325,7 +328,7 @@ CREATE TABLE IF NOT EXISTS sms_templates (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   body TEXT NOT NULL,
-  variables TEXT, -- JSON array of variable names
+  variables TEXT,
   is_active INTEGER DEFAULT 1
 );
 
@@ -340,7 +343,7 @@ CREATE TABLE IF NOT EXISTS sms_messages (
   body TEXT NOT NULL,
   channel TEXT DEFAULT 'SMS_GATEWAY',
   status TEXT DEFAULT 'sent',
-  sent_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  sent_at TEXT DEFAULT (NOW()::TEXT),
   provider_message_id TEXT,
   idempotency_key TEXT,
   is_working_day INTEGER DEFAULT 1
@@ -358,7 +361,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   before_json TEXT,
   after_json TEXT,
   ip TEXT DEFAULT '127.0.0.1',
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT DEFAULT (NOW()::TEXT)
 );
 
 -- 21. Department Notices
@@ -384,7 +387,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   status TEXT NOT NULL DEFAULT 'ACTIVE',
   student_quota INTEGER NOT NULL DEFAULT 1000,
   admin_email TEXT NOT NULL,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT DEFAULT (NOW()::TEXT)
 );
 
 -- 23. Weekly Timetable Schedules
@@ -422,7 +425,7 @@ CREATE TABLE IF NOT EXISTS attendance_correction_requests (
   admin_remarks TEXT,
   reviewed_by TEXT,
   reviewed_at TEXT,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT DEFAULT (NOW()::TEXT),
   FOREIGN KEY (student_id) REFERENCES students(id),
   FOREIGN KEY (course_id) REFERENCES courses(id)
 );
@@ -452,10 +455,10 @@ CREATE TABLE IF NOT EXISTS security_incidents (
   user_id TEXT,
   user_email TEXT,
   resolved INTEGER DEFAULT 0,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT DEFAULT (NOW()::TEXT)
 );
 
--- Create Indexes for performance & Strict Deduplication
+-- Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_students_semester ON students(semester);
 CREATE INDEX IF NOT EXISTS idx_courses_semester ON courses(semester);
@@ -468,7 +471,7 @@ CREATE INDEX IF NOT EXISTS idx_correction_student ON attendance_correction_reque
 CREATE INDEX IF NOT EXISTS idx_correction_status ON attendance_correction_requests(status);
 CREATE INDEX IF NOT EXISTS idx_documents_student ON student_documents(student_id);
 
--- Strict UNIQUE constraints to permanently prevent duplicate records
+-- Unique constraints (using DO NOTHING on conflict)
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email ON users(email);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_students_id_code ON students(student_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_students_email ON students(email);

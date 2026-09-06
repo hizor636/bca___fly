@@ -4,7 +4,7 @@ import { cleanDatabase, wipeDatabase } from './seeder.js';
 
 async function main() {
   await dbManager.init();
-  cleanDatabase();
+  await cleanDatabase();
 
   const args = process.argv.slice(2);
 
@@ -12,36 +12,36 @@ async function main() {
   if (args.length > 0) {
     const query = args.join(' ').trim();
     if (query === '.clean' || query === 'clean') {
-      const res = wipeDatabase();
+      const res = await wipeDatabase();
       console.log(`✅ Database wiped clean (${res.clearedTables.length} tables truncated).`);
       process.exit(0);
     }
     if (query === '.tables' || query === 'tables') {
-      const tables = dbManager.getTableNames();
+      const tables = await dbManager.getTableNames();
       console.log('\n📊 Database Tables (' + tables.length + ' total):');
       console.log(tables.map(t => '  • ' + t).join('\n'));
       console.log('');
       process.exit(0);
     }
     if (query === '.stats' || query === 'stats') {
-      const stats = dbManager.getStats();
+      const stats = await dbManager.getStats();
       console.log('\n📈 Database Statistics:');
       console.log(`  • Engine:     ${stats.engine}`);
-      console.log(`  • File:       ${stats.dbFilePath}`);
-      console.log(`  • File Size:  ${stats.databaseSizeKb} KB`);
+      console.log(`  • Connection: ${stats.dbFilePath}`);
+      console.log(`  • DB Size:    ${stats.databaseSizeKb} KB`);
       console.log(`  • Tables:     ${stats.tableCount}`);
       console.log(`  • Total Rows: ${stats.totalRows}\n`);
       process.exit(0);
     }
-    executeQuery(query);
+    await executeQuery(query);
     process.exit(0);
   }
 
   // Otherwise launch Interactive SQL Console in Terminal
   console.clear();
   console.log('╔══════════════════════════════════════════════════════════════════╗');
-  console.log('║               BCAFly SQLite Interactive Console                  ║');
-  console.log('║       Connected to: server/data/bcafly.sqlite                    ║');
+  console.log('║               BCAFly PostgreSQL Interactive Console              ║');
+  console.log('║       Connected to: PostgreSQL via DATABASE_URL                  ║');
   console.log('╚══════════════════════════════════════════════════════════════════╝');
   console.log('Commands:');
   console.log('  • Type any SQL statement (e.g. SELECT * FROM users LIMIT 5;)');
@@ -62,7 +62,7 @@ async function main() {
 
   let multilineBuffer = '';
 
-  rl.on('line', (line) => {
+  rl.on('line', async (line) => {
     const trimmed = line.trim();
 
     if (!trimmed) {
@@ -76,14 +76,14 @@ async function main() {
     }
 
     if (trimmed.toLowerCase() === '.clean' || trimmed.toLowerCase() === 'clean') {
-      const res = wipeDatabase();
+      const res = await wipeDatabase();
       console.log(`\n✅ Nuclear Clean complete: ${res.clearedTables.length} tables truncated (${res.executionTimeMs}ms).\n`);
       rl.prompt();
       return;
     }
 
     if (trimmed.toLowerCase() === '.tables') {
-      const tables = dbManager.getTableNames();
+      const tables = await dbManager.getTableNames();
       console.log('\n📊 Database Tables (' + tables.length + ' total):');
       console.log(tables.map(t => '  • ' + t).join('\n'));
       console.log('');
@@ -98,7 +98,7 @@ async function main() {
         console.log('Usage: .schema <table_name>');
       } else {
         try {
-          const info = dbManager.getTableInfo(tableName);
+          const info = await dbManager.getTableInfo(tableName);
           console.log(`\n📋 Schema for "${tableName}" (${info.rowCount} rows):`);
           console.table(info.columns.map(c => ({
             Column: c.name,
@@ -116,11 +116,11 @@ async function main() {
     }
 
     if (trimmed.toLowerCase() === '.stats') {
-      const stats = dbManager.getStats();
+      const stats = await dbManager.getStats();
       console.log('\n📈 Database Statistics:');
       console.log(`  • Engine:     ${stats.engine}`);
-      console.log(`  • File:       ${stats.dbFilePath}`);
-      console.log(`  • File Size:  ${stats.databaseSizeKb} KB`);
+      console.log(`  • Connection: ${stats.dbFilePath}`);
+      console.log(`  • DB Size:    ${stats.databaseSizeKb} KB`);
       console.log(`  • Tables:     ${stats.tableCount}`);
       console.log(`  • Total Rows: ${stats.totalRows}\n`);
       rl.prompt();
@@ -148,7 +148,7 @@ async function main() {
     if (multilineBuffer.endsWith(';') || !trimmed.includes(' ')) {
       const sqlToExecute = multilineBuffer.replace(/;$/, '');
       multilineBuffer = '';
-      executeQuery(sqlToExecute);
+      await executeQuery(sqlToExecute);
     }
 
     rl.prompt();
@@ -160,13 +160,13 @@ async function main() {
   });
 }
 
-function executeQuery(sql: string) {
-  const isSelect = /^\s*(SELECT|PRAGMA|EXPLAIN)/i.test(sql);
+async function executeQuery(sql: string) {
+  const isSelect = /^\s*(SELECT|EXPLAIN)/i.test(sql);
   const start = performance.now();
 
   try {
     if (isSelect) {
-      const result = dbManager.query(sql);
+      const result = await dbManager.query(sql);
       const duration = (performance.now() - start).toFixed(2);
       if (result.rows.length === 0) {
         console.log(`\n(0 rows returned in ${duration}ms)\n`);
@@ -176,7 +176,7 @@ function executeQuery(sql: string) {
         console.log('');
       }
     } else {
-      const res = dbManager.run(sql);
+      const res = await dbManager.run(sql);
       const duration = (performance.now() - start).toFixed(2);
       console.log(`\n✅ Query executed successfully (${duration}ms). Changes applied to database.\n`);
     }

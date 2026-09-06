@@ -12,7 +12,7 @@ BcaFly is a modern institutional academic management platform designed for the D
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  [TypeScript: 98.5%]                                                        │
 │  ├── Frontend: React 19 • Vite 6 • Tailwind CSS 4 • Lucide Icons            │
-│  └── Backend: Node.js 22 • Express 5 • TSX • sql.js / SQLite 3 / PostgreSQL │
+│  └── Backend: Node.js 22 • Express 5 • TSX • PostgreSQL 18                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  [Python: 1.3%]                                                             │
 │  └── Analytics Microservice: Python 3.12 • Flask • Pandas • NumPy           │
@@ -27,9 +27,9 @@ BcaFly is a modern institutional academic management platform designed for the D
 | Technology Layer | Languages & Frameworks | Codebase Share | Purpose & Core Capabilities |
 |---|---|---|---|
 | **Frontend Application** | **TypeScript 5.8**, React 19, Vite 6, Tailwind CSS 4, Lucide Icons | **~65%** | Multi-portal interfaces (Admin, Faculty, Student, Guardian, Counselor), live reactive contexts (`DemoContext.tsx`), assignment-scoped views, clean zero-record states. |
-| **Core Backend REST API** | **TypeScript 5.8**, Node.js 22, Express 5, TSX, sql.js WASM / PostgreSQL Layer | **~33.5%** | Authoritative Single Source of Truth database engine (29 relational tables), role-based middleware, transactional CSV batch importers, immutable audit logger. |
+| **Core Backend REST API** | **TypeScript 5.8**, Node.js 22, Express 5, TSX, PostgreSQL 18 Layer | **~33.5%** | Authoritative Single Source of Truth database engine (29 relational tables), role-based middleware, transactional CSV batch importers, immutable audit logger. |
 | **Analytics & AI Engine** | **Python 3.12**, Flask, Pandas, NumPy | **1.3%** | Attendance shortage trajectory forecaster, statistical CIA marks distribution, condonation eligibility calculator, academic risk classification (`server/python/analytics_service.py`). |
-| **Infrastructure & DDL** | SQLite 3 / PostgreSQL DDL, JSON, PowerShell / Bash | **0.2%** | Relational schemas, foreign key constraints, migration scripts, platform architecture specifications. |
+| **Infrastructure & DDL** | PostgreSQL 18 DDL, JSON, PowerShell / Bash | **0.2%** | Relational schemas, foreign key constraints, migration scripts, platform architecture specifications. |
 
 ---
 

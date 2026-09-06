@@ -149,7 +149,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
         createdBy: currentUser?.name || 'Admin'
       });
 
-      setFeedback({ type: 'success', message: `User "${formData.name}" was successfully registered in SQLite database.` });
+      setFeedback({ type: 'success', message: `User "${formData.name}" was successfully registered in PostgreSQL database.` });
       setIsAddModalOpen(false);
       loadUsersData();
       if (onRefreshGlobal) onRefreshGlobal();
@@ -462,7 +462,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
             <button
               onClick={() => loadUsersData()}
               className="p-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
-              title="Refresh users from SQLite"
+              title="Refresh users from PostgreSQL"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
             </button>
@@ -506,7 +506,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-                    Loading users from SQLite...
+                    Loading users from PostgreSQL...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
@@ -686,7 +686,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">Add New User</h3>
-                  <p className="text-xs text-slate-400">Creates record in SQLite database</p>
+                  <p className="text-xs text-slate-400">Creates record in PostgreSQL database</p>
                 </div>
               </div>
               <button

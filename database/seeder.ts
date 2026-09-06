@@ -1,28 +1,28 @@
 import { dbManager } from './database.js';
 
-export function wipeDatabase(): { clearedTables: string[]; executionTimeMs: number } {
+export async function wipeDatabase(): Promise<{ clearedTables: string[]; executionTimeMs: number }> {
   console.log('[Database Seeder] Nuclear wipe requested: clearing all tables...');
-  return dbManager.wipeAllTables();
+  return await dbManager.wipeAllTables();
 }
 
-export function cleanDatabase(): void {
+export async function cleanDatabase(): Promise<void> {
   console.log('[Database Seeder] Ensuring database is clean with zero demo data...');
   // Database schema is already created by dbManager.init()
 }
 
-export function seedDatabase(force = false): void {
+export async function seedDatabase(force = false): Promise<void> {
   if (!force) {
     console.log('[Database Seeder] Skipping auto-seed (clean platform mode enabled).');
     return;
   }
 
   console.log('[Database Seeder] Initializing pristine database with multi-role accounts...');
-  dbManager.wipeAllTables();
+  await dbManager.wipeAllTables();
 
   // 1. Tenants
-  dbManager.run(
-    `INSERT OR IGNORE INTO tenants (id, name, code, domain, plan, status, student_quota, admin_email)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  await dbManager.run(
+    `INSERT INTO tenants (id, name, code, domain, plan, status, student_quota, admin_email)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT DO NOTHING`,
     [
       'tenant-1',
       'Apex University - Department of Computer Applications',
@@ -36,12 +36,12 @@ export function seedDatabase(force = false): void {
   );
 
   // 2. Core Departments
-  dbManager.run(
-    'INSERT OR IGNORE INTO departments (id, name, code) VALUES (?, ?, ?)',
+  await dbManager.run(
+    'INSERT INTO departments (id, name, code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
     ['dept-bca', 'Department of Computer Applications', 'BCA']
   );
-  dbManager.run(
-    'INSERT OR IGNORE INTO departments (id, name, code) VALUES (?, ?, ?)',
+  await dbManager.run(
+    'INSERT INTO departments (id, name, code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
     ['dept-mca', 'Department of Master in Computer Applications', 'MCA']
   );
 
@@ -56,17 +56,17 @@ export function seedDatabase(force = false): void {
   ];
 
   for (const sem of semesters) {
-    dbManager.run(
-      'INSERT OR IGNORE INTO semesters (id, number, name, year, start_date, end_date, is_current, total_enrolled) VALUES (?, ?, ?, ?, ?, ?, ?, 42)',
+    await dbManager.run(
+      'INSERT INTO semesters (id, number, name, year, start_date, end_date, is_current, total_enrolled) VALUES ($1, $2, $3, $4, $5, $6, $7, 42) ON CONFLICT DO NOTHING',
       [sem.id, sem.number, sem.name, sem.year, sem.startDate, sem.endDate, sem.number === 5 ? 1 : 0]
     );
   }
 
   // 4. Multi-Role User Accounts
   // 4.1 Super Admin
-  dbManager.run(
-    `INSERT OR IGNORE INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
-     VALUES (?, ?, ?, ?, ?, ?, 1, ?, 'bg-slate-900', 'text-white', ?)`,
+  await dbManager.run(
+    `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
+     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, 'bg-slate-900', 'text-white', $8) ON CONFLICT DO NOTHING`,
     [
       'super-admin-1',
       'Platform Director Sarah Vance',
@@ -80,9 +80,9 @@ export function seedDatabase(force = false): void {
   );
 
   // 4.2 Department Admin
-  dbManager.run(
-    `INSERT OR IGNORE INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
-     VALUES (?, ?, ?, ?, ?, ?, 1, ?, 'bg-purple-100', 'text-purple-700', ?)`,
+  await dbManager.run(
+    `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
+     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, 'bg-purple-100', 'text-purple-700', $8) ON CONFLICT DO NOTHING`,
     [
       'admin-1',
       'Dr. V. Swaminathan (HOD)',
@@ -96,9 +96,9 @@ export function seedDatabase(force = false): void {
   );
 
   // 4.3 Faculty Members
-  dbManager.run(
-    `INSERT OR IGNORE INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
-     VALUES (?, ?, ?, ?, ?, ?, 1, ?, 'bg-indigo-100', 'text-indigo-700', ?)`,
+  await dbManager.run(
+    `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
+     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, 'bg-indigo-100', 'text-indigo-700', $8) ON CONFLICT DO NOTHING`,
     [
       'faculty-1',
       'Prof. Sarah Jenkins',
@@ -110,9 +110,9 @@ export function seedDatabase(force = false): void {
       'Associate Professor & Mentor'
     ]
   );
-  dbManager.run(
-    `INSERT OR IGNORE INTO faculty (id, name, designation, department, email, phone, office, assigned_students_count, specialization, courses)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  await dbManager.run(
+    `INSERT INTO faculty (id, name, designation, department, email, phone, office, assigned_students_count, specialization, courses)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT DO NOTHING`,
     [
       'faculty-1',
       'Prof. Sarah Jenkins',
@@ -128,9 +128,9 @@ export function seedDatabase(force = false): void {
   );
 
   // 4.4 Students
-  dbManager.run(
-    `INSERT OR IGNORE INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id, semester)
-     VALUES (?, ?, ?, ?, ?, ?, 1, ?, 'bg-emerald-100', 'text-emerald-700', 'Student', ?, 5)`,
+  await dbManager.run(
+    `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id, semester)
+     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, 'bg-emerald-100', 'text-emerald-700', 'Student', $8, 5) ON CONFLICT DO NOTHING`,
     [
       'student-1',
       'Alexander Wright',
@@ -142,9 +142,9 @@ export function seedDatabase(force = false): void {
       'BCA2024001'
     ]
   );
-  dbManager.run(
-    `INSERT OR IGNORE INTO students (id, student_id, name, initials, avatar_bg, avatar_text, course, semester, section, email, phone, parent_phone, attendance_rate, mentoring_status, cgpa, sgpa_history, assigned_faculty, assigned_faculty_id, weekly_attendance, total_classes_held, total_classes_attended, condonation_eligible, condonation_status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  await dbManager.run(
+    `INSERT INTO students (id, student_id, name, initials, avatar_bg, avatar_text, course, semester, section, email, phone, parent_phone, attendance_rate, mentoring_status, cgpa, sgpa_history, assigned_faculty, assigned_faculty_id, weekly_attendance, total_classes_held, total_classes_attended, condonation_eligible, condonation_status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) ON CONFLICT DO NOTHING`,
     [
       'student-1',
       'BCA2024001',
@@ -173,9 +173,9 @@ export function seedDatabase(force = false): void {
   );
 
   // 4.5 Parent Account
-  dbManager.run(
-    `INSERT OR IGNORE INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id)
-     VALUES (?, ?, ?, ?, ?, ?, 1, ?, 'bg-amber-100', 'text-amber-700', 'Parent / Guardian', ?)`,
+  await dbManager.run(
+    `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id)
+     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, 'bg-amber-100', 'text-amber-700', 'Parent / Guardian', $8) ON CONFLICT DO NOTHING`,
     [
       'parent-1',
       'Robert Wright (Parent of Alexander)',
@@ -189,9 +189,9 @@ export function seedDatabase(force = false): void {
   );
 
   // 4.6 Counselor Account
-  dbManager.run(
-    `INSERT OR IGNORE INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
-     VALUES (?, ?, ?, ?, ?, ?, 1, ?, 'bg-teal-100', 'text-teal-700', ?)`,
+  await dbManager.run(
+    `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation)
+     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, 'bg-teal-100', 'text-teal-700', $8) ON CONFLICT DO NOTHING`,
     [
       'counselor-1',
       'Dr. Elena Rostova',
@@ -214,30 +214,30 @@ export function seedDatabase(force = false): void {
   ];
 
   for (const c of initialCourses) {
-    dbManager.run(
-      `INSERT OR IGNORE INTO courses (id, course_code, course_name, semester, department_id, academic_scheme, credits, course_type, max_marks, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+    await dbManager.run(
+      `INSERT INTO courses (id, course_code, course_name, semester, department_id, academic_scheme, credits, course_type, max_marks, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 1) ON CONFLICT DO NOTHING`,
       [c.id, c.code, c.name, c.sem, 'dept-bca', 'BCA-2024-REG', c.credits, c.type, 100]
     );
 
     // Faculty Allocation
-    dbManager.run(
-      `INSERT OR IGNORE INTO faculty_course_assignments (id, faculty_id, course_id, section, batch, academic_year, term, is_active)
-       VALUES (?, ?, ?, 'A', '2024-27', '2026-27', 'Odd', 1)`,
+    await dbManager.run(
+      `INSERT INTO faculty_course_assignments (id, faculty_id, course_id, section, batch, academic_year, term, is_active)
+       VALUES ($1, $2, $3, 'A', '2024-27', '2026-27', 'Odd', 1) ON CONFLICT DO NOTHING`,
       [`fca-${c.id}`, 'faculty-1', c.id]
     );
 
     // Student Enrollment
-    dbManager.run(
-      `INSERT OR IGNORE INTO student_course_enrollments (id, student_id, course_id, academic_year, section, enrollment_status)
-       VALUES (?, ?, ?, '2026-27', 'A', 'Enrolled')`,
+    await dbManager.run(
+      `INSERT INTO student_course_enrollments (id, student_id, course_id, academic_year, section, enrollment_status)
+       VALUES ($1, $2, $3, '2026-27', 'A', 'Enrolled') ON CONFLICT DO NOTHING`,
       [`sce-${c.id}-st1`, 'student-1', c.id]
     );
 
     // Initial CIA Marks
-    dbManager.run(
-      `INSERT OR IGNORE INTO course_marks (id, student_id, course_id, semester, academic_year, cia1, cia2, cia3, assignment_marks, practical_marks, internal_total, final_grade, updated_by, status)
-       VALUES (?, ?, ?, 5, '2026-27', 18.5, 19.0, 18.0, 9.5, 19.0, 47.0, 'A+', 'faculty-1', 'Finalized')`,
+    await dbManager.run(
+      `INSERT INTO course_marks (id, student_id, course_id, semester, academic_year, cia1, cia2, cia3, assignment_marks, practical_marks, internal_total, final_grade, updated_by, status)
+       VALUES ($1, $2, $3, 5, '2026-27', 18.5, 19.0, 18.0, 9.5, 19.0, 47.0, 'A+', 'faculty-1', 'Finalized') ON CONFLICT DO NOTHING`,
       [`cm-${c.id}-st1`, 'student-1', c.id]
     );
   }
@@ -252,17 +252,17 @@ export function seedDatabase(force = false): void {
   ];
 
   for (const s of scheduleSlots) {
-    dbManager.run(
-      `INSERT OR IGNORE INTO timetables (id, semester, section, day_of_week, start_time, end_time, course_id, course_code, subject_name, faculty_id, faculty_name, room_no)
-       VALUES (?, ?, 'A', ?, ?, ?, ?, ?, ?, 'faculty-1', 'Prof. Sarah Jenkins', ?)`,
+    await dbManager.run(
+      `INSERT INTO timetables (id, semester, section, day_of_week, start_time, end_time, course_id, course_code, subject_name, faculty_id, faculty_name, room_no)
+       VALUES ($1, $2, 'A', $3, $4, $5, $6, $7, $8, 'faculty-1', 'Prof. Sarah Jenkins', $9) ON CONFLICT DO NOTHING`,
       [s.id, s.sem, s.day, s.start, s.end, s.crsId, s.code, s.name, s.room]
     );
   }
 
   // 7. Attendance Correction Requests
-  dbManager.run(
-    `INSERT OR IGNORE INTO attendance_correction_requests (id, student_id, student_name, roll_number, course_id, course_name, date, request_type, reason, attachment_url, status, admin_remarks, reviewed_by, reviewed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  await dbManager.run(
+    `INSERT INTO attendance_correction_requests (id, student_id, student_name, roll_number, course_id, course_name, date, request_type, reason, attachment_url, status, admin_remarks, reviewed_by, reviewed_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT DO NOTHING`,
     [
       'req-1',
       'student-1',
@@ -282,66 +282,40 @@ export function seedDatabase(force = false): void {
   );
 
   // 8. Student Private Documents
-  dbManager.run(
-    `INSERT OR IGNORE INTO student_documents (id, student_id, title, category, file_name, file_size_kb, upload_date, is_verified, access_token)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-    [
-      'doc-1',
-      'student-1',
-      'Official Semester 4 Marksheet & Grade Ledger',
-      'Transcript',
-      'transcript_sem4_alexander_wright.pdf',
-      340,
-      '2026-08-10',
-      'tok_sec_9941a87b'
-    ]
+  await dbManager.run(
+    `INSERT INTO student_documents (id, student_id, title, category, file_name, file_size_kb, upload_date, is_verified, access_token)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8) ON CONFLICT DO NOTHING`,
+    ['doc-1', 'student-1', 'Official Semester 4 Marksheet & Grade Ledger', 'Transcript', 'transcript_sem4_alexander_wright.pdf', 340, '2026-08-10', 'tok_sec_9941a87b']
   );
-  dbManager.run(
-    `INSERT OR IGNORE INTO student_documents (id, student_id, title, category, file_name, file_size_kb, upload_date, is_verified, access_token)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-    [
-      'doc-2',
-      'student-1',
-      'Bonafide Certificate & University Verification Proof',
-      'Certificate',
-      'bonafide_bca_2026_alexander.pdf',
-      180,
-      '2026-08-20',
-      'tok_sec_1120f44e'
-    ]
+  await dbManager.run(
+    `INSERT INTO student_documents (id, student_id, title, category, file_name, file_size_kb, upload_date, is_verified, access_token)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8) ON CONFLICT DO NOTHING`,
+    ['doc-2', 'student-1', 'Bonafide Certificate & University Verification Proof', 'Certificate', 'bonafide_bca_2026_alexander.pdf', 180, '2026-08-20', 'tok_sec_1120f44e']
   );
 
   // 9. Default Attendance Settings
-  dbManager.run(
-    'INSERT OR IGNORE INTO attendance_settings (id, daily_cutoff_time, cutoff_enforced, auto_sms_on_finalize, sms_working_days_only) VALUES (?, ?, ?, ?, ?)',
+  await dbManager.run(
+    'INSERT INTO attendance_settings (id, daily_cutoff_time, cutoff_enforced, auto_sms_on_finalize, sms_working_days_only) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING',
     ['primary', '11:30', 1, 1, 1]
   );
 
   // 10. Default SMS Templates
-  dbManager.run(
-    'INSERT OR IGNORE INTO sms_templates (id, name, body, variables, is_active) VALUES (?, ?, ?, ?, ?)',
+  await dbManager.run(
+    'INSERT INTO sms_templates (id, name, body, variables, is_active) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING',
     ['sms-1', 'Attendance Shortage Alert', 'Dear Parent, your ward {{student_name}} is absent today. Attendance is {{attendance_rate}}%.', JSON.stringify(['student_name', 'attendance_rate']), 1]
   );
 
   // 11. Security Incidents Telemetry
-  dbManager.run(
-    `INSERT OR IGNORE INTO security_incidents (id, event_type, severity, description, ip_address, user_email, resolved)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      'sec-1',
-      'BRUTE_FORCE_PREVENTION',
-      'LOW',
-      'Automated rate limiter throttled 5 rapid unauthorized requests from external subnet.',
-      '192.168.1.104',
-      'unknown@bot.net',
-      1
-    ]
+  await dbManager.run(
+    `INSERT INTO security_incidents (id, event_type, severity, description, ip_address, user_email, resolved)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING`,
+    ['sec-1', 'BRUTE_FORCE_PREVENTION', 'LOW', 'Automated rate limiter throttled 5 rapid unauthorized requests from external subnet.', '192.168.1.104', 'unknown@bot.net', 1]
   );
 
   // 12. Department Notices
-  dbManager.run(
-    `INSERT OR IGNORE INTO notices (id, title, subtitle, date, is_new, priority, body, action_label, deadline)
-     VALUES (?, ?, ?, ?, 1, 'High', ?, 'View Guidelines', '2026-09-15')`,
+  await dbManager.run(
+    `INSERT INTO notices (id, title, subtitle, date, is_new, priority, body, action_label, deadline)
+     VALUES ($1, $2, $3, $4, 1, 'High', $5, 'View Guidelines', '2026-09-15') ON CONFLICT DO NOTHING`,
     [
       'not-1',
       'CIA-2 Continuous Internal Assessment Schedule Published',
@@ -351,7 +325,15 @@ export function seedDatabase(force = false): void {
     ]
   );
 
-  dbManager.persist();
   console.log('[Database Seeder] Multi-role test database ready.');
 }
 
+// Allow running directly: tsx database/seeder.ts
+if (process.argv[1]?.includes('seeder')) {
+  (async () => {
+    await dbManager.init();
+    await seedDatabase(true);
+    console.log('Seeding complete.');
+    process.exit(0);
+  })();
+}

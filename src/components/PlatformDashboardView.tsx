@@ -147,8 +147,8 @@ export const PlatformDashboardView: React.FC<PlatformDashboardViewProps> = ({
 
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Database Engine</span>
-          <div className="text-2xl font-bold text-slate-900 font-mono">SQLite / sql.js</div>
-          <span className="text-[11px] text-slate-500">26 Tables • Indexed Scopes</span>
+          <div className="text-2xl font-bold text-slate-900 font-mono">PostgreSQL 18</div>
+          <span className="text-[11px] text-slate-500">29 Tables • Indexed Scopes</span>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-1">
@@ -443,7 +443,7 @@ export const PlatformDashboardView: React.FC<PlatformDashboardViewProps> = ({
             <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
               <h4 className="font-bold text-slate-900 text-sm">Download Full Cluster Snapshot</h4>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Generate an encrypted SQLite / JSON snapshot of all 26 schema tables including audit trails and marks ledgers.
+                Generate an encrypted PostgreSQL / JSON snapshot of all 29 schema tables including audit trails and marks ledgers.
               </p>
               <button
                 onClick={() => alert('Snapshot downloaded successfully (simulated).')}

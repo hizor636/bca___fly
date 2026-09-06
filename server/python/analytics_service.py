@@ -1,7 +1,8 @@
 import os
 import sys
 import json
-import sqlite3
+import urllib.request
+import urllib.parse
 import numpy as np
 import pandas as pd
 from flask import Flask, request, jsonify, make_response
@@ -24,22 +25,46 @@ def handle_preflight():
         res.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
         return res
 
-DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../data/bcafly.sqlite'))
+API_BASE_URL = os.environ.get('API_BASE_URL', 'http://localhost:5000')
 
-def get_db_connection():
-    if not os.path.exists(DB_PATH):
+def query_postgres(sql, params=None):
+    """
+    Executes SQL directly against the live BCAFly PostgreSQL backend via internal API query console.
+    Returns a pandas DataFrame.
+    """
+    url = f"{API_BASE_URL}/api/db/query"
+    payload = json.dumps({'sql': sql, 'params': params or []}).encode('utf-8')
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={'Content-Type': 'application/json'},
+        method='POST'
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            if data.get('success') and 'rows' in data:
+                return pd.DataFrame(data['rows'])
+            return pd.DataFrame()
+    except Exception as e:
+        print(f"[Python Analytics] Database query failed: {e}", file=sys.stderr)
         return None
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 # 1. Health & Engine Status
 @app.route('/health', methods=['GET'])
 def health():
+    db_ok = False
+    try:
+        df = query_postgres("SELECT 1 as ping")
+        db_ok = df is not None and not df.empty
+    except Exception:
+        pass
+
     return jsonify({
         'status': 'online',
         'engine': 'Python 3.12 (Flask + Pandas + NumPy AI Engine)',
-        'databaseConnected': os.path.exists(DB_PATH)
+        'databaseConnected': db_ok,
+        'databaseEngine': 'PostgreSQL 18'
     })
 
 # 2. Predictive Attendance Shortage Forecaster (Pandas/NumPy)
@@ -53,12 +78,10 @@ def forecast_attendance():
     student_id = data.get('studentId')
     total_planned_classes = data.get('totalPlannedClasses', 60)
     
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({'error': 'Database unavailable'}), 500
-    
     try:
-        df = pd.read_sql_query("SELECT * FROM students WHERE id = ? OR student_id = ?", conn, params=[student_id, student_id])
+        df = query_postgres("SELECT * FROM students WHERE id = $1 OR student_id = $2", [student_id, student_id])
+        if df is None:
+            return jsonify({'error': 'Database unavailable'}), 500
         if df.empty:
             return jsonify({'error': 'Student not found'}), 404
         
@@ -76,7 +99,6 @@ def forecast_attendance():
         remaining_classes = max(0, total_planned_classes - held)
         
         # Required to reach 75% at end of semester
-        # (attended + x) / total_planned >= 0.75 => x >= 0.75 * total_planned - attended
         min_needed = int(np.ceil(0.75 * total_planned_classes - attended))
         min_needed = max(0, min_needed)
         
@@ -99,9 +121,9 @@ def forecast_attendance():
             
         return jsonify({
             'success': True,
-            'studentId': row['student_id'],
-            'name': row['name'],
-            'semester': int(row['semester']),
+            'studentId': row.get('student_id', ''),
+            'name': row.get('name', ''),
+            'semester': int(row.get('semester', 1) or 1),
             'currentAttendancePercent': round(current_rate, 2),
             'classesHeld': held,
             'classesAttended': attended,
@@ -114,8 +136,6 @@ def forecast_attendance():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    finally:
-        conn.close()
 
 # 3. Multivariate Academic & Dropout Risk Scoring (Pandas/NumPy)
 @app.route('/analytics/risk-matrix', methods=['GET'])
@@ -126,26 +146,27 @@ def calculate_risk_matrix():
     - Internal marks deficit weight (35%)
     - CGPA performance trajectory (20%)
     """
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({'error': 'Database unavailable'}), 500
-    
     try:
-        students_df = pd.read_sql_query("SELECT id, student_id, name, semester, attendance_rate, cgpa, assigned_faculty FROM students", conn)
-        marks_df = pd.read_sql_query("SELECT student_id, AVG(internal_total) as avg_internal FROM course_marks GROUP BY student_id", conn)
+        students_df = query_postgres("SELECT id, student_id, name, semester, attendance_rate, cgpa, assigned_faculty FROM students")
+        marks_df = query_postgres("SELECT student_id, AVG(internal_total) as avg_internal FROM course_marks GROUP BY student_id")
         
-        if students_df.empty:
+        if students_df is None or students_df.empty:
             return jsonify({'success': True, 'riskMatrix': []})
         
         # Merge datasets
-        merged = pd.merge(students_df, marks_df, left_on='id', right_on='student_id', how='left')
-        merged['avg_internal'] = merged['avg_internal'].fillna(21.0) # default internal average out of 30
+        if marks_df is not None and not marks_df.empty:
+            merged = pd.merge(students_df, marks_df, left_on='id', right_on='student_id', how='left')
+        else:
+            merged = students_df.copy()
+            merged['avg_internal'] = 21.0
+            
+        merged['avg_internal'] = merged['avg_internal'].fillna(21.0)
         
         results = []
         for _, row in merged.iterrows():
-            att = float(row['attendance_rate'] or 0)
-            cgpa = float(row['cgpa'] or 0)
-            internal = float(row['avg_internal'] or 0)
+            att = float(row.get('attendance_rate', 0) or 0)
+            cgpa = float(row.get('cgpa', 0) or 0)
+            internal = float(row.get('avg_internal', 0) or 0)
             
             # Sub-scores (0 to 100, higher means greater risk)
             att_risk = max(0.0, min(100.0, (75.0 - att) * 4.0)) if att < 75.0 else 0.0
@@ -161,12 +182,13 @@ def calculate_risk_matrix():
             else:
                 tier = 'Normal Progress'
                 
+            student_id_val = row.get('student_id_x', row.get('student_id', ''))
             results.append({
-                'id': row['id'],
-                'studentId': row['student_id_x'],
-                'name': row['name'],
-                'semester': int(row['semester']),
-                'assignedFaculty': row['assigned_faculty'],
+                'id': row.get('id', ''),
+                'studentId': student_id_val,
+                'name': row.get('name', ''),
+                'semester': int(row.get('semester', 1) or 1),
+                'assignedFaculty': row.get('assigned_faculty', ''),
                 'attendanceRate': att,
                 'cgpa': cgpa,
                 'avgInternalMarks': round(internal, 1),
@@ -183,26 +205,20 @@ def calculate_risk_matrix():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    finally:
-        conn.close()
 
 # 4. Cohort Statistical Distribution (NumPy Quartiles, Mean, Standard Deviation)
 @app.route('/analytics/cohort-stats', methods=['GET'])
 def cohort_statistics():
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({'error': 'Database unavailable'}), 500
-    
     try:
-        df = pd.read_sql_query("SELECT semester, attendance_rate, cgpa FROM students WHERE attendance_rate > 0", conn)
-        if df.empty:
+        df = query_postgres("SELECT semester, attendance_rate, cgpa FROM students WHERE attendance_rate > 0")
+        if df is None or df.empty:
             return jsonify({'success': True, 'stats': {}})
         
         cohort_data = {}
         for sem in sorted(df['semester'].unique()):
             sem_df = df[df['semester'] == sem]
-            att_series = sem_df['attendance_rate'].to_numpy()
-            cgpa_series = sem_df['cgpa'].to_numpy()
+            att_series = sem_df['attendance_rate'].astype(float).to_numpy()
+            cgpa_series = sem_df['cgpa'].astype(float).to_numpy()
             
             cohort_data[f'Semester_{sem}'] = {
                 'enrolledCount': int(len(sem_df)),
@@ -232,8 +248,6 @@ def cohort_statistics():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    finally:
-        conn.close()
 
 # 5. AI Mentoring Action & SMS Recommendation Engine
 @app.route('/analytics/ai-mentoring-prompt', methods=['POST'])
@@ -272,5 +286,5 @@ def generate_ai_mentoring_advice():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
-    print(f"[Python AI Engine] BCAFly Python AI & Analytics Service listening on http://localhost:{port}")
+    print(f"[Python AI Engine] BCAFly Python AI & Analytics Service listening on http://localhost:{port} (PostgreSQL backend)")
     app.run(host='0.0.0.0', port=port, debug=False)

@@ -139,8 +139,8 @@ export const DatabaseStudioView: React.FC<DatabaseStudioViewProps> = ({ onNaviga
   // Backup & Restore State
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
   const [syncLogs, setSyncLogs] = useState<{ time: string; action: string; status: string }[]>([
-    { time: 'Just now', action: 'Engine Boot & Schema Verification', status: 'Success (21 Tables OK)' },
-    { time: '1 min ago', action: 'SQLite Data Persistence Synchronization', status: 'Synced to Disk' }
+    { time: 'Just now', action: 'Engine Boot & Schema Verification', status: 'Success (29 Tables OK)' },
+    { time: '1 min ago', action: 'PostgreSQL Connection Pool Initialized', status: 'Connected' }
   ]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -337,7 +337,7 @@ export const DatabaseStudioView: React.FC<DatabaseStudioViewProps> = ({ onNaviga
                 <h1 className="text-xl font-bold text-white tracking-tight">BCAFly Database Platform</h1>
                 <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  {health?.online ? 'SQLite Live Engine' : 'Offline Engine'}
+                  {health?.online ? (stats?.engine || 'PostgreSQL 18') : 'Offline Engine'}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
@@ -432,10 +432,10 @@ export const DatabaseStudioView: React.FC<DatabaseStudioViewProps> = ({ onNaviga
                   <span>Engine Architecture</span>
                   <Database className="w-4 h-4 text-indigo-400" />
                 </div>
-                <div className="text-xl font-bold text-white mb-1">SQLite 3.45</div>
+                <div className="text-xl font-bold text-white mb-1">{stats?.engine || 'PostgreSQL 18'}</div>
                 <div className="text-xs text-slate-400 flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  WASM In-Memory + Disk Sync
+                  Port 5434 • Local Cluster
                 </div>
               </div>
 
@@ -947,7 +947,7 @@ export const DatabaseStudioView: React.FC<DatabaseStudioViewProps> = ({ onNaviga
                 <div className="flex items-center justify-between pt-1">
                   <div className="text-xs text-slate-400 flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span>Live SQLite Transaction Engine</span>
+                    <span>Live PostgreSQL Transaction Engine</span>
                   </div>
                   <button
                     onClick={handleExecuteSql}
@@ -1235,7 +1235,7 @@ export const DatabaseStudioView: React.FC<DatabaseStudioViewProps> = ({ onNaviga
                 </div>
 
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  Upload an existing <code className="text-emerald-400 font-mono">.sql</code> dump or <code className="text-emerald-400 font-mono">.json</code> backup to replace or synchronize the active SQLite database.
+                  Upload an existing <code className="text-emerald-400 font-mono">.sql</code> dump or <code className="text-emerald-400 font-mono">.json</code> backup to replace or synchronize the active PostgreSQL database.
                 </p>
 
                 <div className="pt-2">

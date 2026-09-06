@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
-import { dbManager } from '../db/database.js';
-import { seedDatabase, wipeDatabase } from '../db/seeder.js';
+import { dbManager } from '../../database/database.js';
+import { seedDatabase, wipeDatabase } from '../../database/seeder.js';
 
 export const dbStudioRouter = Router();
 
 // 1. Database Stats & Health
-dbStudioRouter.get('/stats', (req: Request, res: Response) => {
+dbStudioRouter.get('/stats', async (req: Request, res: Response) => {
   try {
-    const stats = dbManager.getStats();
+    const stats = await dbManager.getStats();
     res.json({ success: true, data: stats });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -15,9 +15,9 @@ dbStudioRouter.get('/stats', (req: Request, res: Response) => {
 });
 
 // 2. Full Schema Introspection
-dbStudioRouter.get('/schema', (req: Request, res: Response) => {
+dbStudioRouter.get('/schema', async (req: Request, res: Response) => {
   try {
-    const tables = dbManager.getAllTablesInfo();
+    const tables = await dbManager.getAllTablesInfo();
     res.json({ success: true, data: { tables } });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -25,7 +25,7 @@ dbStudioRouter.get('/schema', (req: Request, res: Response) => {
 });
 
 // 3. Raw SQL Query Console
-dbStudioRouter.post('/query', (req: Request, res: Response) => {
+dbStudioRouter.post('/query', async (req: Request, res: Response) => {
   const { sql, params } = req.body;
   if (!sql || typeof sql !== 'string') {
     return res.status(400).json({ success: false, error: 'Valid SQL string is required in body.sql' });
@@ -37,7 +37,7 @@ dbStudioRouter.post('/query', (req: Request, res: Response) => {
     const isSelectLike = /^(SELECT|PRAGMA|EXPLAIN|WITH)\b/i.test(trimmed);
 
     if (isSelectLike) {
-      const result = dbManager.query(trimmed, params || []);
+      const result = await dbManager.query(trimmed, params || []);
       res.json({
         success: true,
         type: 'SELECT',
@@ -50,7 +50,7 @@ dbStudioRouter.post('/query', (req: Request, res: Response) => {
       // Multiple statements or DDL / DML
       if (trimmed.includes(';')) {
         const start = performance.now();
-        dbManager.exec(trimmed);
+        await dbManager.exec(trimmed);
         const executionTimeMs = Number((performance.now() - start).toFixed(2));
         res.json({
           success: true,
@@ -59,7 +59,7 @@ dbStudioRouter.post('/query', (req: Request, res: Response) => {
           executionTimeMs
         });
       } else {
-        const result = dbManager.run(trimmed, params || []);
+        const result = await dbManager.run(trimmed, params || []);
         res.json({
           success: true,
           type: 'RUN',
@@ -78,7 +78,7 @@ dbStudioRouter.post('/query', (req: Request, res: Response) => {
 });
 
 // 4. Generic Table Explorer Data with pagination & search
-dbStudioRouter.get('/tables/:table', (req: Request, res: Response) => {
+dbStudioRouter.get('/tables/:table', async (req: Request, res: Response) => {
   const table = String(req.params.table);
   const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
   const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string, 10) || 50));
@@ -86,13 +86,13 @@ dbStudioRouter.get('/tables/:table', (req: Request, res: Response) => {
   const sortBy = (req.query.sortBy as string) || '';
   const sortDir = (req.query.sortDir as string)?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
-  const validTables = dbManager.getTableNames();
+  const validTables = await dbManager.getTableNames();
   if (!validTables.includes(table)) {
     return res.status(404).json({ success: false, error: `Table "${table}" does not exist in database` });
   }
 
   try {
-    const tableInfo = dbManager.getTableInfo(table);
+    const tableInfo = await dbManager.getTableInfo(table);
     let whereClause = '';
     const queryParams: any[] = [];
 
@@ -106,7 +106,7 @@ dbStudioRouter.get('/tables/:table', (req: Request, res: Response) => {
     }
 
     const countSql = `SELECT COUNT(*) as count FROM "${table}" ${whereClause}`;
-    const totalFiltered = dbManager.query(countSql, queryParams).rows[0]?.count || 0;
+    const totalFiltered = (await dbManager.query(countSql, queryParams)).rows[0]?.count || 0;
 
     let orderClause = '';
     if (sortBy && tableInfo.columns.some(c => c.name === sortBy)) {
@@ -117,7 +117,7 @@ dbStudioRouter.get('/tables/:table', (req: Request, res: Response) => {
 
     const offset = (page - 1) * limit;
     const dataSql = `SELECT * FROM "${table}" ${whereClause} ${orderClause} LIMIT ? OFFSET ?`;
-    const dataRes = dbManager.query(dataSql, [...queryParams, limit, offset]);
+    const dataRes = await dbManager.query(dataSql, [...queryParams, limit, offset]);
 
     res.json({
       success: true,
@@ -141,11 +141,11 @@ dbStudioRouter.get('/tables/:table', (req: Request, res: Response) => {
 });
 
 // 5. Insert Record into Table
-dbStudioRouter.post('/tables/:table', (req: Request, res: Response) => {
+dbStudioRouter.post('/tables/:table', async (req: Request, res: Response) => {
   const table = String(req.params.table);
   const record = req.body;
 
-  const validTables = dbManager.getTableNames();
+  const validTables = await dbManager.getTableNames();
   if (!validTables.includes(table)) {
     return res.status(404).json({ success: false, error: `Table "${table}" not found` });
   }
@@ -163,7 +163,7 @@ dbStudioRouter.post('/tables/:table', (req: Request, res: Response) => {
       return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v;
     });
 
-    const result = dbManager.run(sql, values);
+    const result = await dbManager.run(sql, values);
     res.json({ success: true, message: `Record inserted into ${table}`, changes: result.changes });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -171,18 +171,18 @@ dbStudioRouter.post('/tables/:table', (req: Request, res: Response) => {
 });
 
 // 6. Update Record in Table by ID
-dbStudioRouter.put('/tables/:table/:id', (req: Request, res: Response) => {
+dbStudioRouter.put('/tables/:table/:id', async (req: Request, res: Response) => {
   const table = String(req.params.table);
   const id = String(req.params.id);
   const updates = req.body;
 
-  const validTables = dbManager.getTableNames();
+  const validTables = await dbManager.getTableNames();
   if (!validTables.includes(table)) {
     return res.status(404).json({ success: false, error: `Table "${table}" not found` });
   }
 
   try {
-    const tableInfo = dbManager.getTableInfo(table);
+    const tableInfo = await dbManager.getTableInfo(table);
     const pk = tableInfo.primaryKeys[0] || 'id';
 
     const keys = Object.keys(updates).filter(k => k !== pk);
@@ -198,7 +198,7 @@ dbStudioRouter.put('/tables/:table/:id', (req: Request, res: Response) => {
     });
     values.push(id);
 
-    const result = dbManager.run(sql, values);
+    const result = await dbManager.run(sql, values);
     res.json({ success: true, message: `Record updated in ${table}`, changes: result.changes });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -206,19 +206,19 @@ dbStudioRouter.put('/tables/:table/:id', (req: Request, res: Response) => {
 });
 
 // 7. Delete Record from Table
-dbStudioRouter.delete('/tables/:table/:id', (req: Request, res: Response) => {
+dbStudioRouter.delete('/tables/:table/:id', async (req: Request, res: Response) => {
   const table = String(req.params.table);
   const id = String(req.params.id);
-  const validTables = dbManager.getTableNames();
+  const validTables = await dbManager.getTableNames();
   if (!validTables.includes(table)) {
     return res.status(404).json({ success: false, error: `Table "${table}" not found` });
   }
 
   try {
-    const tableInfo = dbManager.getTableInfo(table);
+    const tableInfo = await dbManager.getTableInfo(table);
     const pk = tableInfo.primaryKeys[0] || 'id';
     const sql = `DELETE FROM "${table}" WHERE "${pk}" = ?`;
-    const result = dbManager.run(sql, [id]);
+    const result = await dbManager.run(sql, [id]);
     res.json({ success: true, message: `Record deleted from ${table}`, changes: result.changes });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -226,16 +226,16 @@ dbStudioRouter.delete('/tables/:table/:id', (req: Request, res: Response) => {
 });
 
 // 8. Export Database (JSON or SQL Dump)
-dbStudioRouter.get('/export', (req: Request, res: Response) => {
+dbStudioRouter.get('/export', async (req: Request, res: Response) => {
   const format = (req.query.format as string) || 'json';
   try {
     if (format === 'sql') {
-      const sqlDump = dbManager.exportDatabaseAsSql();
+      const sqlDump = await dbManager.exportDatabaseAsSql();
       res.setHeader('Content-Type', 'application/sql');
       res.setHeader('Content-Disposition', 'attachment; filename="bcafly_backup.sql"');
       return res.send(sqlDump);
     } else {
-      const jsonData = dbManager.exportDatabaseAsJson();
+      const jsonData = await dbManager.exportDatabaseAsJson();
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', 'attachment; filename="bcafly_backup.json"');
       return res.json({
@@ -250,14 +250,14 @@ dbStudioRouter.get('/export', (req: Request, res: Response) => {
 });
 
 // 9. Import / Restore Database
-dbStudioRouter.post('/import', (req: Request, res: Response) => {
+dbStudioRouter.post('/import', async (req: Request, res: Response) => {
   const { format, data, sql } = req.body;
   try {
     if (format === 'sql' && sql) {
-      dbManager.importDatabaseFromSql(sql);
+      await dbManager.importDatabaseFromSql(sql);
       res.json({ success: true, message: 'Database restored successfully from SQL dump' });
     } else if (data && data.tables) {
-      dbManager.importDatabaseFromJson(data.tables);
+      await dbManager.importDatabaseFromJson(data.tables);
       res.json({ success: true, message: 'Database restored successfully from JSON backup' });
     } else {
       res.status(400).json({ success: false, error: 'Invalid import payload. Expected { format: "sql", sql } or { data: { tables } }' });
@@ -268,9 +268,9 @@ dbStudioRouter.post('/import', (req: Request, res: Response) => {
 });
 
 // 10. Nuclear Clean Database (Empty all tables)
-dbStudioRouter.post('/clean', (req: Request, res: Response) => {
+dbStudioRouter.post('/clean', async (req: Request, res: Response) => {
   try {
-    const result = wipeDatabase();
+    const result = await wipeDatabase();
     res.json({
       success: true,
       message: `Database wiped completely clean (${result.clearedTables.length} tables truncated)`,
@@ -283,14 +283,14 @@ dbStudioRouter.post('/clean', (req: Request, res: Response) => {
 });
 
 // 11. Reset / Clean Database
-dbStudioRouter.post('/reset', (req: Request, res: Response) => {
+dbStudioRouter.post('/reset', async (req: Request, res: Response) => {
   const { mode } = req.body || {};
   try {
     if (mode === 'seed') {
-      seedDatabase(true);
+      await seedDatabase(true);
       res.json({ success: true, message: 'Database re-seeded successfully with demo state' });
     } else {
-      const result = wipeDatabase();
+      const result = await wipeDatabase();
       res.json({
         success: true,
         message: `Database cleaned to pristine empty state (${result.clearedTables.length} tables truncated)`,

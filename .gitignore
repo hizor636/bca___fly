@@ -22,6 +22,8 @@ coverage/
 *.sql.gz
 *.dump
 backups/
+.pgdata/
+database/data/
 
 # Logs
 *.log

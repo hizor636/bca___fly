@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { dbManager } from '../db/database.js';
+import { dbManager } from '../../database/database.js';
 
 export const userRoutes = Router();
 
@@ -23,12 +23,12 @@ function generateAvatarProps(name: string) {
 }
 
 // 1. Get User Metrics / Stats
-userRoutes.get('/stats', (req: Request, res: Response) => {
+userRoutes.get('/stats', async (req: Request, res: Response) => {
   try {
-    const totalRes = dbManager.query('SELECT COUNT(*) as count FROM users');
+    const totalRes = await dbManager.query('SELECT COUNT(*) as count FROM users');
     const totalUsers = totalRes.rows[0]?.count || 0;
 
-    const roleBreakdownRes = dbManager.query('SELECT role, COUNT(*) as count FROM users GROUP BY role');
+    const roleBreakdownRes = await dbManager.query('SELECT role, COUNT(*) as count FROM users GROUP BY role');
     const roles: Record<string, number> = {
       admin: 0,
       faculty: 0,
@@ -39,7 +39,7 @@ userRoutes.get('/stats', (req: Request, res: Response) => {
       roles[r.role] = r.count;
     });
 
-    const activeRes = dbManager.query('SELECT is_active, COUNT(*) as count FROM users GROUP BY is_active');
+    const activeRes = await dbManager.query('SELECT is_active, COUNT(*) as count FROM users GROUP BY is_active');
     let activeCount = 0;
     let inactiveCount = 0;
     activeRes.rows.forEach(r => {
@@ -62,7 +62,7 @@ userRoutes.get('/stats', (req: Request, res: Response) => {
 });
 
 // 2. List Users with Pagination, Search, and Filters
-userRoutes.get('/', (req: Request, res: Response) => {
+userRoutes.get('/', async (req: Request, res: Response) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
@@ -109,7 +109,7 @@ userRoutes.get('/', (req: Request, res: Response) => {
 
     // Count total matching
     const countSql = `SELECT COUNT(*) as count FROM users ${whereClause}`;
-    const countRes = dbManager.query(countSql, params);
+    const countRes = await dbManager.query(countSql, params);
     const total = countRes.rows[0]?.count || 0;
     const totalPages = Math.ceil(total / limit) || 1;
     const offset = (page - 1) * limit;
@@ -122,7 +122,7 @@ userRoutes.get('/', (req: Request, res: Response) => {
       ORDER BY ${sortBy} ${sortDir}
       LIMIT ? OFFSET ?
     `;
-    const dataRes = dbManager.query(dataSql, [...params, limit, offset]);
+    const dataRes = await dbManager.query(dataSql, [...params, limit, offset]);
 
     const users = dataRes.rows.map(u => ({
       id: u.id,
@@ -156,10 +156,10 @@ userRoutes.get('/', (req: Request, res: Response) => {
 });
 
 // 3. Get Single User Details
-userRoutes.get('/:id', (req: Request, res: Response) => {
+userRoutes.get('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const userRes = dbManager.query('SELECT * FROM users WHERE id = ?', [id]);
+    const userRes = await dbManager.query('SELECT * FROM users WHERE id = ?', [id]);
     if (userRes.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
@@ -168,7 +168,7 @@ userRoutes.get('/:id', (req: Request, res: Response) => {
     // Check if student details exist
     let studentDetails = null;
     if (u.role === 'student' && u.student_id) {
-      const sRes = dbManager.query('SELECT * FROM students WHERE student_id = ? OR id = ?', [u.student_id, u.id]);
+      const sRes = await dbManager.query('SELECT * FROM students WHERE student_id = ? OR id = ?', [u.student_id, u.id]);
       if (sRes.rows.length > 0) {
         studentDetails = sRes.rows[0];
       }
@@ -177,7 +177,7 @@ userRoutes.get('/:id', (req: Request, res: Response) => {
     // Check if faculty details exist
     let facultyDetails = null;
     if (u.role === 'faculty') {
-      const fRes = dbManager.query('SELECT * FROM faculty WHERE id = ? OR email = ?', [u.id, u.email]);
+      const fRes = await dbManager.query('SELECT * FROM faculty WHERE id = ? OR email = ?', [u.id, u.email]);
       if (fRes.rows.length > 0) {
         facultyDetails = fRes.rows[0];
       }
@@ -209,7 +209,7 @@ userRoutes.get('/:id', (req: Request, res: Response) => {
 });
 
 // 4. Create New User
-userRoutes.post('/', (req: Request, res: Response) => {
+userRoutes.post('/', async (req: Request, res: Response) => {
   const {
     name,
     email,
@@ -229,7 +229,7 @@ userRoutes.post('/', (req: Request, res: Response) => {
 
   try {
     // Check if email is already registered
-    const existing = dbManager.query('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [email.trim()]);
+    const existing = await dbManager.query('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [email.trim()]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ success: false, error: 'A user with this email address already exists.' });
     }
@@ -239,7 +239,7 @@ userRoutes.post('/', (req: Request, res: Response) => {
     const now = new Date().toISOString();
 
     // Insert user
-    dbManager.run(
+    await dbManager.run(
       `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id, semester)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -262,9 +262,9 @@ userRoutes.post('/', (req: Request, res: Response) => {
     // If role is student, also sync into students table
     if (role === 'student') {
       const finalStudentId = studentId || `BCA26${String(Math.floor(Math.random() * 900) + 100)}`;
-      const existingStudent = dbManager.query('SELECT id FROM students WHERE student_id = ? OR email = ?', [finalStudentId, email]);
+      const existingStudent = await dbManager.query('SELECT id FROM students WHERE student_id = ? OR email = ?', [finalStudentId, email]);
       if (existingStudent.rows.length === 0) {
-        dbManager.run(
+        await dbManager.run(
           `INSERT INTO students (id, student_id, name, initials, avatar_bg, avatar_text, course, semester, section, email, phone, parent_phone, attendance_rate, mentoring_status, cgpa, sgpa_history, assigned_faculty, assigned_faculty_id, weekly_attendance, total_classes_held, total_classes_attended)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
@@ -296,9 +296,9 @@ userRoutes.post('/', (req: Request, res: Response) => {
 
     // If role is faculty, also sync into faculty table
     if (role === 'faculty') {
-      const existingFac = dbManager.query('SELECT id FROM faculty WHERE id = ? OR email = ?', [userId, email]);
+      const existingFac = await dbManager.query('SELECT id FROM faculty WHERE id = ? OR email = ?', [userId, email]);
       if (existingFac.rows.length === 0) {
-        dbManager.run(
+        await dbManager.run(
           `INSERT INTO faculty (id, name, designation, department, email, phone, office, assigned_students_count, specialization, courses)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
@@ -318,7 +318,7 @@ userRoutes.post('/', (req: Request, res: Response) => {
     }
 
     // Audit log
-    dbManager.run(
+    await dbManager.run(
       `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, after_json, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -359,7 +359,7 @@ userRoutes.post('/', (req: Request, res: Response) => {
 });
 
 // 5. Update User
-userRoutes.put('/:id', (req: Request, res: Response) => {
+userRoutes.put('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const {
     name,
@@ -375,7 +375,7 @@ userRoutes.put('/:id', (req: Request, res: Response) => {
   } = req.body;
 
   try {
-    const existingRes = dbManager.query('SELECT * FROM users WHERE id = ?', [id]);
+    const existingRes = await dbManager.query('SELECT * FROM users WHERE id = ?', [id]);
     if (existingRes.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
@@ -383,7 +383,7 @@ userRoutes.put('/:id', (req: Request, res: Response) => {
 
     // If changing email, ensure unique
     if (email && email.toLowerCase() !== current.email.toLowerCase()) {
-      const emailCheck = dbManager.query('SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?', [email.trim(), id]);
+      const emailCheck = await dbManager.query('SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?', [email.trim(), id]);
       if (emailCheck.rows.length > 0) {
         return res.status(409).json({ success: false, error: 'Another user is already using this email address.' });
       }
@@ -399,7 +399,7 @@ userRoutes.put('/:id', (req: Request, res: Response) => {
     const updatedSemester = semester !== undefined ? Number(semester) : current.semester;
     const updatedIsActive = isActive !== undefined ? (isActive ? 1 : 0) : current.is_active;
 
-    dbManager.run(
+    await dbManager.run(
       `UPDATE users
        SET name = ?, email = ?, role = ?, phone = ?, department_id = ?, designation = ?, student_id = ?, semester = ?, is_active = ?
        WHERE id = ?`,
@@ -419,7 +419,7 @@ userRoutes.put('/:id', (req: Request, res: Response) => {
 
     // Sync student table if user is a student
     if (updatedRole === 'student') {
-      dbManager.run(
+      await dbManager.run(
         `UPDATE students
          SET name = ?, email = ?, phone = ?, semester = coalesce(?, semester)
          WHERE id = ? OR student_id = ? OR email = ?`,
@@ -429,7 +429,7 @@ userRoutes.put('/:id', (req: Request, res: Response) => {
 
     // Sync faculty table if user is faculty
     if (updatedRole === 'faculty') {
-      dbManager.run(
+      await dbManager.run(
         `UPDATE faculty
          SET name = ?, email = ?, phone = ?, designation = coalesce(?, designation)
          WHERE id = ? OR email = ?`,
@@ -438,7 +438,7 @@ userRoutes.put('/:id', (req: Request, res: Response) => {
     }
 
     // Audit log
-    dbManager.run(
+    await dbManager.run(
       `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, before_json, after_json, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -477,13 +477,13 @@ userRoutes.put('/:id', (req: Request, res: Response) => {
 });
 
 // 6. Delete User
-userRoutes.delete('/:id', (req: Request, res: Response) => {
+userRoutes.delete('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const hardDelete = req.query.hard === 'true';
   const deletedBy = (req.query.deletedBy as string) || 'Admin';
 
   try {
-    const userRes = dbManager.query('SELECT * FROM users WHERE id = ?', [id]);
+    const userRes = await dbManager.query('SELECT * FROM users WHERE id = ?', [id]);
     if (userRes.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
@@ -491,20 +491,20 @@ userRoutes.delete('/:id', (req: Request, res: Response) => {
 
     if (hardDelete) {
       // Hard delete
-      dbManager.run('DELETE FROM users WHERE id = ?', [id]);
+      await dbManager.run('DELETE FROM users WHERE id = ?', [id]);
       if (user.role === 'student') {
-        dbManager.run('DELETE FROM students WHERE id = ? OR student_id = ?', [id, user.student_id]);
+        await dbManager.run('DELETE FROM students WHERE id = ? OR student_id = ?', [id, user.student_id]);
       }
       if (user.role === 'faculty') {
-        dbManager.run('DELETE FROM faculty WHERE id = ?', [id]);
+        await dbManager.run('DELETE FROM faculty WHERE id = ?', [id]);
       }
     } else {
       // Soft deactivate
-      dbManager.run('UPDATE users SET is_active = 0 WHERE id = ?', [id]);
+      await dbManager.run('UPDATE users SET is_active = 0 WHERE id = ?', [id]);
     }
 
     // Audit log
-    dbManager.run(
+    await dbManager.run(
       `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, before_json, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -530,7 +530,7 @@ userRoutes.delete('/:id', (req: Request, res: Response) => {
 });
 
 // 7. Batch Import Users
-userRoutes.post('/batch-import', (req: Request, res: Response) => {
+userRoutes.post('/batch-import', async (req: Request, res: Response) => {
   const { users, importedBy = 'Admin' } = req.body;
   if (!Array.isArray(users) || users.length === 0) {
     return res.status(400).json({ success: false, error: 'Expected a non-empty array of users' });
@@ -541,24 +541,25 @@ userRoutes.post('/batch-import', (req: Request, res: Response) => {
     let skippedCount = 0;
     const errors: string[] = [];
 
-    users.forEach((u: any, idx: number) => {
+    for (let idx = 0; idx < users.length; idx++) {
+      const u: any = users[idx];
       if (!u.name || !u.email || !u.role) {
         skippedCount++;
         errors.push(`Row ${idx + 1}: Missing name, email, or role`);
-        return;
+        continue;
       }
 
-      const existing = dbManager.query('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [u.email.trim()]);
+      const existing = await dbManager.query('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [u.email.trim()]);
       if (existing.rows.length > 0) {
         skippedCount++;
-        return;
+        continue;
       }
 
       const userId = u.id || `usr-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
       const avatar = generateAvatarProps(u.name);
       const now = new Date().toISOString();
 
-      dbManager.run(
+      await dbManager.run(
         `INSERT INTO users (id, name, email, role, phone, department_id, is_active, created_at, avatar_bg, avatar_text, designation, student_id, semester)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -578,9 +579,9 @@ userRoutes.post('/batch-import', (req: Request, res: Response) => {
         ]
       );
       importedCount++;
-    });
+    }
 
-    dbManager.run(
+    await dbManager.run(
       `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, after_json, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [

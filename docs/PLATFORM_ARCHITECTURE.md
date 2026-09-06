@@ -129,7 +129,7 @@ The Public Site is the outward-facing institutional portal for content accessibl
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  [TypeScript: 98.5%]                                                        │
 │  ├── Client Portal Layer: React 19 • Vite 6 • Tailwind CSS 4                │
-│  └── Server API Layer: Node.js 22 • Express 5 • TSX • sql.js / PostgreSQL   │
+│  └── Server API Layer: Node.js 22 • Express 5 • TSX • PostgreSQL 18         │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  [Python: 1.3%]                                                             │
 │  └── Analytics & Forecaster: Python 3.12 • Flask • Pandas • NumPy           │
@@ -142,9 +142,9 @@ The Public Site is the outward-facing institutional portal for content accessibl
 | Layer | Languages & Frameworks | Codebase % | Purpose & Capabilities |
 |---|---|---|---|
 | **Frontend Applications** | **TypeScript 5.8**, React 19, Vite 6, Tailwind CSS 4, Lucide Icons | **~65.0%** | Multi-role portals (Admin, Faculty, Student, Guardian, Counselor), live reactive contexts, dynamic ledger grids. |
-| **Backend REST Core** | **TypeScript 5.8**, Node.js 22, Express 5, TSX, sql.js / PostgreSQL Layer | **~33.5%** | Authoritative 29-table relational database engine, RBAC middleware, CSV batch importer, audit logger. |
+| **Backend REST Core** | **TypeScript 5.8**, Node.js 22, Express 5, TSX, PostgreSQL 18 Layer | **~33.5%** | Authoritative 29-table relational database engine, RBAC middleware, CSV batch importer, audit logger. |
 | **Analytics Microservice** | **Python 3.12**, Flask, Pandas, NumPy | **1.3%** | Attendance deficit trajectory forecaster, statistical CIA regression modeling, condonation eligibility calculator. |
-| **DDL & Configuration** | SQLite 3 / PostgreSQL DDL, JSON, PowerShell / Bash | **0.2%** | Relational schemas, foreign key constraints, migration scripts, CI/CD and deployment manifests. |
+| **DDL & Configuration** | PostgreSQL 18 DDL, JSON, PowerShell / Bash | **0.2%** | Relational schemas, foreign key constraints, migration scripts, CI/CD and deployment manifests. |
 
 ---
 
@@ -152,7 +152,7 @@ The Public Site is the outward-facing institutional portal for content accessibl
 
 | Criteria | Enforcement Mechanism | Status |
 |---|---|---|
-| **Single Source of Truth** | Relational SQLite / PostgreSQL backend (`schema.ts`) | **Enforced** |
+| **Single Source of Truth** | Relational PostgreSQL backend (`schema.ts`) | **Enforced** |
 | **Role-Based Isolation** | Scoped APIs (`/api/faculty/*`, `/api/student/*`, `/api/guardian/*`) | **Enforced** |
 | **No Mock Data in Production** | Dynamic database queries + clean empty states | **Enforced** |
 | **Controlled Batch Onboarding** | CSV Import modal with preview, validation & transactional rollback | **Enforced** |

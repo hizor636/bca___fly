@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { dbManager } from '../db/database.js';
+import { dbManager } from '../../database/database.js';
 
 export const apiRouter = Router();
 
 // Helper to record audit logs
-function logAudit(
+async function logAudit(
   actorUserId = 'admin-root',
   actorName = 'Institutional Admin',
   actorRole = 'admin',
@@ -17,7 +17,7 @@ function logAudit(
 ) {
   try {
     const id = `aud-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    dbManager.run(
+    await dbManager.run(
       `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, before_json, after_json, ip, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, actorUserId, actorName, actorRole, action, entityType, entityId, beforeJson, afterJson, ip, new Date().toISOString()]
@@ -28,9 +28,9 @@ function logAudit(
 }
 
 // --- Health Check ---
-apiRouter.get('/health', (req: Request, res: Response) => {
+apiRouter.get('/health', async (req: Request, res: Response) => {
   try {
-    const stats = dbManager.getStats();
+    const stats = await dbManager.getStats();
     res.json({
       status: 'online',
       timestamp: new Date().toISOString(),
@@ -47,7 +47,7 @@ apiRouter.get('/health', (req: Request, res: Response) => {
 });
 
 // --- Auth Endpoints ---
-apiRouter.post('/auth/login', (req: Request, res: Response) => {
+apiRouter.post('/auth/login', async (req: Request, res: Response) => {
   const { email, password, roleHint } = req.body;
   try {
     let sql = 'SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND is_active = 1';
@@ -56,13 +56,13 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
       sql += ' AND role = ?';
       params.push(roleHint);
     }
-    const userRes = dbManager.query(sql, params);
+    const userRes = await dbManager.query(sql, params);
     if (userRes.rows.length === 0) {
       return res.status(401).json({ success: false, error: 'Invalid credentials or inactive account' });
     }
 
     const user = userRes.rows[0];
-    logAudit(user.id, user.name, user.role, 'LOGIN_SUCCESS', 'auth', user.id);
+    await logAudit(user.id, user.name, user.role, 'LOGIN_SUCCESS', 'auth', user.id);
 
     res.json({
       success: true,
@@ -90,9 +90,9 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
 // 🏛️ 1. INSTITUTIONAL MASTER DATA: DEPARTMENTS (Step 1)
 // =========================================================================
 
-const getDepartmentsHandler = (req: Request, res: Response) => {
+const getDepartmentsHandler = async (req: Request, res: Response) => {
   try {
-    const resDepts = dbManager.query('SELECT * FROM departments ORDER BY name ASC');
+    const resDepts = await dbManager.query('SELECT * FROM departments ORDER BY name ASC');
     const departments = resDepts.rows.map(d => ({
       id: d.id,
       name: d.name,
@@ -108,7 +108,7 @@ const getDepartmentsHandler = (req: Request, res: Response) => {
   }
 };
 
-const createDepartmentHandler = (req: Request, res: Response) => {
+const createDepartmentHandler = async (req: Request, res: Response) => {
   const { name, code, deptHeadId } = req.body;
   if (!name || !code) {
     return res.status(400).json({ success: false, error: 'Department name and code are required' });
@@ -117,17 +117,17 @@ const createDepartmentHandler = (req: Request, res: Response) => {
     const id = req.body.id || `dept-${code.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
     const now = new Date().toISOString();
 
-    const existing = dbManager.query('SELECT id FROM departments WHERE LOWER(code) = LOWER(?)', [code.trim()]);
+    const existing = await dbManager.query('SELECT id FROM departments WHERE LOWER(code) = LOWER(?)', [code.trim()]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ success: false, error: `Department code ${code} already exists.` });
     }
 
-    dbManager.run(
+    await dbManager.run(
       'INSERT INTO departments (id, name, code, dept_head_id, is_active, created_at) VALUES (?, ?, ?, ?, 1, ?)',
       [id, name.trim(), code.trim().toUpperCase(), deptHeadId || null, now]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.department.created', 'department', id, null, JSON.stringify({ name, code }));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.department.created', 'department', id, null, JSON.stringify({ name, code }));
     dbManager.persist();
     res.status(201).json({ success: true, message: 'Department created successfully', id });
   } catch (err: any) {
@@ -135,14 +135,14 @@ const createDepartmentHandler = (req: Request, res: Response) => {
   }
 };
 
-const updateDepartmentHandler = (req: Request, res: Response) => {
+const updateDepartmentHandler = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, code, deptHeadId, isActive } = req.body;
   try {
-    const existing = dbManager.query('SELECT * FROM departments WHERE id = ?', [id]);
+    const existing = await dbManager.query('SELECT * FROM departments WHERE id = ?', [id]);
     if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Department not found' });
 
-    dbManager.run(
+    await dbManager.run(
       `UPDATE departments
        SET name = coalesce(?, name),
            code = coalesce(?, code),
@@ -152,7 +152,7 @@ const updateDepartmentHandler = (req: Request, res: Response) => {
       [name ? name.trim() : null, code ? code.trim().toUpperCase() : null, deptHeadId || null, isActive !== undefined ? (isActive ? 1 : 0) : null, id]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.department.updated', 'department', id, JSON.stringify(existing.rows[0]), JSON.stringify(req.body));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.department.updated', 'department', id, JSON.stringify(existing.rows[0]), JSON.stringify(req.body));
     dbManager.persist();
     res.json({ success: true, message: 'Department updated successfully' });
   } catch (err: any) {
@@ -160,15 +160,15 @@ const updateDepartmentHandler = (req: Request, res: Response) => {
   }
 };
 
-const deleteDepartmentHandler = (req: Request, res: Response) => {
+const deleteDepartmentHandler = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const courses = dbManager.query('SELECT id FROM courses WHERE department_id = ?', [id]);
+    const courses = await dbManager.query('SELECT id FROM courses WHERE department_id = ?', [id]);
     if (courses.rows.length > 0) {
       return res.status(400).json({ success: false, error: 'Cannot delete department with active courses. Archive it instead.' });
     }
-    dbManager.run('DELETE FROM departments WHERE id = ?', [id]);
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.department.deleted', 'department', id);
+    await dbManager.run('DELETE FROM departments WHERE id = ?', [id]);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.department.deleted', 'department', id);
     dbManager.persist();
     res.json({ success: true, message: 'Department permanently deleted' });
   } catch (err: any) {
@@ -185,12 +185,12 @@ apiRouter.patch('/admin/departments/:id', updateDepartmentHandler);
 apiRouter.delete('/departments/:id', deleteDepartmentHandler);
 apiRouter.delete('/admin/departments/:id', deleteDepartmentHandler);
 
-apiRouter.post('/admin/departments/:id/archive', (req: Request, res: Response) => {
+apiRouter.post('/admin/departments/:id/archive', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const now = new Date().toISOString();
-    dbManager.run('UPDATE departments SET is_active = 0, archived_at = ?, archived_by = ? WHERE id = ?', [now, 'admin-root', id]);
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.department.archived', 'department', id);
+    await dbManager.run('UPDATE departments SET is_active = 0, archived_at = ?, archived_by = ? WHERE id = ?', [now, 'admin-root', id]);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.department.archived', 'department', id);
     dbManager.persist();
     res.json({ success: true, message: 'Department archived' });
   } catch (err: any) {
@@ -202,9 +202,9 @@ apiRouter.post('/admin/departments/:id/archive', (req: Request, res: Response) =
 // 📅 2. ACADEMIC YEARS & CALENDAR RULES (Step 2)
 // =========================================================================
 
-const getAcademicYearsHandler = (req: Request, res: Response) => {
+const getAcademicYearsHandler = async (req: Request, res: Response) => {
   try {
-    const resYears = dbManager.query('SELECT * FROM academic_years ORDER BY start_date DESC');
+    const resYears = await dbManager.query('SELECT * FROM academic_years ORDER BY start_date DESC');
     const years = resYears.rows.map(y => ({
       id: y.id,
       name: y.name,
@@ -221,7 +221,7 @@ const getAcademicYearsHandler = (req: Request, res: Response) => {
   }
 };
 
-const createAcademicYearHandler = (req: Request, res: Response) => {
+const createAcademicYearHandler = async (req: Request, res: Response) => {
   const { name, startDate, endDate, attendanceRule = 75.0, isActive = true } = req.body;
   if (!name || !startDate || !endDate) {
     return res.status(400).json({ success: false, error: 'Academic year name, start date, and end date are required' });
@@ -231,16 +231,16 @@ const createAcademicYearHandler = (req: Request, res: Response) => {
     const now = new Date().toISOString();
 
     if (isActive) {
-      dbManager.run('UPDATE academic_years SET is_active = 0');
+      await dbManager.run('UPDATE academic_years SET is_active = 0');
     }
 
-    dbManager.run(
+    await dbManager.run(
       `INSERT INTO academic_years (id, name, start_date, end_date, attendance_rule, is_active, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [id, name.trim(), startDate, endDate, Number(attendanceRule), isActive ? 1 : 0, now]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.academic_year.created', 'academic_year', id, null, JSON.stringify(req.body));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.academic_year.created', 'academic_year', id, null, JSON.stringify(req.body));
     dbManager.persist();
     res.status(201).json({ success: true, message: 'Academic year created successfully', id });
   } catch (err: any) {
@@ -253,18 +253,18 @@ apiRouter.get('/admin/academic-years', getAcademicYearsHandler);
 apiRouter.post('/academic-years', createAcademicYearHandler);
 apiRouter.post('/admin/academic-years', createAcademicYearHandler);
 
-apiRouter.patch('/admin/academic-years/:id', (req: Request, res: Response) => {
+apiRouter.patch('/admin/academic-years/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, startDate, endDate, attendanceRule, isActive } = req.body;
   try {
-    const existing = dbManager.query('SELECT * FROM academic_years WHERE id = ?', [id]);
+    const existing = await dbManager.query('SELECT * FROM academic_years WHERE id = ?', [id]);
     if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Academic year not found' });
 
     if (isActive) {
-      dbManager.run('UPDATE academic_years SET is_active = 0 WHERE id != ?', [id]);
+      await dbManager.run('UPDATE academic_years SET is_active = 0 WHERE id != ?', [id]);
     }
 
-    dbManager.run(
+    await dbManager.run(
       `UPDATE academic_years
        SET name = coalesce(?, name),
            start_date = coalesce(?, start_date),
@@ -275,7 +275,7 @@ apiRouter.patch('/admin/academic-years/:id', (req: Request, res: Response) => {
       [name ? name.trim() : null, startDate || null, endDate || null, attendanceRule !== undefined ? Number(attendanceRule) : null, isActive !== undefined ? (isActive ? 1 : 0) : null, id]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.academic_year.updated', 'academic_year', id, JSON.stringify(existing.rows[0]), JSON.stringify(req.body));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.academic_year.updated', 'academic_year', id, JSON.stringify(existing.rows[0]), JSON.stringify(req.body));
     dbManager.persist();
     res.json({ success: true, message: 'Academic year updated' });
   } catch (err: any) {
@@ -283,12 +283,12 @@ apiRouter.patch('/admin/academic-years/:id', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/admin/academic-years/:id/archive', (req: Request, res: Response) => {
+apiRouter.post('/admin/academic-years/:id/archive', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const now = new Date().toISOString();
-    dbManager.run('UPDATE academic_years SET is_active = 0, archived_at = ?, archived_by = ? WHERE id = ?', [now, 'admin-root', id]);
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.academic_year.archived', 'academic_year', id);
+    await dbManager.run('UPDATE academic_years SET is_active = 0, archived_at = ?, archived_by = ? WHERE id = ?', [now, 'admin-root', id]);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.academic_year.archived', 'academic_year', id);
     dbManager.persist();
     res.json({ success: true, message: 'Academic year archived' });
   } catch (err: any) {
@@ -296,12 +296,12 @@ apiRouter.post('/admin/academic-years/:id/archive', (req: Request, res: Response
   }
 });
 
-apiRouter.post('/admin/academic-years/:id/activate', (req: Request, res: Response) => {
+apiRouter.post('/admin/academic-years/:id/activate', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    dbManager.run('UPDATE academic_years SET is_active = 0');
-    dbManager.run('UPDATE academic_years SET is_active = 1 WHERE id = ?', [id]);
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.academic_year.activated', 'academic_year', id);
+    await dbManager.run('UPDATE academic_years SET is_active = 0');
+    await dbManager.run('UPDATE academic_years SET is_active = 1 WHERE id = ?', [id]);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.academic_year.activated', 'academic_year', id);
     dbManager.persist();
     res.json({ success: true, message: 'Academic year set to active' });
   } catch (err: any) {
@@ -313,9 +313,9 @@ apiRouter.post('/admin/academic-years/:id/activate', (req: Request, res: Respons
 // 📚 3. SEMESTERS FRAMEWORK: Sem 1 to Sem 6 (Step 3)
 // =========================================================================
 
-const getSemestersHandler = (req: Request, res: Response) => {
+const getSemestersHandler = async (req: Request, res: Response) => {
   try {
-    const resSems = dbManager.query('SELECT * FROM semesters ORDER BY number ASC');
+    const resSems = await dbManager.query('SELECT * FROM semesters ORDER BY number ASC');
     const semesters = resSems.rows.map(s => ({
       id: s.id,
       number: s.number,
@@ -336,7 +336,7 @@ const getSemestersHandler = (req: Request, res: Response) => {
   }
 };
 
-const createSemesterHandler = (req: Request, res: Response) => {
+const createSemesterHandler = async (req: Request, res: Response) => {
   const { number, name, year, startDate, endDate, credits = 24, minAttendance = 75.0, isCurrent = false } = req.body;
   if (!number || !name) {
     return res.status(400).json({ success: false, error: 'Semester number and name are required' });
@@ -344,15 +344,15 @@ const createSemesterHandler = (req: Request, res: Response) => {
   try {
     const id = req.body.id || `sem-${number}`;
     if (isCurrent) {
-      dbManager.run('UPDATE semesters SET is_current = 0');
+      await dbManager.run('UPDATE semesters SET is_current = 0');
     }
-    dbManager.run(
+    await dbManager.run(
       `INSERT OR REPLACE INTO semesters (id, number, name, year, typical_status, start_date, end_date, credits, min_attendance, is_current, is_active)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [id, Number(number), name.trim(), Number(year || Math.ceil(number / 2)), 'Active', startDate || '2026-06-01', endDate || '2026-11-30', Number(credits), Number(minAttendance), isCurrent ? 1 : 0]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.semester.configured', 'semester', id, null, JSON.stringify(req.body));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.semester.configured', 'semester', id, null, JSON.stringify(req.body));
     dbManager.persist();
     res.status(201).json({ success: true, message: 'Semester configured successfully', id });
   } catch (err: any) {
@@ -360,14 +360,14 @@ const createSemesterHandler = (req: Request, res: Response) => {
   }
 };
 
-const updateSemesterHandler = (req: Request, res: Response) => {
+const updateSemesterHandler = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, credits, minAttendance, startDate, endDate, isCurrent } = req.body;
   try {
     if (isCurrent) {
-      dbManager.run('UPDATE semesters SET is_current = 0');
+      await dbManager.run('UPDATE semesters SET is_current = 0');
     }
-    dbManager.run(
+    await dbManager.run(
       `UPDATE semesters
        SET name = coalesce(?, name),
            credits = coalesce(?, credits),
@@ -379,7 +379,7 @@ const updateSemesterHandler = (req: Request, res: Response) => {
       [name || null, credits !== undefined ? Number(credits) : null, minAttendance !== undefined ? Number(minAttendance) : null, startDate || null, endDate || null, isCurrent !== undefined ? (isCurrent ? 1 : 0) : null, id]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.semester.updated', 'semester', id);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.semester.updated', 'semester', id);
     dbManager.persist();
     res.json({ success: true, message: 'Semester updated' });
   } catch (err: any) {
@@ -398,9 +398,9 @@ apiRouter.patch('/admin/semesters/:id', updateSemesterHandler);
 // 👥 4. BATCHES MANAGEMENT
 // =========================================================================
 
-const getBatchesHandler = (req: Request, res: Response) => {
+const getBatchesHandler = async (req: Request, res: Response) => {
   try {
-    const resBatches = dbManager.query('SELECT * FROM batches ORDER BY start_year DESC, section ASC');
+    const resBatches = await dbManager.query('SELECT * FROM batches ORDER BY start_year DESC, section ASC');
     const batches = resBatches.rows.map(b => ({
       id: b.id,
       name: b.name,
@@ -419,18 +419,18 @@ const getBatchesHandler = (req: Request, res: Response) => {
   }
 };
 
-const createBatchHandler = (req: Request, res: Response) => {
+const createBatchHandler = async (req: Request, res: Response) => {
   const { name, departmentId = 'BCA', academicYear = '2026-2027', section = 'A', shift = 'Day', startYear = 2026, endYear = 2029 } = req.body;
   if (!name) return res.status(400).json({ success: false, error: 'Batch name is required' });
   try {
     const id = req.body.id || `batch-${Date.now()}`;
-    dbManager.run(
+    await dbManager.run(
       `INSERT INTO batches (id, name, department_id, academic_year, section, shift, start_year, end_year, is_active)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [id, name.trim(), departmentId, academicYear, section, shift, Number(startYear), Number(endYear)]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.batch.created', 'batch', id, null, JSON.stringify(req.body));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.batch.created', 'batch', id, null, JSON.stringify(req.body));
     dbManager.persist();
     res.status(201).json({ success: true, message: 'Batch created', id });
   } catch (err: any) {
@@ -443,11 +443,11 @@ apiRouter.get('/admin/batches', getBatchesHandler);
 apiRouter.post('/batches', createBatchHandler);
 apiRouter.post('/admin/batches', createBatchHandler);
 
-apiRouter.patch('/admin/batches/:id', (req: Request, res: Response) => {
+apiRouter.patch('/admin/batches/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, section, shift, isActive } = req.body;
   try {
-    dbManager.run(
+    await dbManager.run(
       `UPDATE batches
        SET name = coalesce(?, name),
            section = coalesce(?, section),
@@ -456,7 +456,7 @@ apiRouter.patch('/admin/batches/:id', (req: Request, res: Response) => {
        WHERE id = ?`,
       [name || null, section || null, shift || null, isActive !== undefined ? (isActive ? 1 : 0) : null, id]
     );
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.batch.updated', 'batch', id);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.batch.updated', 'batch', id);
     dbManager.persist();
     res.json({ success: true, message: 'Batch updated' });
   } catch (err: any) {
@@ -464,12 +464,12 @@ apiRouter.patch('/admin/batches/:id', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/admin/batches/:id/archive', (req: Request, res: Response) => {
+apiRouter.post('/admin/batches/:id/archive', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const now = new Date().toISOString();
-    dbManager.run('UPDATE batches SET is_active = 0, archived_at = ?, archived_by = ? WHERE id = ?', [now, 'admin-root', id]);
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.batch.archived', 'batch', id);
+    await dbManager.run('UPDATE batches SET is_active = 0, archived_at = ?, archived_by = ? WHERE id = ?', [now, 'admin-root', id]);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.batch.archived', 'batch', id);
     dbManager.persist();
     res.json({ success: true, message: 'Batch archived' });
   } catch (err: any) {
@@ -481,7 +481,7 @@ apiRouter.post('/admin/batches/:id/archive', (req: Request, res: Response) => {
 // 📖 5. COURSE MASTER DATA (Step 4)
 // =========================================================================
 
-const getCoursesHandler = (req: Request, res: Response) => {
+const getCoursesHandler = async (req: Request, res: Response) => {
   const semester = req.query.semester ? parseInt(req.query.semester as string, 10) : null;
   const includeArchived = req.query.includeArchived === 'true';
   try {
@@ -496,7 +496,7 @@ const getCoursesHandler = (req: Request, res: Response) => {
     }
     sql += ' ORDER BY semester ASC, course_code ASC';
 
-    const coursesRes = dbManager.query(sql, params);
+    const coursesRes = await dbManager.query(sql, params);
     const courses = coursesRes.rows.map(c => ({
       id: c.id,
       courseCode: c.course_code,
@@ -524,7 +524,7 @@ const getCoursesHandler = (req: Request, res: Response) => {
   }
 };
 
-const createCourseHandler = (req: Request, res: Response) => {
+const createCourseHandler = async (req: Request, res: Response) => {
   const c = req.body;
   if (!c.courseCode || !c.courseName || !c.semester) {
     return res.status(400).json({ success: false, error: 'Course code, name, and semester are required' });
@@ -533,12 +533,12 @@ const createCourseHandler = (req: Request, res: Response) => {
     const id = c.id || `c-${c.courseCode.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
     const now = new Date().toISOString();
 
-    const existing = dbManager.query('SELECT id FROM courses WHERE LOWER(course_code) = LOWER(?)', [c.courseCode.trim()]);
+    const existing = await dbManager.query('SELECT id FROM courses WHERE LOWER(course_code) = LOWER(?)', [c.courseCode.trim()]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ success: false, error: `Course with code ${c.courseCode} already exists.` });
     }
 
-    dbManager.run(
+    await dbManager.run(
       `INSERT INTO courses (
         id, course_code, course_name, short_name, semester, department_id, academic_scheme,
         credits, course_type, max_marks, cia1_max_marks, cia2_max_marks, cia3_max_marks,
@@ -553,7 +553,7 @@ const createCourseHandler = (req: Request, res: Response) => {
       ]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.course.created', 'course', id, null, JSON.stringify(c));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.course.created', 'course', id, null, JSON.stringify(c));
     dbManager.persist();
     res.status(201).json({ success: true, id, message: 'Course created successfully' });
   } catch (err: any) {
@@ -561,15 +561,15 @@ const createCourseHandler = (req: Request, res: Response) => {
   }
 };
 
-const updateCourseHandler = (req: Request, res: Response) => {
+const updateCourseHandler = async (req: Request, res: Response) => {
   const { id } = req.params;
   const c = req.body;
   try {
-    const existing = dbManager.query('SELECT * FROM courses WHERE id = ?', [id]);
+    const existing = await dbManager.query('SELECT * FROM courses WHERE id = ?', [id]);
     if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Course not found' });
     const now = new Date().toISOString();
 
-    dbManager.run(
+    await dbManager.run(
       `UPDATE courses
        SET course_code = coalesce(?, course_code),
            course_name = coalesce(?, course_name),
@@ -603,7 +603,7 @@ const updateCourseHandler = (req: Request, res: Response) => {
       ]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.course.updated', 'course', id, JSON.stringify(existing.rows[0]), JSON.stringify(c));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.course.updated', 'course', id, JSON.stringify(existing.rows[0]), JSON.stringify(c));
     dbManager.persist();
     res.json({ success: true, message: 'Course updated successfully' });
   } catch (err: any) {
@@ -611,12 +611,12 @@ const updateCourseHandler = (req: Request, res: Response) => {
   }
 };
 
-const deleteCourseHandler = (req: Request, res: Response) => {
+const deleteCourseHandler = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const attRes = dbManager.query('SELECT COUNT(*) as count FROM course_attendance_records WHERE course_id = ?', [id]);
-    const marksRes = dbManager.query('SELECT COUNT(*) as count FROM course_marks WHERE course_id = ?', [id]);
-    const enrRes = dbManager.query('SELECT COUNT(*) as count FROM student_course_enrollments WHERE course_id = ?', [id]);
+    const attRes = await dbManager.query('SELECT COUNT(*) as count FROM course_attendance_records WHERE course_id = ?', [id]);
+    const marksRes = await dbManager.query('SELECT COUNT(*) as count FROM course_marks WHERE course_id = ?', [id]);
+    const enrRes = await dbManager.query('SELECT COUNT(*) as count FROM student_course_enrollments WHERE course_id = ?', [id]);
 
     if ((attRes.rows[0]?.count || 0) > 0 || (marksRes.rows[0]?.count || 0) > 0 || (enrRes.rows[0]?.count || 0) > 0) {
       return res.status(400).json({
@@ -625,8 +625,8 @@ const deleteCourseHandler = (req: Request, res: Response) => {
       });
     }
 
-    dbManager.run('DELETE FROM courses WHERE id = ?', [id]);
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.course.deleted', 'course', id);
+    await dbManager.run('DELETE FROM courses WHERE id = ?', [id]);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.course.deleted', 'course', id);
     dbManager.persist();
     res.json({ success: true, message: 'Course deleted successfully' });
   } catch (err: any) {
@@ -643,12 +643,12 @@ apiRouter.patch('/admin/courses/:id', updateCourseHandler);
 apiRouter.delete('/courses/:id', deleteCourseHandler);
 apiRouter.delete('/admin/courses/:id', deleteCourseHandler);
 
-apiRouter.post('/admin/courses/:id/archive', (req: Request, res: Response) => {
+apiRouter.post('/admin/courses/:id/archive', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const now = new Date().toISOString();
-    dbManager.run('UPDATE courses SET is_active = 0, archived_at = ?, archived_by = ? WHERE id = ?', [now, 'admin-root', id]);
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.course.archived', 'course', id);
+    await dbManager.run('UPDATE courses SET is_active = 0, archived_at = ?, archived_by = ? WHERE id = ?', [now, 'admin-root', id]);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.course.archived', 'course', id);
     dbManager.persist();
     res.json({ success: true, message: 'Course archived successfully' });
   } catch (err: any) {
@@ -660,9 +660,9 @@ apiRouter.post('/admin/courses/:id/archive', (req: Request, res: Response) => {
 // 👨‍🏫 6. FACULTY ACCOUNTS & PROFILES (Step 5)
 // =========================================================================
 
-const getFacultyHandler = (req: Request, res: Response) => {
+const getFacultyHandler = async (req: Request, res: Response) => {
   try {
-    const resFac = dbManager.query('SELECT * FROM faculty WHERE is_active = 1 ORDER BY name ASC');
+    const resFac = await dbManager.query('SELECT * FROM faculty WHERE is_active = 1 ORDER BY name ASC');
     const faculty = resFac.rows.map(f => ({
       id: f.id,
       name: f.name,
@@ -682,7 +682,7 @@ const getFacultyHandler = (req: Request, res: Response) => {
   }
 };
 
-const createFacultyHandler = (req: Request, res: Response) => {
+const createFacultyHandler = async (req: Request, res: Response) => {
   const { name, designation, department, email, phone, office, specialization, courses = [] } = req.body;
   if (!name || !email) {
     return res.status(400).json({ success: false, error: 'Name and email are required' });
@@ -691,12 +691,12 @@ const createFacultyHandler = (req: Request, res: Response) => {
     const facId = req.body.id || `fac-${Date.now()}`;
     const cleanEmail = email.trim().toLowerCase();
 
-    const existing = dbManager.query('SELECT id FROM faculty WHERE LOWER(email) = LOWER(?)', [cleanEmail]);
+    const existing = await dbManager.query('SELECT id FROM faculty WHERE LOWER(email) = LOWER(?)', [cleanEmail]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ success: false, error: `Faculty account with email ${email} already exists.` });
     }
 
-    dbManager.run(
+    await dbManager.run(
       `INSERT INTO faculty (id, name, designation, department, email, phone, office, assigned_students_count, specialization, courses, is_active)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [
@@ -713,16 +713,16 @@ const createFacultyHandler = (req: Request, res: Response) => {
       ]
     );
 
-    const existingUser = dbManager.query('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [cleanEmail]);
+    const existingUser = await dbManager.query('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [cleanEmail]);
     if (existingUser.rows.length === 0) {
-      dbManager.run(
+      await dbManager.run(
         `INSERT INTO users (id, name, email, role, phone, department_id, designation, is_active, created_at, avatar_bg, avatar_text)
          VALUES (?, ?, ?, 'faculty', ?, ?, ?, 1, ?, 'bg-indigo-100', 'text-indigo-700')`,
         [facId, name.trim(), cleanEmail, phone || '', department || 'BCA', designation || 'Assistant Professor', new Date().toISOString()]
       );
     }
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty.created', 'faculty', facId, null, JSON.stringify(req.body));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty.created', 'faculty', facId, null, JSON.stringify(req.body));
     dbManager.persist();
     res.status(201).json({ success: true, message: 'Faculty created successfully', id: facId });
   } catch (err: any) {
@@ -730,15 +730,15 @@ const createFacultyHandler = (req: Request, res: Response) => {
   }
 };
 
-const updateFacultyHandler = (req: Request, res: Response) => {
+const updateFacultyHandler = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, designation, department, email, phone, office, specialization, courses, isActive } = req.body;
   try {
-    const existing = dbManager.query('SELECT * FROM faculty WHERE id = ?', [id]);
+    const existing = await dbManager.query('SELECT * FROM faculty WHERE id = ?', [id]);
     if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Faculty not found' });
     const current = existing.rows[0];
 
-    dbManager.run(
+    await dbManager.run(
       `UPDATE faculty
        SET name = coalesce(?, name),
            designation = coalesce(?, designation),
@@ -764,7 +764,7 @@ const updateFacultyHandler = (req: Request, res: Response) => {
       ]
     );
 
-    dbManager.run(
+    await dbManager.run(
       `UPDATE users
        SET name = coalesce(?, name),
            email = coalesce(?, email),
@@ -775,7 +775,7 @@ const updateFacultyHandler = (req: Request, res: Response) => {
       [name || null, email ? email.trim().toLowerCase() : null, phone || null, designation || null, isActive !== undefined ? (isActive ? 1 : 0) : null, id, current.email]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty.updated', 'faculty', id, JSON.stringify(current), JSON.stringify(req.body));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty.updated', 'faculty', id, JSON.stringify(current), JSON.stringify(req.body));
     dbManager.persist();
     res.json({ success: true, message: 'Faculty updated successfully' });
   } catch (err: any) {
@@ -783,11 +783,11 @@ const updateFacultyHandler = (req: Request, res: Response) => {
   }
 };
 
-const deleteFacultyHandler = (req: Request, res: Response) => {
+const deleteFacultyHandler = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const assignments = dbManager.query('SELECT id FROM faculty_course_assignments WHERE faculty_id = ?', [id]);
-    const mentees = dbManager.query('SELECT id FROM students WHERE assigned_faculty_id = ?', [id]);
+    const assignments = await dbManager.query('SELECT id FROM faculty_course_assignments WHERE faculty_id = ?', [id]);
+    const mentees = await dbManager.query('SELECT id FROM students WHERE assigned_faculty_id = ?', [id]);
 
     if (assignments.rows.length > 0 || mentees.rows.length > 0) {
       return res.status(400).json({
@@ -796,9 +796,9 @@ const deleteFacultyHandler = (req: Request, res: Response) => {
       });
     }
 
-    dbManager.run('DELETE FROM faculty WHERE id = ?', [id]);
-    dbManager.run('DELETE FROM users WHERE id = ?', [id]);
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty.deleted', 'faculty', id);
+    await dbManager.run('DELETE FROM faculty WHERE id = ?', [id]);
+    await dbManager.run('DELETE FROM users WHERE id = ?', [id]);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty.deleted', 'faculty', id);
     dbManager.persist();
     res.json({ success: true, message: 'Faculty removed successfully' });
   } catch (err: any) {
@@ -815,13 +815,13 @@ apiRouter.patch('/admin/faculty/:id', updateFacultyHandler);
 apiRouter.delete('/faculty/:id', deleteFacultyHandler);
 apiRouter.delete('/admin/faculty/:id', deleteFacultyHandler);
 
-apiRouter.post('/admin/faculty/:id/archive', (req: Request, res: Response) => {
+apiRouter.post('/admin/faculty/:id/archive', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const now = new Date().toISOString();
-    dbManager.run('UPDATE faculty SET is_active = 0, archived_at = ?, archived_by = ? WHERE id = ?', [now, 'admin-root', id]);
-    dbManager.run('UPDATE users SET is_active = 0 WHERE id = ?', [id]);
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty.archived', 'faculty', id);
+    await dbManager.run('UPDATE faculty SET is_active = 0, archived_at = ?, archived_by = ? WHERE id = ?', [now, 'admin-root', id]);
+    await dbManager.run('UPDATE users SET is_active = 0 WHERE id = ?', [id]);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty.archived', 'faculty', id);
     dbManager.persist();
     res.json({ success: true, message: 'Faculty archived successfully' });
   } catch (err: any) {
@@ -830,7 +830,7 @@ apiRouter.post('/admin/faculty/:id/archive', (req: Request, res: Response) => {
 });
 
 // CSV Batch Import for Faculty
-apiRouter.post('/admin/faculty/import', (req: Request, res: Response) => {
+apiRouter.post('/admin/faculty/import', async (req: Request, res: Response) => {
   const { facultyList } = req.body;
   if (!Array.isArray(facultyList) || facultyList.length === 0) {
     return res.status(400).json({ success: false, error: 'Provide a non-empty array of faculty records.' });
@@ -847,14 +847,14 @@ apiRouter.post('/admin/faculty/import', (req: Request, res: Response) => {
         continue;
       }
       const cleanEmail = f.email.trim().toLowerCase();
-      const existing = dbManager.query('SELECT id FROM faculty WHERE LOWER(email) = LOWER(?)', [cleanEmail]);
+      const existing = await dbManager.query('SELECT id FROM faculty WHERE LOWER(email) = LOWER(?)', [cleanEmail]);
       if (existing.rows.length > 0) {
         errors.push(`Row ${i + 1}: Email ${f.email} already exists.`);
         continue;
       }
 
       const id = f.id || `fac-${Date.now()}-${i}`;
-      dbManager.run(
+      await dbManager.run(
         `INSERT INTO faculty (id, name, designation, department, email, phone, office, specialization, courses, is_active)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
         [
@@ -864,7 +864,7 @@ apiRouter.post('/admin/faculty/import', (req: Request, res: Response) => {
         ]
       );
 
-      dbManager.run(
+      await dbManager.run(
         `INSERT OR IGNORE INTO users (id, name, email, role, phone, department_id, designation, is_active, created_at, avatar_bg, avatar_text)
          VALUES (?, ?, ?, 'faculty', ?, ?, ?, 1, ?, 'bg-indigo-100', 'text-indigo-700')`,
         [id, f.name.trim(), cleanEmail, f.phone || '', f.department || 'BCA', f.designation || 'Assistant Professor', new Date().toISOString()]
@@ -873,7 +873,7 @@ apiRouter.post('/admin/faculty/import', (req: Request, res: Response) => {
       importedCount++;
     }
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty.import', 'faculty', 'bulk-import', null, JSON.stringify({ importedCount, errorCount: errors.length }));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty.import', 'faculty', 'bulk-import', null, JSON.stringify({ importedCount, errorCount: errors.length }));
     dbManager.persist();
     res.json({ success: true, importedCount, errorCount: errors.length, errors, message: `Successfully imported ${importedCount} faculty accounts.` });
   } catch (err: any) {
@@ -885,7 +885,7 @@ apiRouter.post('/admin/faculty/import', (req: Request, res: Response) => {
 // 🎓 7. STUDENT ACCOUNTS & PROFILES (Step 6)
 // =========================================================================
 
-const getStudentsHandler = (req: Request, res: Response) => {
+const getStudentsHandler = async (req: Request, res: Response) => {
   const semester = req.query.semester ? parseInt(req.query.semester as string, 10) : null;
   const facultyId = req.query.facultyId as string;
   const includeArchived = req.query.includeArchived === 'true';
@@ -907,9 +907,9 @@ const getStudentsHandler = (req: Request, res: Response) => {
     }
     sql += ' ORDER BY name ASC';
 
-    const stRes = dbManager.query(sql, params);
-    const students = stRes.rows.map(s => {
-      const notesRes = dbManager.query('SELECT * FROM mentoring_notes WHERE student_id = ? ORDER BY date DESC', [s.id]);
+    const stRes = await dbManager.query(sql, params);
+    const students = await Promise.all(stRes.rows.map(async s => {
+      const notesRes = await dbManager.query('SELECT * FROM mentoring_notes WHERE student_id = ? ORDER BY date DESC', [s.id]);
       const mentoringNotes = notesRes.rows.map(n => ({
         id: n.id,
         date: n.date,
@@ -950,7 +950,7 @@ const getStudentsHandler = (req: Request, res: Response) => {
         isActive: Boolean(s.is_active ?? 1),
         archivedAt: s.archived_at
       };
-    });
+    }));
 
     res.json({ success: true, data: students });
   } catch (err: any) {
@@ -958,7 +958,7 @@ const getStudentsHandler = (req: Request, res: Response) => {
   }
 };
 
-const createStudentHandler = (req: Request, res: Response) => {
+const createStudentHandler = async (req: Request, res: Response) => {
   const {
     name,
     studentId,
@@ -983,14 +983,14 @@ const createStudentHandler = (req: Request, res: Response) => {
     const cleanEmail = email.trim().toLowerCase();
     const finalStudentId = (studentId || `BCA26${String(Math.floor(Math.random() * 900) + 100)}`).trim();
 
-    const existing = dbManager.query('SELECT id FROM students WHERE LOWER(email) = LOWER(?) OR student_id = ?', [cleanEmail, finalStudentId]);
+    const existing = await dbManager.query('SELECT id FROM students WHERE LOWER(email) = LOWER(?) OR student_id = ?', [cleanEmail, finalStudentId]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ success: false, error: 'Student with this email or University Roll Number already exists.' });
     }
 
     const initials = name.trim().split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() || 'ST';
 
-    dbManager.run(
+    await dbManager.run(
       `INSERT INTO students (
         id, student_id, name, initials, avatar_bg, avatar_text, course, semester, section,
         email, phone, parent_phone, attendance_rate, mentoring_status, cgpa, sgpa_history,
@@ -1016,16 +1016,16 @@ const createStudentHandler = (req: Request, res: Response) => {
       ]
     );
 
-    const existingUser = dbManager.query('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [cleanEmail]);
+    const existingUser = await dbManager.query('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [cleanEmail]);
     if (existingUser.rows.length === 0) {
-      dbManager.run(
+      await dbManager.run(
         `INSERT INTO users (id, name, email, role, phone, department_id, student_id, semester, is_active, created_at, avatar_bg, avatar_text)
          VALUES (?, ?, ?, 'student', ?, 'BCA', ?, ?, 1, ?, 'bg-emerald-100', 'text-emerald-700')`,
         [id, name.trim(), cleanEmail, phone || '', finalStudentId, Number(semester), new Date().toISOString()]
       );
     }
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.student.created', 'student', id, null, JSON.stringify(req.body));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.student.created', 'student', id, null, JSON.stringify(req.body));
     dbManager.persist();
     res.status(201).json({ success: true, message: 'Student created successfully', id, studentId: finalStudentId });
   } catch (err: any) {
@@ -1033,11 +1033,11 @@ const createStudentHandler = (req: Request, res: Response) => {
   }
 };
 
-const deleteStudentHandler = (req: Request, res: Response) => {
+const deleteStudentHandler = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const attCount = dbManager.query('SELECT COUNT(*) as count FROM course_attendance_records WHERE student_id = ?', [id]);
-    const marksCount = dbManager.query('SELECT COUNT(*) as count FROM course_marks WHERE student_id = ?', [id]);
+    const attCount = await dbManager.query('SELECT COUNT(*) as count FROM course_attendance_records WHERE student_id = ?', [id]);
+    const marksCount = await dbManager.query('SELECT COUNT(*) as count FROM course_marks WHERE student_id = ?', [id]);
 
     if ((attCount.rows[0]?.count || 0) > 0 || (marksCount.rows[0]?.count || 0) > 0) {
       return res.status(400).json({
@@ -1046,14 +1046,14 @@ const deleteStudentHandler = (req: Request, res: Response) => {
       });
     }
 
-    const s = dbManager.query('SELECT student_id, email FROM students WHERE id = ?', [id]);
+    const s = await dbManager.query('SELECT student_id, email FROM students WHERE id = ?', [id]);
     if (s.rows.length > 0) {
       const stu = s.rows[0];
-      dbManager.run('DELETE FROM students WHERE id = ?', [id]);
-      dbManager.run('DELETE FROM users WHERE id = ? OR student_id = ? OR email = ?', [id, stu.student_id, stu.email]);
+      await dbManager.run('DELETE FROM students WHERE id = ?', [id]);
+      await dbManager.run('DELETE FROM users WHERE id = ? OR student_id = ? OR email = ?', [id, stu.student_id, stu.email]);
     }
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.student.deleted', 'student', id);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.student.deleted', 'student', id);
     dbManager.persist();
     res.json({ success: true, message: 'Student removed successfully' });
   } catch (err: any) {
@@ -1068,15 +1068,15 @@ apiRouter.post('/admin/students', createStudentHandler);
 apiRouter.delete('/students/:id', deleteStudentHandler);
 apiRouter.delete('/admin/students/:id', deleteStudentHandler);
 
-apiRouter.patch('/admin/students/:id', (req: Request, res: Response) => {
+apiRouter.patch('/admin/students/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, email, phone, parentPhone, semester, section, attendanceRate, cgpa, mentoringStatus, assignedFaculty, assignedFacultyId, isActive } = req.body;
   try {
-    const existing = dbManager.query('SELECT * FROM students WHERE id = ?', [id]);
+    const existing = await dbManager.query('SELECT * FROM students WHERE id = ?', [id]);
     if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Student not found' });
     const current = existing.rows[0];
 
-    dbManager.run(
+    await dbManager.run(
       `UPDATE students
        SET name = coalesce(?, name),
            email = coalesce(?, email),
@@ -1108,7 +1108,7 @@ apiRouter.patch('/admin/students/:id', (req: Request, res: Response) => {
       ]
     );
 
-    dbManager.run(
+    await dbManager.run(
       `UPDATE users
        SET name = coalesce(?, name),
            email = coalesce(?, email),
@@ -1119,7 +1119,7 @@ apiRouter.patch('/admin/students/:id', (req: Request, res: Response) => {
       [name || null, email || null, phone || null, semester ? Number(semester) : null, isActive !== undefined ? (isActive ? 1 : 0) : null, id, current.student_id, current.email]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.student.updated', 'student', id, JSON.stringify(current), JSON.stringify(req.body));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.student.updated', 'student', id, JSON.stringify(current), JSON.stringify(req.body));
     dbManager.persist();
     res.json({ success: true, message: 'Student updated successfully' });
   } catch (err: any) {
@@ -1127,13 +1127,13 @@ apiRouter.patch('/admin/students/:id', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/admin/students/:id/archive', (req: Request, res: Response) => {
+apiRouter.post('/admin/students/:id/archive', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const now = new Date().toISOString();
-    dbManager.run('UPDATE students SET is_active = 0, archived_at = ?, archived_by = ? WHERE id = ?', [now, 'admin-root', id]);
-    dbManager.run('UPDATE users SET is_active = 0 WHERE id = ?', [id]);
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.student.archived', 'student', id);
+    await dbManager.run('UPDATE students SET is_active = 0, archived_at = ?, archived_by = ? WHERE id = ?', [now, 'admin-root', id]);
+    await dbManager.run('UPDATE users SET is_active = 0 WHERE id = ?', [id]);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.student.archived', 'student', id);
     dbManager.persist();
     res.json({ success: true, message: 'Student account archived' });
   } catch (err: any) {
@@ -1141,7 +1141,7 @@ apiRouter.post('/admin/students/:id/archive', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/admin/students/import', (req: Request, res: Response) => {
+apiRouter.post('/admin/students/import', async (req: Request, res: Response) => {
   const { studentList } = req.body;
   if (!Array.isArray(studentList) || studentList.length === 0) {
     return res.status(400).json({ success: false, error: 'Provide a non-empty array of student records.' });
@@ -1160,7 +1160,7 @@ apiRouter.post('/admin/students/import', (req: Request, res: Response) => {
       const cleanEmail = s.email.trim().toLowerCase();
       const cleanRoll = s.studentId.trim();
 
-      const existing = dbManager.query('SELECT id FROM students WHERE LOWER(email) = LOWER(?) OR student_id = ?', [cleanEmail, cleanRoll]);
+      const existing = await dbManager.query('SELECT id FROM students WHERE LOWER(email) = LOWER(?) OR student_id = ?', [cleanEmail, cleanRoll]);
       if (existing.rows.length > 0) {
         errors.push(`Row ${i + 1}: Student with email ${cleanEmail} or roll number ${cleanRoll} already exists.`);
         continue;
@@ -1169,7 +1169,7 @@ apiRouter.post('/admin/students/import', (req: Request, res: Response) => {
       const id = s.id || `stu-${Date.now()}-${i}`;
       const initials = s.name.trim().split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() || 'ST';
 
-      dbManager.run(
+      await dbManager.run(
         `INSERT INTO students (
           id, student_id, name, initials, avatar_bg, avatar_text, course, semester, section,
           email, phone, parent_phone, attendance_rate, mentoring_status, cgpa, sgpa_history,
@@ -1195,7 +1195,7 @@ apiRouter.post('/admin/students/import', (req: Request, res: Response) => {
         ]
       );
 
-      dbManager.run(
+      await dbManager.run(
         `INSERT OR IGNORE INTO users (id, name, email, role, phone, department_id, student_id, semester, is_active, created_at, avatar_bg, avatar_text)
          VALUES (?, ?, ?, 'student', ?, 'BCA', ?, ?, 1, ?, 'bg-emerald-100', 'text-emerald-700')`,
         [id, s.name.trim(), cleanEmail, s.phone || '', cleanRoll, Number(s.semester || 1), new Date().toISOString()]
@@ -1204,7 +1204,7 @@ apiRouter.post('/admin/students/import', (req: Request, res: Response) => {
       importedCount++;
     }
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.student.import', 'student', 'bulk-import', null, JSON.stringify({ importedCount, errorCount: errors.length }));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.student.import', 'student', 'bulk-import', null, JSON.stringify({ importedCount, errorCount: errors.length }));
     dbManager.persist();
     res.json({ success: true, importedCount, errorCount: errors.length, errors, message: `Successfully imported ${importedCount} student accounts.` });
   } catch (err: any) {
@@ -1216,11 +1216,11 @@ apiRouter.post('/admin/students/import', (req: Request, res: Response) => {
 // 📝 8. STUDENT COURSE ENROLLMENTS & PROGRESSION (Step 7)
 // =========================================================================
 
-const getEnrollmentsHandler = (req: Request, res: Response) => {
+const getEnrollmentsHandler = async (req: Request, res: Response) => {
   const courseId = req.query.courseId as string;
   const studentId = req.query.studentId as string;
   try {
-    let sql = 'SELECT * FROM student_course_enrollments WHERE enrollment_status = "Enrolled"';
+    let sql = "SELECT * FROM student_course_enrollments WHERE enrollment_status = 'Enrolled'";
     const params: any[] = [];
     if (courseId) {
       sql += ' AND course_id = ?';
@@ -1230,7 +1230,7 @@ const getEnrollmentsHandler = (req: Request, res: Response) => {
       sql += ' AND student_id = ?';
       params.push(studentId);
     }
-    const resEnr = dbManager.query(sql, params);
+    const resEnr = await dbManager.query(sql, params);
     const enrollments = resEnr.rows.map(e => ({
       id: e.id,
       studentId: e.student_id,
@@ -1245,20 +1245,20 @@ const getEnrollmentsHandler = (req: Request, res: Response) => {
   }
 };
 
-const createEnrollmentHandler = (req: Request, res: Response) => {
+const createEnrollmentHandler = async (req: Request, res: Response) => {
   const { studentId, courseId, academicYear = '2026-27', section = 'A', enrollmentStatus = 'Enrolled' } = req.body;
   if (!studentId || !courseId) {
     return res.status(400).json({ success: false, error: 'studentId and courseId are required' });
   }
   try {
     const id = req.body.id || `enr-${studentId}-${courseId}`;
-    dbManager.run(
+    await dbManager.run(
       `INSERT OR REPLACE INTO student_course_enrollments (id, student_id, course_id, academic_year, section, enrollment_status)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [id, studentId, courseId, academicYear, section, enrollmentStatus]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.enrollment.created', 'enrollment', id, null, JSON.stringify(req.body));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.enrollment.created', 'enrollment', id, null, JSON.stringify(req.body));
     dbManager.persist();
     res.status(201).json({ success: true, message: 'Student enrolled in course successfully', id });
   } catch (err: any) {
@@ -1266,11 +1266,11 @@ const createEnrollmentHandler = (req: Request, res: Response) => {
   }
 };
 
-const deleteEnrollmentHandler = (req: Request, res: Response) => {
+const deleteEnrollmentHandler = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    dbManager.run('DELETE FROM student_course_enrollments WHERE id = ?', [id]);
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.enrollment.deleted', 'enrollment', id);
+    await dbManager.run('DELETE FROM student_course_enrollments WHERE id = ?', [id]);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.enrollment.deleted', 'enrollment', id);
     dbManager.persist();
     res.json({ success: true, message: 'Enrollment removed' });
   } catch (err: any) {
@@ -1285,7 +1285,7 @@ apiRouter.post('/admin/enrollments', createEnrollmentHandler);
 apiRouter.delete('/courses/enrollments/:id', deleteEnrollmentHandler);
 apiRouter.delete('/admin/enrollments/:id', deleteEnrollmentHandler);
 
-apiRouter.post('/admin/enrollments/batch', (req: Request, res: Response) => {
+apiRouter.post('/admin/enrollments/batch', async (req: Request, res: Response) => {
   const { enrollments } = req.body;
   if (!Array.isArray(enrollments) || enrollments.length === 0) {
     return res.status(400).json({ success: false, error: 'Provide a non-empty array of enrollment records.' });
@@ -1294,7 +1294,7 @@ apiRouter.post('/admin/enrollments/batch', (req: Request, res: Response) => {
     let count = 0;
     for (const enr of enrollments) {
       const id = enr.id || `enr-${enr.studentId}-${enr.courseId}`;
-      dbManager.run(
+      await dbManager.run(
         `INSERT OR REPLACE INTO student_course_enrollments (id, student_id, course_id, academic_year, section, enrollment_status)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [id, enr.studentId, enr.courseId, enr.academicYear || '2026-27', enr.section || 'A', enr.enrollmentStatus || 'Enrolled']
@@ -1302,7 +1302,7 @@ apiRouter.post('/admin/enrollments/batch', (req: Request, res: Response) => {
       count++;
     }
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.enrollment.batch', 'enrollment', 'bulk', null, JSON.stringify({ count }));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.enrollment.batch', 'enrollment', 'bulk', null, JSON.stringify({ count }));
     dbManager.persist();
     res.json({ success: true, count, message: `Successfully processed ${count} enrollments.` });
   } catch (err: any) {
@@ -1314,7 +1314,7 @@ apiRouter.post('/admin/enrollments/batch', (req: Request, res: Response) => {
 // 🎯 9. FACULTY ALLOCATIONS & MENTOR ASSIGNMENTS (Step 8)
 // =========================================================================
 
-const getAllocationsHandler = (req: Request, res: Response) => {
+const getAllocationsHandler = async (req: Request, res: Response) => {
   const facultyId = req.query.facultyId as string;
   try {
     let sql = 'SELECT * FROM faculty_course_assignments WHERE is_active = 1';
@@ -1323,7 +1323,7 @@ const getAllocationsHandler = (req: Request, res: Response) => {
       sql += ' AND faculty_id = ?';
       params.push(facultyId);
     }
-    const resAlloc = dbManager.query(sql, params);
+    const resAlloc = await dbManager.query(sql, params);
     const allocations = resAlloc.rows.map(a => ({
       id: a.id,
       facultyId: a.faculty_id,
@@ -1340,20 +1340,20 @@ const getAllocationsHandler = (req: Request, res: Response) => {
   }
 };
 
-const createAllocationHandler = (req: Request, res: Response) => {
+const createAllocationHandler = async (req: Request, res: Response) => {
   const { facultyId, courseId, section = 'A', batch = '2026-27', academicYear = '2026-27', term = 'Odd' } = req.body;
   if (!facultyId || !courseId) {
     return res.status(400).json({ success: false, error: 'facultyId and courseId are required' });
   }
   try {
     const id = req.body.id || `fca-${facultyId}-${courseId}-${section}`;
-    dbManager.run(
+    await dbManager.run(
       `INSERT OR REPLACE INTO faculty_course_assignments (id, faculty_id, course_id, section, batch, academic_year, term, is_active)
        VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
       [id, facultyId, courseId, section, batch, academicYear, term]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty_assignment.created', 'faculty_assignment', id, null, JSON.stringify(req.body));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty_assignment.created', 'faculty_assignment', id, null, JSON.stringify(req.body));
     dbManager.persist();
     res.status(201).json({ success: true, message: 'Faculty allocated to course successfully', id });
   } catch (err: any) {
@@ -1361,11 +1361,11 @@ const createAllocationHandler = (req: Request, res: Response) => {
   }
 };
 
-const deleteAllocationHandler = (req: Request, res: Response) => {
+const deleteAllocationHandler = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    dbManager.run('DELETE FROM faculty_course_assignments WHERE id = ?', [id]);
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty_assignment.deleted', 'faculty_assignment', id);
+    await dbManager.run('DELETE FROM faculty_course_assignments WHERE id = ?', [id]);
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.faculty_assignment.deleted', 'faculty_assignment', id);
     dbManager.persist();
     res.json({ success: true, message: 'Teaching assignment removed' });
   } catch (err: any) {
@@ -1380,9 +1380,9 @@ apiRouter.post('/admin/faculty-assignments', createAllocationHandler);
 apiRouter.delete('/courses/allocations/:id', deleteAllocationHandler);
 apiRouter.delete('/admin/faculty-assignments/:id', deleteAllocationHandler);
 
-apiRouter.get('/admin/mentor-assignments', (req: Request, res: Response) => {
+apiRouter.get('/admin/mentor-assignments', async (req: Request, res: Response) => {
   try {
-    const resM = dbManager.query(
+    const resM = await dbManager.query(
       `SELECT s.id as student_id, s.student_id as roll_no, s.name as student_name, s.semester, s.section,
               s.assigned_faculty, s.assigned_faculty_id, f.email as faculty_email
        FROM students s
@@ -1396,7 +1396,7 @@ apiRouter.get('/admin/mentor-assignments', (req: Request, res: Response) => {
   }
 });
 
-const reassignMentorHandler = (req: Request, res: Response) => {
+const reassignMentorHandler = async (req: Request, res: Response) => {
   const studentId = req.params.id || req.body.studentId;
   const { newFacultyId, facultyId } = req.body;
   const targetFacultyId = newFacultyId || facultyId;
@@ -1406,25 +1406,25 @@ const reassignMentorHandler = (req: Request, res: Response) => {
   }
 
   try {
-    const facRes = dbManager.query('SELECT * FROM faculty WHERE id = ?', [targetFacultyId]);
+    const facRes = await dbManager.query('SELECT * FROM faculty WHERE id = ?', [targetFacultyId]);
     if (facRes.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Faculty member not found' });
     }
     const faculty = facRes.rows[0];
 
-    dbManager.run(
+    await dbManager.run(
       'UPDATE students SET assigned_faculty = ?, assigned_faculty_id = ? WHERE id = ?',
       [faculty.name, faculty.id, studentId]
     );
 
     const assignId = `asgn-${studentId}-${faculty.id}`;
-    dbManager.run(
+    await dbManager.run(
       `INSERT OR REPLACE INTO student_assignments (id, student_id, faculty_id, semester_id, reason, start_date, is_active)
        VALUES (?, ?, ?, 'sem-current', 'mentor', ?, 1)`,
       [assignId, studentId, faculty.id, new Date().toISOString().split('T')[0]]
     );
 
-    logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.mentor_assignment.updated', 'student', studentId, null, JSON.stringify({ assignedFaculty: faculty.name, assignedFacultyId: faculty.id }));
+    await logAudit('admin-root', 'Institutional Admin', 'admin', 'admin.mentor_assignment.updated', 'student', studentId, null, JSON.stringify({ assignedFaculty: faculty.name, assignedFacultyId: faculty.id }));
     dbManager.persist();
     res.json({ success: true, message: `Assigned mentor ${faculty.name} to student successfully` });
   } catch (err: any) {
@@ -1441,13 +1441,13 @@ apiRouter.post('/admin/mentor-assignments', reassignMentorHandler);
 // =========================================================================
 
 // --- 1. FACULTY READ APIS ---
-apiRouter.get('/faculty/dashboard', (req: Request, res: Response) => {
+apiRouter.get('/faculty/dashboard', async (req: Request, res: Response) => {
   const facultyId = (req.query.facultyId as string) || 'fac-001';
   try {
-    const facRes = dbManager.query('SELECT * FROM faculty WHERE id = ?', [facultyId]);
+    const facRes = await dbManager.query('SELECT * FROM faculty WHERE id = ?', [facultyId]);
     const fac = facRes.rows[0];
 
-    const coursesRes = dbManager.query(
+    const coursesRes = await dbManager.query(
       `SELECT fca.*, c.course_name, c.course_code, c.semester, c.credits, c.course_type
        FROM faculty_course_assignments fca
        JOIN courses c ON c.id = fca.course_id
@@ -1455,7 +1455,7 @@ apiRouter.get('/faculty/dashboard', (req: Request, res: Response) => {
       [facultyId]
     );
 
-    const menteesRes = dbManager.query('SELECT COUNT(*) as count, AVG(attendance_rate) as avg_att FROM students WHERE assigned_faculty_id = ? AND is_active = 1', [facultyId]);
+    const menteesRes = await dbManager.query('SELECT COUNT(*) as count, AVG(attendance_rate) as avg_att FROM students WHERE assigned_faculty_id = ? AND is_active = 1', [facultyId]);
     const menteesCount = menteesRes.rows[0]?.count || 0;
     const avgAttendance = Math.round(menteesRes.rows[0]?.avg_att || 0);
 
@@ -1474,10 +1474,10 @@ apiRouter.get('/faculty/dashboard', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.get('/faculty/my-courses', (req: Request, res: Response) => {
+apiRouter.get('/faculty/my-courses', async (req: Request, res: Response) => {
   const facultyId = (req.query.facultyId as string) || 'fac-001';
   try {
-    const aRes = dbManager.query(
+    const aRes = await dbManager.query(
       `SELECT c.*, fca.section, fca.batch, fca.academic_year
        FROM faculty_course_assignments fca
        JOIN courses c ON c.id = fca.course_id
@@ -1490,7 +1490,7 @@ apiRouter.get('/faculty/my-courses', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.get('/faculty/my-mentees', (req: Request, res: Response) => {
+apiRouter.get('/faculty/my-mentees', async (req: Request, res: Response) => {
   const facultyId = req.query.facultyId as string;
   try {
     let sql = 'SELECT * FROM students WHERE is_active = 1';
@@ -1500,7 +1500,7 @@ apiRouter.get('/faculty/my-mentees', (req: Request, res: Response) => {
       params.push(facultyId);
     }
     sql += ' ORDER BY name ASC';
-    const stRes = dbManager.query(sql, params);
+    const stRes = await dbManager.query(sql, params);
     res.json({ success: true, data: stRes.rows });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -1508,25 +1508,25 @@ apiRouter.get('/faculty/my-mentees', (req: Request, res: Response) => {
 });
 
 // --- 2. STUDENT READ APIS ---
-apiRouter.get('/student/dashboard', (req: Request, res: Response) => {
+apiRouter.get('/student/dashboard', async (req: Request, res: Response) => {
   const studentId = req.query.studentId as string;
   try {
-    const sRes = dbManager.query('SELECT * FROM students WHERE id = ? OR student_id = ?', [studentId, studentId]);
+    const sRes = await dbManager.query('SELECT * FROM students WHERE id = ? OR student_id = ?', [studentId, studentId]);
     if (sRes.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Student record not found' });
     }
     const student = sRes.rows[0];
 
-    const enrCourses = dbManager.query(
+    const enrCourses = await dbManager.query(
       `SELECT c.* FROM student_course_enrollments sce
        JOIN courses c ON c.id = sce.course_id
-       WHERE sce.student_id = ? AND sce.enrollment_status = "Enrolled"`,
+       WHERE sce.student_id = ? AND sce.enrollment_status = 'Enrolled'`,
       [student.id]
     );
 
     let mentor = null;
     if (student.assigned_faculty_id) {
-      const mRes = dbManager.query('SELECT id, name, designation, email, phone, office FROM faculty WHERE id = ?', [student.assigned_faculty_id]);
+      const mRes = await dbManager.query('SELECT id, name, designation, email, phone, office FROM faculty WHERE id = ?', [student.assigned_faculty_id]);
       if (mRes.rows.length > 0) mentor = mRes.rows[0];
     }
 
@@ -1546,16 +1546,16 @@ apiRouter.get('/student/dashboard', (req: Request, res: Response) => {
 });
 
 // --- 3. GUARDIAN READ APIS ---
-apiRouter.get('/guardian/dashboard', (req: Request, res: Response) => {
+apiRouter.get('/guardian/dashboard', async (req: Request, res: Response) => {
   const studentId = req.query.studentId as string;
   try {
-    const sRes = dbManager.query('SELECT * FROM students WHERE id = ? OR student_id = ?', [studentId, studentId]);
+    const sRes = await dbManager.query('SELECT * FROM students WHERE id = ? OR student_id = ?', [studentId, studentId]);
     if (sRes.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Linked student record not found' });
     }
     const student = sRes.rows[0];
 
-    const smsRes = dbManager.query(
+    const smsRes = await dbManager.query(
       'SELECT * FROM sms_messages WHERE student_id = ? OR recipient_phone = ? ORDER BY sent_at DESC LIMIT 10',
       [student.id, student.parent_phone]
     );
@@ -1587,7 +1587,7 @@ apiRouter.get('/guardian/dashboard', (req: Request, res: Response) => {
 // 📝 COURSE ATTENDANCE & MARKS
 // =========================================================================
 
-apiRouter.get('/attendance/course-records', (req: Request, res: Response) => {
+apiRouter.get('/attendance/course-records', async (req: Request, res: Response) => {
   const courseId = req.query.courseId as string;
   const date = req.query.date as string;
   try {
@@ -1601,7 +1601,7 @@ apiRouter.get('/attendance/course-records', (req: Request, res: Response) => {
       sql += ' AND date = ?';
       params.push(date);
     }
-    const attRes = dbManager.query(sql, params);
+    const attRes = await dbManager.query(sql, params);
     const records = attRes.rows.map(a => ({
       id: a.id,
       studentId: a.student_id,
@@ -1621,7 +1621,7 @@ apiRouter.get('/attendance/course-records', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/attendance/course-records/batch', (req: Request, res: Response) => {
+apiRouter.post('/attendance/course-records/batch', async (req: Request, res: Response) => {
   const { courseId, facultyId, date, sessionType, records, finalize, markedBy } = req.body;
   if (!courseId || !date || !Array.isArray(records)) {
     return res.status(400).json({ success: false, error: 'Invalid attendance batch payload' });
@@ -1631,7 +1631,7 @@ apiRouter.post('/attendance/course-records/batch', (req: Request, res: Response)
     const now = new Date().toISOString();
     for (const rec of records) {
       const id = `att-${rec.studentId}-${courseId}-${date}`;
-      dbManager.run(
+      await dbManager.run(
         `INSERT OR REPLACE INTO course_attendance_records (
           id, student_id, course_id, faculty_id, date, session_type, status, marked_at, marked_by, finalized, remarks
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1642,7 +1642,7 @@ apiRouter.post('/attendance/course-records/batch', (req: Request, res: Response)
       );
     }
 
-    logAudit(facultyId || 'faculty-1', markedBy || 'Faculty', 'faculty', 'attendance.finalized', 'attendance', courseId, null, JSON.stringify({ count: records.length, date }));
+    await logAudit(facultyId || 'faculty-1', markedBy || 'Faculty', 'faculty', 'attendance.finalized', 'attendance', courseId, null, JSON.stringify({ count: records.length, date }));
     dbManager.persist();
     res.json({ success: true, message: `Recorded attendance for ${records.length} students` });
   } catch (err: any) {
@@ -1651,7 +1651,7 @@ apiRouter.post('/attendance/course-records/batch', (req: Request, res: Response)
 });
 
 // Marks Management
-apiRouter.get('/marks', (req: Request, res: Response) => {
+apiRouter.get('/marks', async (req: Request, res: Response) => {
   const courseId = req.query.courseId as string;
   const studentId = req.query.studentId as string;
   try {
@@ -1665,7 +1665,7 @@ apiRouter.get('/marks', (req: Request, res: Response) => {
       sql += ' AND student_id = ?';
       params.push(studentId);
     }
-    const marksRes = dbManager.query(sql, params);
+    const marksRes = await dbManager.query(sql, params);
     const marks = marksRes.rows.map(m => ({
       id: m.id,
       studentId: m.student_id,
@@ -1690,7 +1690,7 @@ apiRouter.get('/marks', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/marks/batch', (req: Request, res: Response) => {
+apiRouter.post('/marks/batch', async (req: Request, res: Response) => {
   const { courseId, assessmentType, marksEntries, finalize, updatedBy } = req.body;
   if (!courseId || !assessmentType || !Array.isArray(marksEntries)) {
     return res.status(400).json({ success: false, error: 'Invalid batch marks payload' });
@@ -1700,7 +1700,7 @@ apiRouter.post('/marks/batch', (req: Request, res: Response) => {
     const now = new Date().toISOString();
     for (const entry of marksEntries) {
       const { studentId, mark } = entry;
-      const existing = dbManager.query('SELECT * FROM course_marks WHERE student_id = ? AND course_id = ?', [studentId, courseId]);
+      const existing = await dbManager.query('SELECT * FROM course_marks WHERE student_id = ? AND course_id = ?', [studentId, courseId]);
 
       if (existing.rows.length > 0) {
         const colMap: Record<string, string> = {
@@ -1712,13 +1712,13 @@ apiRouter.post('/marks/batch', (req: Request, res: Response) => {
           finalExamMarks: 'final_exam_marks'
         };
         const dbCol = colMap[assessmentType] || 'cia1';
-        dbManager.run(
+        await dbManager.run(
           `UPDATE course_marks SET "${dbCol}" = ?, updated_by = ?, updated_at = ?, status = ? WHERE student_id = ? AND course_id = ?`,
           [mark, updatedBy || 'Faculty', now, finalize ? 'Finalized' : 'Saved', studentId, courseId]
         );
       } else {
         const id = `mark-${studentId}-${courseId}`;
-        dbManager.run(
+        await dbManager.run(
           `INSERT INTO course_marks (
             id, student_id, course_id, semester, academic_year, "${assessmentType}", updated_by, updated_at, status
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1735,16 +1735,16 @@ apiRouter.post('/marks/batch', (req: Request, res: Response) => {
 });
 
 // Mentoring Notes
-apiRouter.post('/mentoring', (req: Request, res: Response) => {
+apiRouter.post('/mentoring', async (req: Request, res: Response) => {
   const { studentId, date, topic, notes, actionItems, status, facultyName, facultyId } = req.body;
   try {
     const noteId = `note-${Date.now()}`;
-    dbManager.run(
+    await dbManager.run(
       'INSERT INTO mentoring_notes (id, student_id, date, faculty_name, faculty_id, topic, notes, action_items, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [noteId, studentId, date, facultyName || 'Faculty', facultyId || 'fac-1', topic, notes, actionItems, status || 'Resolved']
     );
 
-    dbManager.run('UPDATE students SET last_mentoring_date = ? WHERE id = ?', [date, studentId]);
+    await dbManager.run('UPDATE students SET last_mentoring_date = ? WHERE id = ?', [date, studentId]);
 
     dbManager.persist();
     res.json({ success: true, id: noteId, message: 'Mentoring note recorded' });
@@ -1754,21 +1754,21 @@ apiRouter.post('/mentoring', (req: Request, res: Response) => {
 });
 
 // Counseling Referrals
-apiRouter.get('/counseling/referrals', (req: Request, res: Response) => {
+apiRouter.get('/counseling/referrals', async (req: Request, res: Response) => {
   try {
-    const refRes = dbManager.query('SELECT * FROM counseling_referrals ORDER BY created_at DESC');
+    const refRes = await dbManager.query('SELECT * FROM counseling_referrals ORDER BY created_at DESC');
     res.json({ success: true, data: refRes.rows });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-apiRouter.post('/counseling/referrals', (req: Request, res: Response) => {
+apiRouter.post('/counseling/referrals', async (req: Request, res: Response) => {
   const { studentId, studentName, semester, referredByFacultyId, referredByFacultyName, reasonCode, facultyRemarks } = req.body;
   try {
     const id = `ref-${Date.now()}`;
     const now = new Date().toISOString();
-    dbManager.run(
+    await dbManager.run(
       `INSERT INTO counseling_referrals (
         id, student_id, student_name, semester, referred_by_faculty_id, referred_by_faculty_name,
         counselor_id, counselor_name, reason_code, faculty_remarks, status, mentor_visible_status,
@@ -1789,27 +1789,27 @@ apiRouter.post('/counseling/referrals', (req: Request, res: Response) => {
 });
 
 // SMS & Audit Logs
-apiRouter.get('/sms/messages', (req: Request, res: Response) => {
+apiRouter.get('/sms/messages', async (req: Request, res: Response) => {
   try {
-    const smsRes = dbManager.query('SELECT * FROM sms_messages ORDER BY sent_at DESC LIMIT 100');
+    const smsRes = await dbManager.query('SELECT * FROM sms_messages ORDER BY sent_at DESC LIMIT 100');
     res.json({ success: true, data: smsRes.rows });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-apiRouter.get('/audit-logs', (req: Request, res: Response) => {
+apiRouter.get('/audit-logs', async (req: Request, res: Response) => {
   try {
-    const logsRes = dbManager.query('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 200');
+    const logsRes = await dbManager.query('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 200');
     res.json({ success: true, data: logsRes.rows });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-apiRouter.get('/notices', (req: Request, res: Response) => {
+apiRouter.get('/notices', async (req: Request, res: Response) => {
   try {
-    const nRes = dbManager.query('SELECT * FROM notices ORDER BY date DESC');
+    const nRes = await dbManager.query('SELECT * FROM notices ORDER BY date DESC');
     res.json({ success: true, data: nRes.rows });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });

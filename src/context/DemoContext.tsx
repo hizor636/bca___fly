@@ -304,7 +304,7 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [failedLoginAttempts, setFailedLoginAttempts] = useState<number>(0);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
 
-  // Master Data State (PostgreSQL / SQLite Source of Truth)
+  // Master Data State (PostgreSQL Source of Truth)
   const [departments, setDepartments] = useState<Department[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [semesters, setSemesters] = useState<SemesterInfo[]>(DEFAULT_SEMESTERS);

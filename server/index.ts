@@ -1,7 +1,8 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { dbManager } from './db/database.js';
-import { cleanDatabase } from './db/seeder.js';
+import { dbManager } from '../database/database.js';
+import { cleanDatabase } from '../database/seeder.js';
 import { apiRouter } from './routes/apiRoutes.js';
 import { dbStudioRouter } from './routes/dbStudioRoutes.js';
 import { userRoutes } from './routes/userRoutes.js';
@@ -39,8 +40,9 @@ app.use('/api/db', dbStudioRouter);
 app.get('/', (req, res) => {
   res.json({
     name: 'BCAFly Database & API Server',
-    version: '1.0.0',
+    version: '2.0.0',
     status: 'running',
+    engine: 'PostgreSQL 18',
     endpoints: {
       health: '/api/health',
       dbStudioStats: '/api/db/stats',
@@ -65,12 +67,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Initialize Database and Start Server
 async function startServer() {
   try {
-    console.log('🚀 Initializing BCAFly Database Engine...');
+    console.log('🚀 Initializing BCAFly PostgreSQL Database Engine...');
     await dbManager.init();
-    cleanDatabase();
+    await cleanDatabase();
 
-    const stats = dbManager.getStats();
-    console.log(`✅ Database ready: ${stats.tableCount} tables, ${stats.totalRows} rows.`);
+    const stats = await dbManager.getStats();
+    console.log(`✅ Database ready: ${stats.tableCount} tables, ${stats.totalRows} rows (${stats.engine}).`);
 
     app.listen(PORT, () => {
       console.log(`📡 BCAFly Database Platform Server listening on http://localhost:${PORT}`);
