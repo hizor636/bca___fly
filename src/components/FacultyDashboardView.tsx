@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useDemoStore } from '../context/DemoContext';
 import { Student, DepartmentNotice } from '../types';
-import { INITIAL_NOTICES } from '../data/mockStore';
 import { DashboardRibbon } from './DashboardRibbon';
 import { SixSemesterReportsModal } from './SixSemesterReportsModal';
 import { CourseAcademicWorkspace } from './CourseAcademicWorkspace';
@@ -54,10 +53,11 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
     addMentoringSession,
     createCounselingReferral,
     markAndFinalizeAttendance,
-    smsMessages
+    smsMessages,
+    courses
   } = useDemoStore();
 
-  const notices = INITIAL_NOTICES;
+  const notices: DepartmentNotice[] = [];
 
   // Scoped students assigned strictly to activeFaculty (e.g. 42 for Dr. Sarah Jenkins)
   const scopedStudents = getScopedStudentsForActiveFaculty() || [];
@@ -121,14 +121,11 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
     reason: 'Regular Academic Working Day',
   };
 
-  const [selectedCourse, setSelectedCourse] = useState('BCA-301: Data Structures');
+  const [selectedCourse, setSelectedCourse] = useState(courses[0]?.courseName || activeFaculty?.courses?.[0] || 'Core Course');
   const [attendanceSheet, setAttendanceSheet] = useState<Record<string, 'present' | 'absent' | 'late'>>(() => {
     const initial: Record<string, 'present' | 'absent' | 'late'> = {};
-    scopedStudents.forEach((st, idx) => {
-      // Seed some realistic statuses
-      if (idx % 8 === 2) initial[st.id] = 'absent';
-      else if (idx % 12 === 5) initial[st.id] = 'late';
-      else initial[st.id] = 'present';
+    scopedStudents.forEach((st) => {
+      initial[st.id] = 'present';
     });
     return initial;
   });
@@ -138,29 +135,7 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
   const [finalizedResultCount, setFinalizedResultCount] = useState({ absent: 0, smsDispatched: 0 });
 
   // Tasks
-  const [tasks, setTasks] = useState<QuickTask[]>([
-    {
-      id: 'task-1',
-      title: 'Review mid-term CIA-1 papers for BCA 3rd Sem Data Structures',
-      dueTime: '2:00 PM',
-      tag: 'Grading',
-      completed: false,
-    },
-    {
-      id: 'task-2',
-      title: 'Follow-up with students having attendance under 75% for medical condonation',
-      dueTime: '3:30 PM',
-      tag: 'Mentoring',
-      completed: false,
-    },
-    {
-      id: 'task-3',
-      title: 'Submit monthly BCA laboratory maintenance sign-off to HOD office',
-      dueTime: '5:00 PM',
-      tag: 'Admin',
-      completed: true,
-    },
-  ]);
+  const [tasks, setTasks] = useState<QuickTask[]>([]);
 
   const toggleTask = (id: string) => {
     setTasks(tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
@@ -237,8 +212,8 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
   const getCiaMarks = (st: Student) => {
     const rawCia1 = (st as any)?.internalMarks?.cia1;
     const rawCia2 = (st as any)?.internalMarks?.cia2;
-    const cia1 = rawCia1 !== undefined ? rawCia1 : (st.subjectGrades?.[0]?.internalObtained ? Math.round((st.subjectGrades[0].internalObtained / (st.subjectGrades[0].internalMax || 30)) * 25) : Math.min(25, Math.max(14, Math.round(st.cgpa * 2.6))));
-    const cia2 = rawCia2 !== undefined ? rawCia2 : (st.subjectGrades?.[1]?.internalObtained ? Math.round((st.subjectGrades[1].internalObtained / (st.subjectGrades[1].internalMax || 30)) * 25) : Math.min(25, Math.max(13, Math.round(st.cgpa * 2.5))));
+    const cia1 = rawCia1 !== undefined ? rawCia1 : (st.subjectGrades?.[0]?.internalObtained ? Math.round((st.subjectGrades[0].internalObtained / (st.subjectGrades[0].internalMax || 30)) * 25) : 0);
+    const cia2 = rawCia2 !== undefined ? rawCia2 : (st.subjectGrades?.[1]?.internalObtained ? Math.round((st.subjectGrades[1].internalObtained / (st.subjectGrades[1].internalMax || 30)) * 25) : 0);
     return { cia1, cia2 };
   };
 
@@ -278,7 +253,7 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
               </div>
 
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
-                Welcome, {activeFaculty.name}
+                Welcome, {activeFaculty?.name || 'Faculty Member'}
               </h1>
 
               <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
@@ -498,8 +473,8 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
                     <tbody className="divide-y divide-slate-100">
                       {filteredStudents.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="py-10 text-center text-slate-400">
-                            No students match your filter criteria.
+                          <td colSpan={9} className="py-10 text-center text-slate-400 font-medium text-xs">
+                            No records yet. Enrolled students will appear here.
                           </td>
                         </tr>
                       ) : (
@@ -600,7 +575,7 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
                               </td>
 
                               <td className="py-3 text-slate-500 font-mono text-[11px]">
-                                {st.parentPhone || '+91 98450 11223'}
+                                {st.parentPhone || '—'}
                               </td>
 
                               <td className="py-3 pr-4 text-right space-x-1.5">
@@ -637,85 +612,91 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
             ) : (
               /* Grid View */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredStudents.map((st) => {
-                  const isShortage = st.attendanceRate < 75;
-                  return (
-                    <div
-                      key={st.id}
-                      className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs hover:border-slate-300 transition-all space-y-4"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-800 text-sm">
-                            {st.avatarText || st.name.slice(0, 2).toUpperCase()}
+                {filteredStudents.length === 0 ? (
+                  <div className="col-span-full py-12 text-center text-slate-400 font-medium text-xs bg-white rounded-2xl border border-slate-200">
+                    No records yet. Enrolled students will appear here.
+                  </div>
+                ) : (
+                  filteredStudents.map((st) => {
+                    const isShortage = st.attendanceRate < 75;
+                    return (
+                      <div
+                        key={st.id}
+                        className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs hover:border-slate-300 transition-all space-y-4"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-800 text-sm">
+                              {st.avatarText || st.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <h4
+                                onClick={() => onSelectStudent(st)}
+                                className="font-bold text-slate-900 hover:text-slate-600 text-sm cursor-pointer"
+                              >
+                                {st.name}
+                              </h4>
+                              <span className="text-xs font-mono text-slate-400">{st.studentId}</span>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isShortage
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            }`}
+                          >
+                            Sem {st.semester}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">Attendance</span>
+                            <span className={`font-bold ${isShortage ? 'text-rose-600' : 'text-slate-900'}`}>
+                              {st.attendanceRate}%
+                            </span>
                           </div>
                           <div>
-                            <h4
-                              onClick={() => onSelectStudent(st)}
-                              className="font-bold text-slate-900 hover:text-slate-600 text-sm cursor-pointer"
-                            >
-                              {st.name}
-                            </h4>
-                            <span className="text-xs font-mono text-slate-400">{st.studentId}</span>
+                            <span className="text-slate-400 block text-[10px]">CGPA</span>
+                            <span className="font-bold text-slate-900">{st.cgpa.toFixed(2)}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">CIA-1 / CIA-2</span>
+                            <span className="font-semibold text-slate-700">
+                              {(() => {
+                                const { cia1, cia2 } = getCiaMarks(st);
+                                return `${cia1} / ${cia2}`;
+                              })()}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">Mentoring</span>
+                            <span className="font-semibold text-slate-700 truncate block">
+                              {st.mentoringStatus}
+                            </span>
                           </div>
                         </div>
 
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            isShortage
-                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}
-                        >
-                          Sem {st.semester}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">Attendance</span>
-                          <span className={`font-bold ${isShortage ? 'text-rose-600' : 'text-slate-900'}`}>
-                            {st.attendanceRate}%
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">CGPA</span>
-                          <span className="font-bold text-slate-900">{st.cgpa.toFixed(2)}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">CIA-1 / CIA-2</span>
-                          <span className="font-semibold text-slate-700">
-                            {(() => {
-                              const { cia1, cia2 } = getCiaMarks(st);
-                              return `${cia1} / ${cia2}`;
-                            })()}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">Mentoring</span>
-                          <span className="font-semibold text-slate-700 truncate block">
-                            {st.mentoringStatus}
-                          </span>
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                          <button
+                            onClick={() => setMentoringTargetStudent(st)}
+                            className="text-xs font-semibold text-slate-700 hover:text-slate-900 cursor-pointer"
+                          >
+                            Log Note →
+                          </button>
+                          <button
+                            onClick={() => onSelectStudent(st)}
+                            className="text-xs font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-full transition-colors cursor-pointer"
+                          >
+                            View Profile
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                        <button
-                          onClick={() => setMentoringTargetStudent(st)}
-                          className="text-xs font-semibold text-slate-700 hover:text-slate-900 cursor-pointer"
-                        >
-                          Log Note →
-                        </button>
-                        <button
-                          onClick={() => onSelectStudent(st)}
-                          className="text-xs font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-full transition-colors cursor-pointer"
-                        >
-                          View Profile
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             )}
           </div>
@@ -754,9 +735,15 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
                     onChange={(e) => setSelectedCourse(e.target.value)}
                     className="px-3.5 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs font-semibold text-slate-900 focus:outline-none cursor-pointer"
                   >
-                    <option value="BCA-301: Data Structures">BCA-301: Data Structures (Sem 3)</option>
-                    <option value="BCA-502: Web Technologies">BCA-502: Web Technologies (Sem 5)</option>
-                    <option value="BCA-101: Problem Solving in C">BCA-101: Problem Solving in C (Sem 1)</option>
+                    {courses.length > 0 ? (
+                      courses.map((c) => (
+                        <option key={c.id || c.courseCode} value={c.courseName}>
+                          {c.courseCode}: {c.courseName} (Sem {c.semester})
+                        </option>
+                      ))
+                    ) : (
+                      <option value="Core Course">No courses configured yet</option>
+                    )}
                   </select>
                 </div>
               </div>
@@ -817,56 +804,64 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
-                    {scopedStudents.map((st) => {
-                      const currentStatus = attendanceSheet[st.id] || 'present';
-                      return (
-                        <tr key={st.id} className="hover:bg-slate-50/70">
-                          <td className="py-2.5 pl-4">
-                            <span className="font-bold text-slate-900">{st.name}</span>
-                          </td>
-                          <td className="py-2.5 font-mono text-slate-500">{st.studentId}</td>
-                          <td className="py-2.5">
-                            <span className={`font-semibold ${st.attendanceRate < 75 ? 'text-rose-600' : 'text-slate-700'}`}>
-                              {st.attendanceRate}% cumulative
-                            </span>
-                          </td>
-                          <td className="py-2.5 pr-4 text-right">
-                            <div className="inline-flex rounded-full bg-slate-100 p-0.5">
-                              <button
-                                onClick={() => handleStatusChange(st.id, 'present')}
-                                className={`px-2.5 py-0.5 rounded-full font-semibold text-[11px] transition-colors cursor-pointer ${
-                                  currentStatus === 'present'
-                                    ? 'bg-emerald-600 text-white font-bold'
-                                    : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                              >
-                                P
-                              </button>
-                              <button
-                                onClick={() => handleStatusChange(st.id, 'absent')}
-                                className={`px-2.5 py-0.5 rounded-full font-semibold text-[11px] transition-colors cursor-pointer ${
-                                  currentStatus === 'absent'
-                                    ? 'bg-rose-600 text-white font-bold'
-                                    : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                              >
-                                A
-                              </button>
-                              <button
-                                onClick={() => handleStatusChange(st.id, 'late')}
-                                className={`px-2.5 py-0.5 rounded-full font-semibold text-[11px] transition-colors cursor-pointer ${
-                                  currentStatus === 'late'
-                                    ? 'bg-amber-600 text-white font-bold'
-                                    : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                              >
-                                L
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {scopedStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center text-slate-400 font-medium text-xs">
+                          No records yet. Enrolled students will appear here.
+                        </td>
+                      </tr>
+                    ) : (
+                      scopedStudents.map((st) => {
+                        const currentStatus = attendanceSheet[st.id] || 'present';
+                        return (
+                          <tr key={st.id} className="hover:bg-slate-50/70">
+                            <td className="py-2.5 pl-4">
+                              <span className="font-bold text-slate-900">{st.name}</span>
+                            </td>
+                            <td className="py-2.5 font-mono text-slate-500">{st.studentId}</td>
+                            <td className="py-2.5">
+                              <span className={`font-semibold ${st.attendanceRate < 75 ? 'text-rose-600' : 'text-slate-700'}`}>
+                                {st.attendanceRate}% cumulative
+                              </span>
+                            </td>
+                            <td className="py-2.5 pr-4 text-right">
+                              <div className="inline-flex rounded-full bg-slate-100 p-0.5">
+                                <button
+                                  onClick={() => handleStatusChange(st.id, 'present')}
+                                  className={`px-2.5 py-0.5 rounded-full font-semibold text-[11px] transition-colors cursor-pointer ${
+                                    currentStatus === 'present'
+                                      ? 'bg-emerald-600 text-white font-bold'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                >
+                                  P
+                                </button>
+                                <button
+                                  onClick={() => handleStatusChange(st.id, 'absent')}
+                                  className={`px-2.5 py-0.5 rounded-full font-semibold text-[11px] transition-colors cursor-pointer ${
+                                    currentStatus === 'absent'
+                                      ? 'bg-rose-600 text-white font-bold'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                >
+                                  A
+                                </button>
+                                <button
+                                  onClick={() => handleStatusChange(st.id, 'late')}
+                                  className={`px-2.5 py-0.5 rounded-full font-semibold text-[11px] transition-colors cursor-pointer ${
+                                    currentStatus === 'late'
+                                      ? 'bg-amber-600 text-white font-bold'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                >
+                                  L
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -885,32 +880,22 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
                 </div>
 
                 <div className="space-y-3">
-                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-900">09:30 AM - 10:30 AM</span>
-                      <span className="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded-full">Completed</span>
+                  {courses.length === 0 ? (
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-400 font-medium">
+                      No records yet. Timetable will appear when courses are scheduled.
                     </div>
-                    <div className="font-semibold text-slate-800 text-xs mt-1">BCA-301 Data Structures Theory</div>
-                    <div className="text-[10px] text-slate-400">Room 304 • Semester 3</div>
-                  </div>
-
-                  <div className="p-3 rounded-2xl bg-slate-900 text-white">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-white">11:00 AM - 01:00 PM</span>
-                      <span className="text-amber-300 font-bold text-[10px] bg-slate-800 px-2 py-0.5 rounded-full">Active</span>
-                    </div>
-                    <div className="font-semibold text-slate-100 text-xs mt-1">Data Structures &amp; Algorithms Lab</div>
-                    <div className="text-[10px] text-slate-300">Lab 2 (System 1-42) • Roll-Call Active</div>
-                  </div>
-
-                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-900">02:30 PM - 03:30 PM</span>
-                      <span className="text-slate-400 font-semibold text-[10px]">Upcoming</span>
-                    </div>
-                    <div className="font-semibold text-slate-800 text-xs mt-1">Mentee 1-on-1 Office Hours</div>
-                    <div className="text-[10px] text-slate-400">Faculty Cabin #12 • Attendance Reviews</div>
-                  </div>
+                  ) : (
+                    courses.slice(0, 3).map((c, idx) => (
+                      <div key={c.id || idx} className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-900">{idx === 0 ? '09:30 AM - 10:30 AM' : idx === 1 ? '11:00 AM - 01:00 PM' : '02:30 PM - 03:30 PM'}</span>
+                          <span className="text-slate-400 font-semibold text-[10px]">Sem {c.semester}</span>
+                        </div>
+                        <div className="font-semibold text-slate-800 text-xs mt-1">{c.courseCode} {c.courseName}</div>
+                        <div className="text-[10px] text-slate-400">{c.courseType} • Credits: {c.credits}</div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -925,20 +910,26 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
                 </div>
 
                 <div className="space-y-3">
-                  {notices.slice(0, 3).map((notice) => (
-                    <div
-                      key={notice.id}
-                      onClick={() => onOpenNotice && onOpenNotice(notice)}
-                      className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 cursor-pointer transition-colors space-y-1"
-                    >
-                      <div className="flex items-center justify-between text-[10px]">
-                        <span className="font-bold text-slate-500 uppercase">{notice.priority}</span>
-                        <span className="text-slate-400">{notice.date}</span>
-                      </div>
-                      <div className="font-bold text-slate-900 text-xs leading-snug">{notice.title}</div>
-                      <p className="text-[11px] text-slate-500 line-clamp-2">{notice.body}</p>
+                  {notices.length === 0 ? (
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-400 font-medium">
+                      No records yet. No circulars published.
                     </div>
-                  ))}
+                  ) : (
+                    notices.slice(0, 3).map((notice) => (
+                      <div
+                        key={notice.id}
+                        onClick={() => onOpenNotice && onOpenNotice(notice)}
+                        className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 cursor-pointer transition-colors space-y-1"
+                      >
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="font-bold text-slate-500 uppercase">{notice.priority}</span>
+                          <span className="text-slate-400">{notice.date}</span>
+                        </div>
+                        <div className="font-bold text-slate-900 text-xs leading-snug">{notice.title}</div>
+                        <p className="text-[11px] text-slate-500 line-clamp-2">{notice.body}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -955,33 +946,39 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
                 </div>
 
                 <div className="space-y-2.5">
-                  {tasks.map((task) => (
-                    <div
-                      key={task.id}
-                      onClick={() => toggleTask(task.id)}
-                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 ${
-                        task.completed
-                          ? 'bg-slate-50/60 border-slate-100 text-slate-400 line-through'
-                          : 'bg-white border-slate-200/80 text-slate-800 hover:border-slate-300'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={task.completed}
-                        onChange={() => {}}
-                        className="mt-0.5 rounded text-slate-900 focus:ring-slate-900 cursor-pointer"
-                      />
-                      <div className="flex-1 text-xs">
-                        <div className="font-semibold">{task.title}</div>
-                        <div className="flex items-center gap-2 mt-1 text-[10px]">
-                          <span className="text-slate-400">Due {task.dueTime}</span>
-                          <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 font-semibold">
-                            {task.tag}
-                          </span>
+                  {tasks.length === 0 ? (
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-400 font-medium">
+                      No records yet. You have no pending faculty tasks.
+                    </div>
+                  ) : (
+                    tasks.map((task) => (
+                      <div
+                        key={task.id}
+                        onClick={() => toggleTask(task.id)}
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 ${
+                          task.completed
+                            ? 'bg-slate-50/60 border-slate-100 text-slate-400 line-through'
+                            : 'bg-white border-slate-200/80 text-slate-800 hover:border-slate-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={task.completed}
+                          onChange={() => {}}
+                          className="mt-0.5 rounded text-slate-900 focus:ring-slate-900 cursor-pointer"
+                        />
+                        <div className="flex-1 text-xs">
+                          <div className="font-semibold">{task.title}</div>
+                          <div className="flex items-center gap-2 mt-1 text-[10px]">
+                            <span className="text-slate-400">Due {task.dueTime}</span>
+                            <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 font-semibold">
+                              {task.tag}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -1099,7 +1096,7 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
                   <CheckCircle className="w-10 h-10 text-emerald-600 mx-auto" />
                   <h4 className="font-bold text-slate-900 text-sm">Referral Dispatched to Counselor</h4>
                   <p className="text-xs text-slate-500">
-                    Dr. Priya Sharma has received the case file. Clinical notes will remain strictly confidential.
+                    The assigned counselor has received the case file. Clinical notes will remain strictly confidential.
                   </p>
                 </div>
               ) : (

@@ -1,9 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import { dbManager } from './db/database.js';
-import { seedDatabase } from './db/seeder.js';
+import { cleanDatabase } from './db/seeder.js';
 import { apiRouter } from './routes/apiRoutes.js';
 import { dbStudioRouter } from './routes/dbStudioRoutes.js';
+import { userRoutes } from './routes/userRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,6 +31,7 @@ app.use((req, res, next) => {
 });
 
 // API Routes
+app.use('/api/users', userRoutes);
 app.use('/api', apiRouter);
 app.use('/api/db', dbStudioRouter);
 
@@ -65,7 +67,7 @@ async function startServer() {
   try {
     console.log('🚀 Initializing BCAFly Database Engine...');
     await dbManager.init();
-    seedDatabase(false);
+    cleanDatabase();
 
     const stats = dbManager.getStats();
     console.log(`✅ Database ready: ${stats.tableCount} tables, ${stats.totalRows} rows.`);

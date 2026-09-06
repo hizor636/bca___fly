@@ -157,8 +157,16 @@ export const AuditTrailModal: React.FC<AuditTrailModalProps> = ({ onClose }) => 
           </table>
 
           {filteredLogs.length === 0 && (
-            <div className="py-12 text-center text-slate-400">
-              No audit logs matched your search criteria.
+            <div className="py-12 text-center text-slate-400 space-y-1">
+              <ShieldCheck className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <div className="font-semibold text-slate-800 text-xs">
+                {auditLogs.length === 0 ? 'No audit events logged' : 'No audit logs matched your search criteria'}
+              </div>
+              <p className="text-[11px] text-slate-400">
+                {auditLogs.length === 0
+                  ? 'Institutional mutations, roll-call finalizations, and role access events will appear here in chronological order.'
+                  : 'Try clearing your search query or role filter to view all logged actions.'}
+              </p>
             </div>
           )}
         </div>

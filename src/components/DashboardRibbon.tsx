@@ -78,7 +78,7 @@ export const DashboardRibbon: React.FC<DashboardRibbonProps> = ({
               {getRoleIcon(currentRole)}
               <span className="text-slate-500 font-normal">faculty:</span>
               <span className="font-semibold truncate max-w-[150px] sm:max-w-[200px]">
-                {currentRole === 'faculty' ? activeFaculty.name : currentUser.name}
+                {currentRole === 'faculty' ? (activeFaculty?.name || 'Faculty Member') : (currentUser?.name || 'User')}
               </span>
             </div>
             <ChevronDown
@@ -95,120 +95,51 @@ export const DashboardRibbon: React.FC<DashboardRibbonProps> = ({
                   Select Faculty / Role Persona
                 </span>
                 <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-semibold">
-                  Active Demo
+                  Active Platform
                 </span>
               </div>
 
               {/* Faculty Members */}
               <div className="mb-1">
                 <span className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  Faculty (Scoped Access)
+                  Faculty Allocation (Mentee Scoping)
                 </span>
-                {facultyList.map((fac) => {
-                  const isSelected = currentRole === 'faculty' && activeFaculty.id === fac.id;
-                  return (
-                    <button
-                      key={fac.id}
-                      onClick={() => {
-                        switchRole('faculty', fac.id);
-                        setDropdownOpen(false);
-                      }}
-                      className={`w-full text-left p-1.5 px-2 rounded-xl text-xs flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
-                        isSelected ? 'bg-slate-100 font-semibold' : ''
-                      }`}
-                    >
-                      <div>
-                        <div className="text-slate-900">{fac.name}</div>
-                        <div className="text-[10px] text-slate-400">
-                          {fac.assignedStudentsCount} assigned students only
+                {facultyList.length === 0 ? (
+                  <div className="p-2 text-center text-xs text-slate-400">
+                    No faculty profiles in database
+                  </div>
+                ) : (
+                  facultyList.map((fac) => {
+                    const isSelected = currentRole === 'faculty' && activeFaculty?.id === fac.id;
+                    return (
+                      <button
+                        key={fac.id}
+                        onClick={() => {
+                          switchRole('faculty', fac.id);
+                          setDropdownOpen(false);
+                        }}
+                        className={`w-full text-left p-1.5 px-2 rounded-xl text-xs flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                          isSelected ? 'bg-slate-100 font-semibold' : ''
+                        }`}
+                      >
+                        <div>
+                          <div className="text-slate-900">{fac.name}</div>
+                          <div className="text-[10px] text-slate-400">
+                            {fac.assignedStudentsCount || 0} assigned students
+                          </div>
                         </div>
-                      </div>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-slate-900" />}
-                    </button>
-                  );
-                })}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-slate-900" />}
+                      </button>
+                    );
+                  })
+                )}
               </div>
 
-              {/* Admin Dean */}
-              <div className="border-t border-slate-100 pt-1.5 mb-1">
-                <span className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  Academic Governance
-                </span>
-                <button
-                  onClick={() => {
-                    switchRole('admin');
-                    setDropdownOpen(false);
-                  }}
-                  className={`w-full text-left p-2 rounded-xl text-xs flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
-                    currentRole === 'admin' ? 'bg-slate-100 font-semibold' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <ShieldAlert className="w-4 h-4 text-slate-900" />
-                    <div>
-                      <div className="font-semibold text-slate-900">Admin (Academic Dean)</div>
-                      <div className="text-[10px] text-slate-400">
-                        Assignments, 6-Sem reports, calendar
-                      </div>
-                    </div>
-                  </div>
-                  {currentRole === 'admin' && <Check className="w-3.5 h-3.5 text-slate-900" />}
-                </button>
-              </div>
-
-              {/* Students */}
-              <div className="border-t border-slate-100 pt-1.5 mb-1">
-                <span className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  Student Persona
-                </span>
-                <button
-                  onClick={() => {
-                    switchRole('student', honorStudent.id);
-                    setDropdownOpen(false);
-                  }}
-                  className={`w-full text-left p-1.5 px-2 rounded-xl text-xs flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
-                    currentRole === 'student' && currentUser.id === honorStudent.id
-                      ? 'bg-slate-100 font-semibold'
-                      : ''
-                  }`}
-                >
-                  <div>
-                    <div className="text-slate-900">{honorStudent.name} (Honor Roll)</div>
-                    <div className="text-[10px] text-slate-400">
-                      Sem {honorStudent.semester} • Mentor: {honorStudent.assignedFaculty}
-                    </div>
-                  </div>
-                  {currentRole === 'student' && currentUser.id === honorStudent.id && (
-                    <Check className="w-3.5 h-3.5 text-slate-900" />
-                  )}
-                </button>
-              </div>
-
-              {/* Counselor */}
-              <div className="border-t border-slate-100 pt-1.5">
-                <span className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  Counselor Persona
-                </span>
-                <button
-                  onClick={() => {
-                    switchRole('counselor');
-                    setDropdownOpen(false);
-                  }}
-                  className={`w-full text-left p-2 rounded-xl text-xs flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
-                    currentRole === 'counselor' ? 'bg-slate-100 font-semibold' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <HeartHandshake className="w-4 h-4 text-slate-900" />
-                    <div>
-                      <div className="font-semibold text-slate-900">Dr. Priya Sharma</div>
-                      <div className="text-[10px] text-slate-400">
-                        Confidential clinical notes &amp; referrals
-                      </div>
-                    </div>
-                  </div>
-                  {currentRole === 'counselor' && <Check className="w-3.5 h-3.5 text-slate-900" />}
-                </button>
+              {/* Security Notice */}
+              <div className="border-t border-slate-100 pt-2 px-2">
+                <p className="text-[10px] text-slate-500 leading-tight">
+                  <span className="font-semibold text-slate-700">Role Security:</span> To switch to Admin, Student, Parent, or Counselor workspaces, please use <strong className="text-slate-800">Switch Account</strong> via secure institutional authentication.
+                </p>
               </div>
             </div>
           )}
@@ -253,9 +184,9 @@ export const DashboardRibbon: React.FC<DashboardRibbonProps> = ({
       {showResetConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
           <div className="bg-white text-slate-900 rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 animate-in zoom-in-95">
-            <h4 className="font-bold text-base mb-1">Reset Demo State?</h4>
+            <h4 className="font-bold text-base mb-1">Reset Platform State?</h4>
             <p className="text-xs text-slate-500 mb-4">
-              This will restore all 800 users, initial attendance sessions, simulated SMS logs, and counseling notes back to default seeds.
+              This will clear temporary in-memory changes and synchronize with the clean relational database state.
             </p>
             <div className="flex gap-2">
               <button
@@ -271,7 +202,7 @@ export const DashboardRibbon: React.FC<DashboardRibbonProps> = ({
                 }}
                 className="flex-1 py-2 text-xs font-medium rounded-full bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
               >
-                Reset Seeds
+                Reset &amp; Refresh
               </button>
             </div>
           </div>

@@ -80,7 +80,7 @@ export const CounselorPortalView: React.FC<CounselorPortalViewProps> = ({
               Counseling &amp; Student Wellness Center
             </h1>
             <p className="text-xs text-slate-400">
-              Welcome, Dr. Priya Sharma. Clinical records and treatment plans are strictly restricted to the counseling cell. Faculty mentors receive sanitized status markers only.
+              Welcome, {currentUser?.name || 'Counselor'}. Clinical records and treatment plans are strictly restricted to the counseling cell. Faculty mentors receive sanitized status markers only.
             </p>
           </div>
         </div>
@@ -147,57 +147,64 @@ export const CounselorPortalView: React.FC<CounselorPortalViewProps> = ({
           </div>
 
           <div className="space-y-2">
-            {counselingReferrals.map((ref) => {
-              const isSelected = activeReferral?.id === ref.id;
-              return (
-                <button
-                  key={ref.id}
-                  onClick={() => setSelectedReferralId(ref.id)}
-                  className={`w-full text-left p-3.5 rounded-2xl transition-all cursor-pointer border text-xs ${
-                    isSelected
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-100'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm">{ref.studentName}</span>
-                    <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                        isSelected
-                          ? 'bg-slate-800 text-slate-200'
-                          : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      Sem {ref.semester}
-                    </span>
-                  </div>
-
-                  <div className="mt-1 space-y-1">
-                    <div className={`text-[11px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
-                      Referred by: {ref.referredByFacultyName}
-                    </div>
-                    <div className="flex items-center justify-between pt-1">
-                      <span
-                        className={`text-[10px] uppercase font-bold tracking-wider ${
-                          isSelected ? 'text-slate-300' : 'text-slate-600'
-                        }`}
-                      >
-                        {ref.reasonCode.replace('_', ' ')}
-                      </span>
+            {counselingReferrals.length === 0 ? (
+              <div className="p-8 text-center rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                <span className="text-xs font-semibold text-slate-800 block">No requests in queue</span>
+                <p className="text-[11px] text-slate-400">Referrals from faculty mentors or students will appear here.</p>
+              </div>
+            ) : (
+              counselingReferrals.map((ref) => {
+                const isSelected = activeReferral?.id === ref.id;
+                return (
+                  <button
+                    key={ref.id}
+                    onClick={() => setSelectedReferralId(ref.id)}
+                    className={`w-full text-left p-3.5 rounded-2xl transition-all cursor-pointer border text-xs ${
+                      isSelected
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm">{ref.studentName}</span>
                       <span
                         className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                          ref.status === 'pending'
-                            ? isSelected ? 'bg-amber-800 text-amber-200' : 'bg-amber-100 text-amber-800'
-                            : isSelected ? 'bg-emerald-800 text-emerald-200' : 'bg-emerald-100 text-emerald-800'
+                          isSelected
+                            ? 'bg-slate-800 text-slate-200'
+                            : 'bg-slate-200 text-slate-700'
                         }`}
                       >
-                        {ref.mentorVisibleStatus}
+                        Sem {ref.semester}
                       </span>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
+
+                    <div className="mt-1 space-y-1">
+                      <div className={`text-[11px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                        Referred by: {ref.referredByFacultyName}
+                      </div>
+                      <div className="flex items-center justify-between pt-1">
+                        <span
+                          className={`text-[10px] uppercase font-bold tracking-wider ${
+                            isSelected ? 'text-slate-300' : 'text-slate-600'
+                          }`}
+                        >
+                          {ref.reasonCode.replace('_', ' ')}
+                        </span>
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            ref.status === 'pending'
+                              ? isSelected ? 'bg-amber-800 text-amber-200' : 'bg-amber-100 text-amber-800'
+                              : isSelected ? 'bg-emerald-800 text-emerald-200' : 'bg-emerald-100 text-emerald-800'
+                          }`}
+                        >
+                          {ref.mentorVisibleStatus}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -355,6 +362,16 @@ export const CounselorPortalView: React.FC<CounselorPortalViewProps> = ({
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {!activeReferral && (
+          <div className="lg:col-span-2 bg-white p-12 rounded-3xl border border-slate-100 shadow-xs flex flex-col items-center justify-center text-center space-y-2">
+            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+              <HeartHandshake className="w-6 h-6" />
+            </div>
+            <h4 className="text-sm font-bold text-slate-800">No active counseling case selected</h4>
+            <p className="text-xs text-slate-400 max-w-sm">When faculty mentors refer students for academic or attendance counseling, case dossiers and clinical treatment logs will be managed here.</p>
           </div>
         )}
       </div>

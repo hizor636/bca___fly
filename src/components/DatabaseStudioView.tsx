@@ -292,13 +292,25 @@ export const DatabaseStudioView: React.FC<DatabaseStudioViewProps> = ({ onNaviga
     reader.readAsText(file);
   };
 
+  // Clean all data (0 rows across all tables)
+  const handleCleanDatabase = async () => {
+    if (!window.confirm('Are you sure you want to clean all records from the database? All tables will be wiped to 0 rows (clean slate) while preserving all table schemas and foreign key constraints.')) return;
+    try {
+      await api.cleanDatabase();
+      await loadDatabaseData();
+      alert('Database has been completely cleaned to 0 rows across all tables!');
+    } catch (err: any) {
+      alert(`Clean failed: ${err.message}`);
+    }
+  };
+
   // Reset to seed data
   const handleResetDatabase = async () => {
-    if (!window.confirm('Are you sure you want to reset the database to factory seed data? All custom modifications will be re-initialized.')) return;
+    if (!window.confirm('Are you sure you want to re-seed demo data? This will populate the database with default sample records.')) return;
     try {
       await api.resetDatabase();
       await loadDatabaseData();
-      alert('Database has been re-seeded to initial state successfully!');
+      alert('Database has been re-seeded with demo records successfully!');
     } catch (err: any) {
       alert(`Reset failed: ${err.message}`);
     }
@@ -1245,22 +1257,41 @@ export const DatabaseStudioView: React.FC<DatabaseStudioViewProps> = ({ onNaviga
               </div>
             </div>
 
+            {/* Clean Database Slate */}
+            <div className="bg-amber-950/20 border border-amber-500/30 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-amber-400 flex items-center gap-2">
+                  <Trash2 className="w-4 h-4" />
+                  Clean Slate Database (0 Records)
+                </h4>
+                <p className="text-xs text-slate-400 max-w-xl">
+                  Wipes all records across all tables (0 students, 0 faculty, 0 courses, 0 attendance) while preserving all table schemas and foreign key architecture.
+                </p>
+              </div>
+              <button
+                onClick={handleCleanDatabase}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-amber-600/30 cursor-pointer whitespace-nowrap"
+              >
+                Clean Database (0 Records)
+              </button>
+            </div>
+
             {/* Danger Zone: Factory Reset */}
             <div className="bg-red-950/20 border border-red-500/30 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="space-y-1">
                 <h4 className="text-sm font-bold text-red-400 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" />
-                  Factory Re-Seed & Database Reset
+                  Factory Re-Seed &amp; Demo Populate
                 </h4>
                 <p className="text-xs text-slate-400 max-w-xl">
-                  Resets all 21 tables and re-seeds the database with complete default BCA students, faculty, courses, attendance sessions, and marks.
+                  Populates the database with sample BCA students, faculty, courses, attendance sessions, and marks for demonstration purposes.
                 </p>
               </div>
               <button
                 onClick={handleResetDatabase}
-                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-red-600/30 cursor-pointer whitespace-nowrap"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all border border-slate-700 cursor-pointer whitespace-nowrap"
               >
-                Reset to Seed Data
+                Seed Demo Data
               </button>
             </div>
 

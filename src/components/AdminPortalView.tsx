@@ -1,18 +1,36 @@
 import React, { useState } from 'react';
 import { useDemoStore } from '../context/DemoContext';
 import { BcaFlyLogo } from './BcaFlyLogo';
+import { UserManagementView } from './UserManagementView';
+import { api } from '../services/api';
 import {
   Users,
   Calendar,
   Clock,
   ShieldCheck,
   Search,
-  Filter,
   CheckCircle2,
   AlertTriangle,
   Printer,
-  LogOut
+  LogOut,
+  UserPlus,
+  BookOpen,
+  GraduationCap,
+  Layers,
+  ArrowRight,
+  Building,
+  ListChecks,
+  Circle,
+  Plus,
+  FileSpreadsheet,
+  Upload,
+  X,
+  RefreshCw,
+  Archive,
+  Trash2,
+  Edit
 } from 'lucide-react';
+import { Department, AcademicYear, Course, FacultyMember, Student } from '../types';
 
 interface AdminPortalViewProps {
   onNavigateHome?: () => void;
@@ -28,62 +46,107 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const {
     currentUser,
     logout,
-    switchRole,
-    students,
+    departments,
+    academicYears,
+    semesters,
+    batches,
+    courses,
     facultyList,
+    students,
+    studentCourseEnrollments,
+    facultyCourseAssignments,
     workingDays,
     attendanceSettings,
     smsTemplates,
     smsMessages,
-    counselingReferrals,
     auditLogs,
-    semesters,
+    addDepartment,
+    addAcademicYear,
+    configureSemester,
+    addCourse,
+    archiveCourse,
+    deleteCourse,
+    addFaculty,
+    addStudent,
+    enrollStudentInCourse,
+    assignFacultyToCourse,
+    reassignStudent,
     updateAttendanceSettings,
     toggleWorkingDay,
     updateCondonationStatus,
     updateSmsTemplate,
-    reassignStudent
+    correctionRequests,
+    reviewCorrectionRequest,
+    refreshData,
+    isLoading
   } = useDemoStore();
 
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'assignments' | 'attendance-settings' | 'sms' | 'reports'
+    'overview' | 'departments-years' | 'courses' | 'users' | 'assignments' | 'attendance-settings' | 'corrections' | 'sms' | 'reports'
   >('overview');
 
-  const [reportSubTab, setReportSubTab] = useState<
-    'consolidated' | 'shortage' | 'transcripts' | 'audit'
-  >('consolidated');
+  const [reviewRemarks, setReviewRemarks] = useState<Record<string, string>>({});
+  const [reportSubTab, setReportSubTab] = useState<'consolidated' | 'shortage' | 'transcripts' | 'audit'>('consolidated');
+
+  // Feedback Notification
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Setup Modals State
+  const [modalType, setModalType] = useState<
+    'department' | 'academic-year' | 'semester' | 'course' | 'faculty' | 'student' | 'enroll' | 'allocate' | 'csv-import' | null
+  >(null);
+
+  // Forms State
+  const [deptForm, setDeptForm] = useState({ name: '', code: '' });
+  const [ayForm, setAyForm] = useState({ name: '2026-2027', startDate: '2026-06-01', endDate: '2027-05-31', attendanceRule: 75.0, isActive: true });
+  const [semForm, setSemForm] = useState({ number: 1, name: 'Semester 1', credits: 24, minAttendance: 75.0, startDate: '2026-06-01', endDate: '2026-11-30', isCurrent: true });
+  const [courseForm, setCourseForm] = useState({ courseCode: '', courseName: '', shortName: '', semester: 1, credits: 4, courseType: 'Theory' as const, maxMarks: 100, cia1MaxMarks: 20, attendanceRequired: 75.0 });
+  const [facultyForm, setFacultyForm] = useState({ name: '', email: '', designation: 'Assistant Professor', department: 'BCA', phone: '', office: 'Lab Block 2', specialization: 'Computer Applications' });
+  const [studentForm, setStudentForm] = useState({ name: '', studentId: '', email: '', phone: '', parentPhone: '', semester: 1, section: 'A', course: 'Bachelor of Computer Applications' });
+  const [enrollForm, setEnrollForm] = useState({ studentId: '', courseId: '', semester: 1, section: 'A' });
+  const [allocateForm, setAllocateForm] = useState({ facultyId: '', courseId: '', section: 'A', batch: '2026-27', academicYear: '2026-27' });
+
+  // CSV Import State
+  const [csvType, setCsvType] = useState<'students' | 'faculty' | 'courses'>('students');
+  const [csvText, setCsvText] = useState('');
+  const [csvError, setCsvError] = useState<string | null>(null);
 
   // Assignment search/filter state
   const [assignSearch, setAssignSearch] = useState('');
   const [assignSemFilter, setAssignSemFilter] = useState<number | 'all'>('all');
   const [reassigningStudentId, setReassigningStudentId] = useState<string | null>(null);
 
+  // Course Filter state
+  const [courseSemFilter, setCourseSemFilter] = useState<number | 'all'>('all');
+
   // SMS template editor state
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(smsTemplates[0].id);
-  const [templateEditText, setTemplateEditText] = useState<string>(smsTemplates[0].body);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(smsTemplates[0]?.id || 'tpl-absent');
+  const [templateEditText, setTemplateEditText] = useState<string>(smsTemplates[0]?.body || '');
   const [templateSaveFeedback, setTemplateSaveFeedback] = useState(false);
 
   // Transcript viewer state
-  const [transcriptStudentId, setTranscriptStudentId] = useState<string>(students[0].id);
-
-  // Report semester filter
+  const [transcriptStudentId, setTranscriptStudentId] = useState<string>(students[0]?.id || '');
   const [reportSemester, setReportSemester] = useState<number>(5);
 
   // Stats
-  const totalStudents = 800; // Total platform ecosystem
-  const activeEnrolledCount = students.length;
+  const totalStudents = students.length;
   const shortageStudents = students.filter((s) => s.attendanceRate < 75);
   const honorStudents = students.filter((s) => s.attendanceRate >= 92);
-  const todayWorkingDay = workingDays.find((wd) => wd.date === '2026-09-04');
   const totalSmsSent = smsMessages.filter((m) => m.status === 'sent').length;
 
+  const showFeedback = (type: 'success' | 'error', message: string) => {
+    setFeedback({ type, message });
+    setTimeout(() => setFeedback(null), 4000);
+  };
+
   const handleSaveTemplate = () => {
+    if (!selectedTemplateId) return;
     updateSmsTemplate(selectedTemplateId, templateEditText);
     setTemplateSaveFeedback(true);
     setTimeout(() => setTemplateSaveFeedback(false), 2000);
   };
 
-  const selectedTemplate = smsTemplates.find((t) => t.id === selectedTemplateId) || smsTemplates[0];
+  const selectedTemplate = smsTemplates.find((t) => t.id === selectedTemplateId) || smsTemplates[0] || null;
 
   const filteredAssignStudents = students.filter((s) => {
     const matchesSearch =
@@ -94,10 +157,108 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     return matchesSearch && matchesSem;
   });
 
-  const selectedTranscriptStudent = students.find((s) => s.id === transcriptStudentId) || students[0];
+  const filteredCourses = courses.filter((c) => {
+    return courseSemFilter === 'all' || c.semester === courseSemFilter;
+  });
+
+  const selectedTranscriptStudent = students.find((s) => s.id === transcriptStudentId) || students[0] || null;
+
+  // Institutional Setup 8-Step Progress Tracking
+  const setupSteps = [
+    {
+      id: 1,
+      stepNumber: 1,
+      title: 'Create department',
+      description: 'Register academic department (e.g. BCA) and configure department head.',
+      isCompleted: departments.length > 0,
+      actionLabel: departments.length > 0 ? 'Manage Departments' : 'Create Department',
+      onClick: () => setModalType('department')
+    },
+    {
+      id: 2,
+      stepNumber: 2,
+      title: 'Create academic year',
+      description: 'Define institutional academic calendar, working days schedule, and attendance cutoff.',
+      isCompleted: academicYears.length > 0,
+      actionLabel: academicYears.length > 0 ? 'Manage Academic Years' : 'Create Academic Year',
+      onClick: () => setModalType('academic-year')
+    },
+    {
+      id: 3,
+      stepNumber: 3,
+      title: 'Configure Sem 1 to Sem 6',
+      description: 'Set up 6-semester progression framework, credit structures, and pass criteria.',
+      isCompleted: semesters.length >= 6,
+      actionLabel: 'Configure Semester',
+      onClick: () => setModalType('semester')
+    },
+    {
+      id: 4,
+      stepNumber: 4,
+      title: 'Add course master data',
+      description: 'Register core theory courses, programming labs, and syllabus codes across Sem 1–6.',
+      isCompleted: courses.length > 0,
+      actionLabel: 'Add Course',
+      onClick: () => setModalType('course')
+    },
+    {
+      id: 5,
+      stepNumber: 5,
+      title: 'Add faculty accounts',
+      description: 'Create faculty mentor profiles, assign academic designations, and provision logins.',
+      isCompleted: facultyList.length > 0,
+      actionLabel: 'Add Faculty',
+      onClick: () => setModalType('faculty')
+    },
+    {
+      id: 6,
+      stepNumber: 6,
+      title: 'Add student accounts',
+      description: 'Register student accounts with official university roll numbers, emails, and parent contacts.',
+      isCompleted: students.length > 0,
+      actionLabel: 'Add Student',
+      onClick: () => setModalType('student')
+    },
+    {
+      id: 7,
+      stepNumber: 7,
+      title: 'Enroll students into semester/course',
+      description: 'Associate enrolled students into their designated semester syllabus and active batches.',
+      isCompleted: studentCourseEnrollments.length > 0,
+      actionLabel: 'Enroll Student',
+      onClick: () => setModalType('enroll')
+    },
+    {
+      id: 8,
+      stepNumber: 8,
+      title: 'Assign faculty to students and courses',
+      description: 'Allocate 1-on-1 mentees to professors and assign course coordinators to teaching batches.',
+      isCompleted: facultyCourseAssignments.length > 0 || students.some(s => s.assignedFacultyId),
+      actionLabel: 'Allocate Faculty',
+      onClick: () => setModalType('allocate')
+    }
+  ];
+
+  const completedStepsCount = setupSteps.filter(s => s.isCompleted).length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      {/* Feedback Toast */}
+      {feedback && (
+        <div
+          className={`p-4 rounded-2xl flex items-center justify-between text-xs font-semibold shadow-md animate-in fade-in duration-200 ${
+            feedback.type === 'success'
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border border-rose-200'
+          }`}
+        >
+          <span>{feedback.message}</span>
+          <button onClick={() => setFeedback(null)} className="text-slate-400 hover:text-slate-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Institutional Top Bar */}
       <div className="bg-slate-900 text-white p-5 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3.5">
@@ -109,18 +270,35 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/20 text-white">
                 Academic Dean &amp; Institutional Admin
               </span>
-              <span className="text-xs text-slate-400">Authenticated Session</span>
+              <span className="text-xs text-slate-400">PostgreSQL Source of Truth Active</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white mt-0.5">
-              {currentUser?.name || 'Dr. V. Swaminathan'}
+              {currentUser?.name || 'Institutional Administrator'}
             </h1>
             <p className="text-xs text-slate-400">
-              Department of Computer Applications • 800 User System Governance
+              Department of Computer Applications • Single Source of Truth Architecture
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => refreshData()}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-full transition-colors cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>Sync Live DB</span>
+          </button>
+
+          <button
+            onClick={() => setModalType('csv-import')}
+            className="flex items-center gap-1.5 text-xs font-medium text-amber-300 hover:text-white bg-amber-950/60 hover:bg-amber-900 border border-amber-800/40 px-3.5 py-2 rounded-full transition-colors cursor-pointer"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>CSV Batch Import</span>
+          </button>
+
           {onNavigatePublic && (
             <button
               onClick={onNavigatePublic}
@@ -129,32 +307,6 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               Public Site
             </button>
           )}
-
-          {/* Quick Persona Switcher for Evaluators */}
-          <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-full text-xs text-slate-300">
-            <span className="text-[10px] uppercase font-bold text-slate-500 px-2">Role:</span>
-            <button
-              onClick={() => switchRole('faculty')}
-              className="px-2.5 py-1 rounded-full hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer"
-              title="Switch to Faculty Persona"
-            >
-              Faculty
-            </button>
-            <button
-              onClick={() => switchRole('student')}
-              className="px-2.5 py-1 rounded-full hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer"
-              title="Switch to Student Persona"
-            >
-              Student
-            </button>
-            <button
-              onClick={() => switchRole('counselor')}
-              className="px-2.5 py-1 rounded-full hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer"
-              title="Switch to Counselor Persona"
-            >
-              Counselor
-            </button>
-          </div>
 
           <button
             onClick={() => {
@@ -170,246 +322,341 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         </div>
       </div>
 
-      {/* Sub Header & Tab Navigation */}
+      {/* Navigation Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100">
         <div>
           <h2 className="text-lg font-bold text-slate-900">
-            Academic Operations &amp; Faculty Mentorship Governance
+            Institutional Master Data &amp; Governance
           </h2>
           <p className="text-xs text-slate-500">
-            Configure working-day calendars, assign student mentee cohorts, verify condonation lists, and manage SMS alert gateways.
+            Centralized institutional database controlling Faculty Workspace, Student Portal, and Guardian Portal.
           </p>
         </div>
 
-        {/* Tab Navigation Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-50 border border-slate-200/80 rounded-full text-xs">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-3.5 py-1.5 rounded-full font-medium transition-colors cursor-pointer ${
-              activeTab === 'overview'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('assignments')}
-            className={`px-3.5 py-1.5 rounded-full font-medium transition-colors cursor-pointer ${
-              activeTab === 'assignments'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Assignments
-          </button>
-          <button
-            onClick={() => setActiveTab('attendance-settings')}
-            className={`px-3.5 py-1.5 rounded-full font-medium transition-colors cursor-pointer ${
-              activeTab === 'attendance-settings'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Attendance &amp; Calendar
-          </button>
-          <button
-            onClick={() => setActiveTab('sms')}
-            className={`px-3.5 py-1.5 rounded-full font-medium transition-colors cursor-pointer ${
-              activeTab === 'sms'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            SMS Center
-          </button>
-          <button
-            onClick={() => setActiveTab('reports')}
-            className={`px-3.5 py-1.5 rounded-full font-medium transition-colors cursor-pointer ${
-              activeTab === 'reports'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Reports (1–6)
-          </button>
+        <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl">
+          {[
+            { id: 'overview', label: 'Setup & Overview' },
+            { id: 'departments-years', label: 'Dept & Calendar' },
+            { id: 'courses', label: 'Course Master' },
+            { id: 'users', label: 'User Directory' },
+            { id: 'assignments', label: 'Allocations & Mentees' },
+            { id: 'attendance-settings', label: 'Attendance Rules' },
+            { id: 'corrections', label: 'Leave Reviews' },
+            { id: 'sms', label: 'SMS Gateway' },
+            { id: 'reports', label: 'Reports & Audit' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === tab.id ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* TAB 1: OVERVIEW */}
+      {/* TAB 1: OVERVIEW & 8-STEP SETUP CHECKLIST */}
       {activeTab === 'overview' && (
         <div className="space-y-6 animate-in fade-in duration-150">
-          {/* Metrics Ribbon */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                Ecosystem Users
-              </span>
-              <div className="text-2xl font-bold text-slate-900">{totalStudents}</div>
-              <span className="text-[11px] text-slate-500">6 Semesters BCA</span>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                Faculty Mentors
-              </span>
-              <div className="text-2xl font-bold text-slate-900">{facultyList.length}</div>
-              <span className="text-[11px] text-slate-500">100% scoped allocation</span>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                Today's Calendar
-              </span>
-              <div className="text-lg font-bold text-slate-900 flex items-center gap-1.5">
-                <span className={`w-2.5 h-2.5 rounded-full ${todayWorkingDay?.isWorking ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                <span>{todayWorkingDay?.isWorking ? 'Working Day' : 'Non-working'}</span>
+          {/* Institution Setup Checklist Card */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-2xl bg-indigo-50 text-indigo-700">
+                  <ListChecks className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                    Institutional Setup Checklist (Administration-First)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Master academic data created here automatically propagates across Faculty Workspace, Student Portal, Attendance, and Reports.
+                  </p>
+                </div>
               </div>
-              <span className="text-[11px] text-slate-400">Cutoff: {attendanceSettings.dailyCutoffTime}</span>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                  {completedStepsCount} of {setupSteps.length} Configured
+                </span>
+              </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                Simulated SMS
-              </span>
-              <div className="text-2xl font-bold text-slate-900">{totalSmsSent}</div>
-              <span className="text-[11px] text-slate-500">Automated dispatches</span>
+            {/* Progress Bar */}
+            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-indigo-600 h-full rounded-full transition-all duration-300"
+                style={{ width: `${(completedStepsCount / setupSteps.length) * 100}%` }}
+              />
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                Shortage Alerts
-              </span>
-              <div className="text-2xl font-bold text-slate-900">{shortageStudents.length}</div>
-              <span className="text-[11px] text-rose-600 font-semibold">&lt;75% Attendance</span>
-            </div>
+            {/* 8-Step Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+              {setupSteps.map((step) => (
+                <div
+                  key={step.id}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                    step.isCompleted
+                      ? 'bg-emerald-50/30 border-emerald-100'
+                      : 'bg-slate-50 border-slate-200/80 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        STEP {step.stepNumber}
+                      </span>
+                      {step.isCompleted ? (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3" /> Ready
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                          <Circle className="w-3 h-3" /> Pending
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-900">{step.title}</h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">{step.description}</p>
+                  </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                Counseling Queue
-              </span>
-              <div className="text-2xl font-bold text-slate-900">{counselingReferrals.length}</div>
-              <span className="text-[11px] text-slate-500">Confidential cases</span>
+                  <div className="pt-3 mt-3 border-t border-slate-100">
+                    <button
+                      onClick={step.onClick}
+                      className="w-full py-1.5 px-3 rounded-xl text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                    >
+                      <span>{step.actionLabel}</span>
+                      <ArrowRight className="w-3 h-3 text-slate-400" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Quick Action Bento Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Working Day & Cutoff Summary Card */}
-            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-slate-900" />
-                  <h3 className="font-bold text-slate-900 text-sm">Attendance Cutoff &amp; Automation</h3>
-                </div>
-                <button
-                  onClick={() => setActiveTab('attendance-settings')}
-                  className="text-xs font-semibold text-slate-700 hover:text-slate-900"
-                >
-                  Configure →
-                </button>
-              </div>
-
-              <p className="text-xs text-slate-500">
-                Daily attendance is finalized before the cutoff time. Automated SMS notifications are generated and logged exclusively on verified working days.
-              </p>
-
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Current Cutoff Time:</span>
-                  <span className="font-semibold text-slate-900">{attendanceSettings.dailyCutoffTime} (Local)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Working Days Rule:</span>
-                  <span className="font-semibold text-emerald-700">Enforced (Weekend SMS Blocked)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Auto-SMS on Finalize:</span>
-                  <span className="font-semibold text-slate-900">{attendanceSettings.autoSmsOnFinalize ? 'Enabled' : 'Disabled'}</span>
-                </div>
-              </div>
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Departments</span>
+              <div className="text-2xl font-bold text-slate-900">{departments.length}</div>
             </div>
-
-            {/* Attendance Shortage Action Box */}
-            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-rose-600" />
-                  <h3 className="font-bold text-slate-900 text-sm">Attendance Shortage Register</h3>
-                </div>
-                <button
-                  onClick={() => {
-                    setActiveTab('reports');
-                    setReportSubTab('shortage');
-                  }}
-                  className="text-xs font-semibold text-slate-700 hover:text-slate-900"
-                >
-                  View Register →
-                </button>
-              </div>
-
-              <p className="text-xs text-slate-500">
-                {shortageStudents.length} students currently require institutional condonation review or debarment processing under university statutes.
-              </p>
-
-              <div className="space-y-1.5">
-                {shortageStudents.slice(0, 3).map((st) => (
-                  <div
-                    key={st.id}
-                    className="flex items-center justify-between p-2 rounded-xl bg-slate-50 text-xs border border-slate-100"
-                  >
-                    <div>
-                      <span className="font-semibold text-slate-900 block">{st.name}</span>
-                      <span className="text-[10px] text-slate-400">Sem {st.semester} • Mentor: {st.assignedFaculty}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-bold text-rose-600">{st.attendanceRate}%</span>
-                      <span className="text-[10px] text-slate-400 block">{st.condonationStatus || 'Action Req'}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Active Courses</span>
+              <div className="text-2xl font-bold text-slate-900">{courses.length}</div>
             </div>
-
-            {/* System Health & Audit Quick Snapshot */}
-            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-slate-900" />
-                  <h3 className="font-bold text-slate-900 text-sm">Governance &amp; Audit Trail</h3>
-                </div>
-                <button
-                  onClick={() => {
-                    setActiveTab('reports');
-                    setReportSubTab('audit');
-                  }}
-                  className="text-xs font-semibold text-slate-700 hover:text-slate-900"
-                >
-                  Full Log →
-                </button>
-              </div>
-
-              <p className="text-xs text-slate-500">
-                {auditLogs.length} immutable events recorded this session. Every attendance sign-off, referral, and setting modification is tracked.
-              </p>
-
-              <div className="space-y-2">
-                {auditLogs.slice(0, 3).map((log) => (
-                  <div key={log.id} className="text-xs border-b border-slate-50 pb-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-900">{log.action}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{log.createdAt.slice(11)}</span>
-                    </div>
-                    <span className="text-[11px] text-slate-500">By {log.actorName} ({log.actorRole})</span>
-                  </div>
-                ))}
-              </div>
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Faculty Mentors</span>
+              <div className="text-2xl font-bold text-slate-900">{facultyList.length}</div>
+            </div>
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Enrolled Students</span>
+              <div className="text-2xl font-bold text-slate-900">{students.length}</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* TAB 2: ASSIGNMENTS */}
+      {/* TAB 2: DEPARTMENTS & ACADEMIC CALENDAR */}
+      {activeTab === 'departments-years' && (
+        <div className="space-y-6 animate-in fade-in duration-150">
+          {/* Departments Section */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Academic Departments</h3>
+                <p className="text-xs text-slate-500">Master departments registered in the institution.</p>
+              </div>
+              <button
+                onClick={() => setModalType('department')}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Department</span>
+              </button>
+            </div>
+
+            {departments.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1">
+                <Building className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+                <span className="font-semibold text-slate-800 text-xs">No departments created yet</span>
+                <p className="text-[11px] text-slate-400">Create your first department (e.g. BCA) to begin institutional setup.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {departments.map((d) => (
+                  <div key={d.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-sm">{d.name}</span>
+                      <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                        {d.code}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      ID: <span className="font-mono">{d.id}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Academic Years Section */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Academic Years &amp; Calendar Rules</h3>
+                <p className="text-xs text-slate-500">Configured institutional academic sessions.</p>
+              </div>
+              <button
+                onClick={() => setModalType('academic-year')}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Academic Year</span>
+              </button>
+            </div>
+
+            {academicYears.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1">
+                <Calendar className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+                <span className="font-semibold text-slate-800 text-xs">No academic years configured yet</span>
+                <p className="text-[11px] text-slate-400">Define Academic Year 2026–2027 and attendance statutory rules.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {academicYears.map((ay) => (
+                  <div key={ay.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-sm">{ay.name}</span>
+                      {ay.isActive && (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          Active Session
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-600">
+                      Duration: {ay.startDate} to {ay.endDate}
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Attendance Cutoff: <strong className="text-slate-900">{ay.attendanceRule}%</strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: COURSE MASTER */}
+      {activeTab === 'courses' && (
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-5 animate-in fade-in duration-150">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 tracking-tight">Course Master Directory (Sem 1 – 6)</h3>
+              <p className="text-xs text-slate-500">Reusable curriculum syllabus, credits, and continuous internal assessment frameworks.</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-slate-400 text-[11px] mr-1">Sem:</span>
+                <button
+                  onClick={() => setCourseSemFilter('all')}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer ${
+                    courseSemFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  All
+                </button>
+                {[1, 2, 3, 4, 5, 6].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => setCourseSemFilter(num)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer ${
+                      courseSemFilter === num ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    Sem {num}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setModalType('course')}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Course</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
+                  <th className="pb-2 pl-2">Course Code</th>
+                  <th className="pb-2">Course Name</th>
+                  <th className="pb-2">Semester</th>
+                  <th className="pb-2">Type</th>
+                  <th className="pb-2">Credits</th>
+                  <th className="pb-2">Max Marks</th>
+                  <th className="pb-2 pr-2 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredCourses.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                      <div className="flex flex-col items-center justify-center space-y-1">
+                        <BookOpen className="w-6 h-6 text-slate-300 mb-1" />
+                        <span className="font-semibold text-slate-700 text-xs">No courses configured yet</span>
+                        <p className="text-[11px] text-slate-400">Add course master data across Semesters 1 through 6.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCourses.map((c) => (
+                    <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-2.5 pl-2 font-mono font-bold text-slate-900">{c.courseCode}</td>
+                      <td className="py-2.5 font-semibold text-slate-900">{c.courseName}</td>
+                      <td className="py-2.5 text-slate-600">Semester {c.semester}</td>
+                      <td className="py-2.5">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700">
+                          {c.courseType}
+                        </span>
+                      </td>
+                      <td className="py-2.5 font-semibold text-slate-800">{c.credits} Credits</td>
+                      <td className="py-2.5 text-slate-600">{c.maxMarks} Marks</td>
+                      <td className="py-2.5 pr-2 text-right">
+                        <button
+                          onClick={async () => {
+                            if (window.confirm(`Archive course ${c.courseName}?`)) {
+                              await archiveCourse(c.id);
+                              showFeedback('success', `Course ${c.courseCode} archived.`);
+                            }
+                          }}
+                          className="px-2.5 py-1 text-[11px] text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Archive
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: USER MANAGEMENT */}
+      {activeTab === 'users' && <UserManagementView onRefreshGlobal={refreshData} />}
+
+      {/* TAB 5: ASSIGNMENTS & MENTORS */}
       {activeTab === 'assignments' && (
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-5 animate-in fade-in duration-150">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -422,28 +669,21 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               </p>
             </div>
 
-            {/* Semester Filter */}
-            <div className="flex items-center gap-1 overflow-x-auto text-xs">
-              <span className="text-slate-400 text-[11px] mr-1">Sem:</span>
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setAssignSemFilter('all')}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer ${
-                  assignSemFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
-                }`}
+                onClick={() => setModalType('allocate')}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
               >
-                All
+                <Plus className="w-3.5 h-3.5" />
+                <span>Assign Faculty Course</span>
               </button>
-              {[1, 2, 3, 4, 5, 6].map((num) => (
-                <button
-                  key={num}
-                  onClick={() => setAssignSemFilter(num)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer ${
-                    assignSemFilter === num ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  Sem {num}
-                </button>
-              ))}
+              <button
+                onClick={() => setModalType('enroll')}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Enroll Student</span>
+              </button>
             </div>
           </div>
 
@@ -472,649 +712,879 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredAssignStudents.slice(0, 15).map((st) => (
-                  <tr key={st.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-2.5 pl-2">
-                      <div className="font-semibold text-slate-900">{st.name}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">Roll: {st.studentId} • Sec {st.section}</div>
-                    </td>
-                    <td className="py-2.5 text-slate-600">
-                      BCA Semester {st.semester}
-                    </td>
-                    <td className="py-2.5">
-                      <span
-                        className={`font-semibold ${
-                          st.attendanceRate < 75 ? 'text-rose-600' : 'text-slate-800'
-                        }`}
-                      >
-                        {st.attendanceRate}%
-                      </span>
-                    </td>
-                    <td className="py-2.5">
-                      <div className="font-semibold text-slate-900">{st.assignedFaculty}</div>
-                      <span className="text-[10px] text-emerald-700 font-medium">Scoped Access Active</span>
-                    </td>
-                    <td className="py-2.5 pr-2 text-right">
-                      {reassigningStudentId === st.id ? (
-                        <select
-                          defaultValue={st.assignedFacultyId}
-                          onChange={(e) => {
-                            reassignStudent(st.id, e.target.value);
-                            setReassigningStudentId(null);
-                          }}
-                          className="bg-white border border-slate-300 text-xs rounded-full px-2 py-1 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                        >
-                          {facultyList.map((f) => (
-                            <option key={f.id} value={f.id}>
-                              {f.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <button
-                          onClick={() => setReassigningStudentId(st.id)}
-                          className="px-3 py-1 rounded-full text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
-                        >
-                          Change Mentor
-                        </button>
-                      )}
+                {filteredAssignStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400">
+                      <div className="flex flex-col items-center justify-center space-y-1">
+                        <Users className="w-6 h-6 text-slate-300 mb-1" />
+                        <span className="font-semibold text-slate-700 text-xs">No records yet</span>
+                        <p className="text-[11px] text-slate-400">Add student accounts and faculty in the User Directory to configure mentor allocations.</p>
+                      </div>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredAssignStudents.slice(0, 20).map((st) => (
+                    <tr key={st.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-2.5 pl-2">
+                        <div className="font-semibold text-slate-900">{st.name}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">Roll: {st.studentId} • Sec {st.section}</div>
+                      </td>
+                      <td className="py-2.5 text-slate-600">BCA Semester {st.semester}</td>
+                      <td className="py-2.5">
+                        <span className={`font-semibold ${st.attendanceRate < 75 ? 'text-rose-600' : 'text-slate-800'}`}>
+                          {st.attendanceRate}%
+                        </span>
+                      </td>
+                      <td className="py-2.5">
+                        <div className="font-semibold text-slate-900">{st.assignedFaculty || 'Unassigned'}</div>
+                        <span className="text-[10px] text-emerald-700 font-medium">Scoped Access Active</span>
+                      </td>
+                      <td className="py-2.5 pr-2 text-right">
+                        {reassigningStudentId === st.id ? (
+                          <select
+                            defaultValue={st.assignedFacultyId}
+                            onChange={async (e) => {
+                              await reassignStudent(st.id, e.target.value);
+                              setReassigningStudentId(null);
+                              showFeedback('success', `Mentor updated for ${st.name}`);
+                            }}
+                            className="bg-white border border-slate-300 text-xs rounded-full px-2 py-1 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                          >
+                            <option value="">Select Faculty Mentor</option>
+                            {facultyList.map((f) => (
+                              <option key={f.id} value={f.id}>{f.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <button
+                            onClick={() => setReassigningStudentId(st.id)}
+                            className="px-3 py-1 rounded-full text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
+                          >
+                            Change Mentor
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-
-          <div className="text-[11px] text-slate-400 text-center pt-2">
-            Showing top {Math.min(filteredAssignStudents.length, 15)} of {filteredAssignStudents.length} assigned students across the ecosystem.
-          </div>
         </div>
       )}
 
-      {/* TAB 3: ATTENDANCE & CALENDAR */}
+      {/* TAB 6: ATTENDANCE RULES */}
       {activeTab === 'attendance-settings' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-150">
-          {/* Working Days Calendar */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-                Academic Working Days Calendar
-              </h3>
-              <p className="text-xs text-slate-500">
-                Automated SMS alerts are sent strictly on working days. Toggle days to test non-working day SMS suppression.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              {workingDays.map((wd) => (
-                <div
-                  key={wd.id}
-                  className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 border border-slate-100 text-xs"
-                >
-                  <div>
-                    <span className="font-semibold text-slate-900 mr-2">{wd.date}</span>
-                    <span className="text-slate-500">({wd.dayOfWeek})</span>
-                    {wd.reason && (
-                      <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full ml-2">
-                        {wd.reason}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => toggleWorkingDay(wd.date)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                      wd.isWorking
-                        ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                        : 'bg-rose-100 text-rose-800 hover:bg-rose-200'
-                    }`}
-                  >
-                    {wd.isWorking ? 'Working Day' : 'Non-working / Off'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Cutoff Configuration */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-5">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-                Attendance Cutoff &amp; SMS Automation Rules
-              </h3>
-              <p className="text-xs text-slate-500">
-                Configure timing constraints for faculty attendance submissions and SMS dispatch triggers.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Daily Attendance Cutoff Time
-                </label>
-                <input
-                  type="time"
-                  value={attendanceSettings.dailyCutoffTime}
-                  onChange={(e) => updateAttendanceSettings({ dailyCutoffTime: e.target.value })}
-                  className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-sm font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                />
-                <span className="block text-[11px] text-slate-400 mt-1">
-                  Faculty must finalize attendance before this hour for automated same-day parent SMS delivery.
-                </span>
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 space-y-3">
-                <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 cursor-pointer">
-                  <div>
-                    <span className="font-semibold text-slate-900 text-xs block">
-                      Enforce Strict Cutoff
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Warn faculty if attendance is submitted after configured cutoff time.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={attendanceSettings.cutoffEnforced}
-                    onChange={(e) => updateAttendanceSettings({ cutoffEnforced: e.target.checked })}
-                    className="w-4 h-4 rounded text-slate-900"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 cursor-pointer">
-                  <div>
-                    <span className="font-semibold text-slate-900 text-xs block">
-                      Auto-Trigger SMS on Finalize
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Instantly simulate SMS delivery to absentees upon faculty finalization.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={attendanceSettings.autoSmsOnFinalize}
-                    onChange={(e) => updateAttendanceSettings({ autoSmsOnFinalize: e.target.checked })}
-                    className="w-4 h-4 rounded text-slate-900"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 cursor-pointer">
-                  <div>
-                    <span className="font-semibold text-slate-900 text-xs block">
-                      Suppress SMS on Weekends &amp; Holidays
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Respect working days calendar and avoid sending messages on off days.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={attendanceSettings.smsWorkingDaysOnly}
-                    onChange={(e) => updateAttendanceSettings({ smsWorkingDaysOnly: e.target.checked })}
-                    className="w-4 h-4 rounded text-slate-900"
-                  />
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: SMS AUTOMATION CENTER */}
-      {activeTab === 'sms' && (
-        <div className="space-y-6 animate-in fade-in duration-150">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Templates */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4">
-              <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-                SMS Templates
-              </h3>
-              <div className="space-y-2">
-                {smsTemplates.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => {
-                      setSelectedTemplateId(t.id);
-                      setTemplateEditText(t.body);
-                    }}
-                    className={`w-full text-left p-3 rounded-2xl text-xs transition-colors cursor-pointer ${
-                      selectedTemplateId === t.id
-                        ? 'bg-slate-900 text-white shadow-xs'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-100'
-                    }`}
-                  >
-                    <div className="font-semibold">{t.name}</div>
-                    <div className={`text-[10px] truncate mt-1 ${selectedTemplateId === t.id ? 'text-slate-300' : 'text-slate-400'}`}>
-                      {t.body}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Template Editor & Preview */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4 lg:col-span-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-                  Edit Template &amp; Variable Mapping
-                </h3>
-                {templateSaveFeedback && (
-                  <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Saved &amp; Audit-Logged
-                  </span>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Template Body
-                </label>
-                <textarea
-                  rows={3}
-                  value={templateEditText}
-                  onChange={(e) => setTemplateEditText(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs focus:outline-none focus:ring-1 focus:ring-slate-900 focus:bg-white"
-                />
-              </div>
-
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-xs space-y-2">
-                <span className="font-semibold text-slate-700 block">Available Parameters:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedTemplate.variables.map((v) => (
-                    <span key={v} className="font-mono text-[11px] bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full">
-                      {v}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSaveTemplate}
-                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-full transition-all cursor-pointer"
-                >
-                  Save Template
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Live Simulated SMS Logs */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-                  Simulated SMS Delivery Logs
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Real-time audit log of automated SMS dispatches generated on working days with idempotency keys.
-                </p>
-              </div>
-              <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
-                {smsMessages.length} Messages Dispatched
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
-                    <th className="pb-2 pl-2">Timestamp</th>
-                    <th className="pb-2">Recipient</th>
-                    <th className="pb-2">Student</th>
-                    <th className="pb-2">Message Body</th>
-                    <th className="pb-2">Idempotency &amp; Provider</th>
-                    <th className="pb-2 pr-2 text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {smsMessages.map((msg) => (
-                    <tr key={msg.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-2.5 pl-2 font-mono text-[11px] text-slate-400 whitespace-nowrap">
-                        {msg.sentAt}
-                      </td>
-                      <td className="py-2.5">
-                        <div className="font-semibold text-slate-900">{msg.recipientType}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{msg.recipientPhone}</div>
-                      </td>
-                      <td className="py-2.5 font-semibold text-slate-800">
-                        {msg.studentName}
-                      </td>
-                      <td className="py-2.5 max-w-sm">
-                        <p className="text-slate-600 text-xs line-clamp-2">{msg.body}</p>
-                      </td>
-                      <td className="py-2.5 font-mono text-[10px] text-slate-400">
-                        <div>{msg.idempotencyKey}</div>
-                        <div>{msg.providerMessageId}</div>
-                      </td>
-                      <td className="py-2.5 pr-2 text-right">
-                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          {msg.status.toUpperCase()}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 5: REPORTS & EXPORTS (SEMESTERS 1 TO 6) */}
-      {activeTab === 'reports' && (
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-6 animate-in fade-in duration-150">
-          {/* Sub-tab Pills */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
-            <div className="flex items-center gap-2 overflow-x-auto">
-              {(
-                [
-                  { id: 'consolidated', label: '1. Consolidated Semester Report' },
-                  { id: 'shortage', label: '2. Attendance Shortage Register' },
-                  { id: 'transcripts', label: '3. Student Transcripts' },
-                  { id: 'audit', label: '4. Governance & Audit Trail' }
-                ] as const
-              ).map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setReportSubTab(tab.id)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
-                    reportSubTab === tab.id
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {tab.label}
-                </button>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Attendance Policies &amp; Cutoff Controls</h3>
+            <p className="text-xs text-slate-500">Configure daily submission cutoffs and working days calendar.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+              <label className="text-xs font-bold text-slate-700 block">Daily Attendance Cutoff Time</label>
+              <input
+                type="time"
+                value={attendanceSettings.dailyCutoffTime}
+                onChange={(e) => updateAttendanceSettings({ dailyCutoffTime: e.target.value })}
+                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono"
+              />
+              <p className="text-[11px] text-slate-400">Faculty attendance marked after this cutoff requires administrative review.</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+              <label className="text-xs font-bold text-slate-700 block">SMS Automated Triggers</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="autoSms"
+                  checked={attendanceSettings.autoSmsOnFinalize}
+                  onChange={(e) => updateAttendanceSettings({ autoSmsOnFinalize: e.target.checked })}
+                  className="rounded"
+                />
+                <label htmlFor="autoSms" className="text-xs text-slate-700 font-medium">
+                  Dispatch SMS to parents on absence finalization
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 7: CORRECTIONS */}
+      {activeTab === 'corrections' && (
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4 animate-in fade-in duration-150">
+          <h3 className="text-lg font-bold text-slate-900">Attendance Correction &amp; Medical Leave Reviews</h3>
+          <p className="text-xs text-slate-500">Review student-submitted leave certificates and condonation applications.</p>
+
+          {correctionRequests.length === 0 ? (
+            <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1">
+              <span className="font-semibold text-slate-800 text-xs">No pending correction requests</span>
+              <p className="text-[11px] text-slate-400">Student leave submissions will appear here for administrative approval.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {correctionRequests.map((req) => (
+                <div key={req.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-4">
+                  <div>
+                    <div className="font-bold text-slate-900 text-xs">{req.studentName} (Roll: {req.rollNumber})</div>
+                    <div className="text-[11px] text-slate-500">{req.requestType} • {req.date} • {req.reason}</div>
+                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold ${req.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' : req.status === 'Rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {req.status}
+                    </span>
+                  </div>
+
+                  {req.status === 'Pending' && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          reviewCorrectionRequest(req.id, 'Approved', 'Approved by Dean');
+                          showFeedback('success', `Request approved for ${req.studentName}`);
+                        }}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => {
+                          reviewCorrectionRequest(req.id, 'Rejected', 'Insufficient documentation');
+                          showFeedback('error', `Request rejected for ${req.studentName}`);
+                        }}
+                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 8: SMS */}
+      {activeTab === 'sms' && (
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4 animate-in fade-in duration-150">
+          <h3 className="text-lg font-bold text-slate-900">SMS Gateway &amp; Automated Templates</h3>
+          <p className="text-xs text-slate-500">Edit institutional parent notification SMS drafts.</p>
+
+          <div className="space-y-3">
+            <label className="text-xs font-bold text-slate-700 block">Select Template</label>
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => {
+                setSelectedTemplateId(e.target.value);
+                const t = smsTemplates.find((tmpl) => tmpl.id === e.target.value);
+                if (t) setTemplateEditText(t.body);
+              }}
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs w-full max-w-md"
+            >
+              {smsTemplates.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+
+            <textarea
+              rows={4}
+              value={templateEditText}
+              onChange={(e) => setTemplateEditText(e.target.value)}
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono focus:outline-none focus:bg-white"
+            />
 
             <button
-              onClick={() => window.print()}
-              className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+              onClick={handleSaveTemplate}
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
             >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Print Document</span>
+              {templateSaveFeedback ? 'Saved!' : 'Save Template'}
             </button>
           </div>
+        </div>
+      )}
 
-          {/* SUB-TAB: CONSOLIDATED SEMESTER REPORT */}
-          {reportSubTab === 'consolidated' && (
-            <div className="space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                    Consolidated 6-Semester Academic Benchmarking Report
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Institutional enrollment, aggregate attendance rates, SGPA bands, and arrears across Semesters 1 through 6.
-                  </p>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider bg-slate-50/70">
-                      <th className="py-2.5 pl-3">Semester</th>
-                      <th className="py-2.5">Enrolled</th>
-                      <th className="py-2.5">Avg Attendance</th>
-                      <th className="py-2.5">Benchmarked &gt;85%</th>
-                      <th className="py-2.5">Marginal (75-85%)</th>
-                      <th className="py-2.5">Shortage (&lt;75%)</th>
-                      <th className="py-2.5">Avg SGPA</th>
-                      <th className="py-2.5 pr-3 text-right">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {semesters.map((sem) => {
-                      const semStudents = students.filter((s) => s.semester === sem.number);
-                      const count = semStudents.length || 20;
-                      const avgAtt = semStudents.length
-                        ? Math.round(semStudents.reduce((acc, s) => acc + s.attendanceRate, 0) / count)
-                        : 84 + (sem.number % 3);
-                      const above85 = semStudents.filter((s) => s.attendanceRate >= 85).length || Math.round(count * 0.55);
-                      const marginal = semStudents.filter((s) => s.attendanceRate >= 75 && s.attendanceRate < 85).length || Math.round(count * 0.35);
-                      const shortage = semStudents.filter((s) => s.attendanceRate < 75).length || Math.round(count * 0.1);
-                      const avgSgpa = (7.4 + (sem.number * 0.18)).toFixed(2);
-
-                      return (
-                        <tr key={sem.id} className="hover:bg-slate-50/60">
-                          <td className="py-3 pl-3 font-semibold text-slate-900">
-                            {sem.name}
-                          </td>
-                          <td className="py-3 text-slate-700">{sem.totalEnrolled} students</td>
-                          <td className="py-3 font-bold text-slate-900">{avgAtt}%</td>
-                          <td className="py-3 text-emerald-700 font-semibold">{above85} students</td>
-                          <td className="py-3 text-amber-700 font-semibold">{marginal} students</td>
-                          <td className="py-3 text-rose-600 font-bold">{shortage} flagged</td>
-                          <td className="py-3 font-mono text-slate-800">{avgSgpa} / 10</td>
-                          <td className="py-3 pr-3 text-right">
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                sem.isCurrent
-                                  ? 'bg-slate-900 text-white'
-                                  : 'bg-slate-100 text-slate-600'
-                              }`}
-                            >
-                              {sem.isCurrent ? 'Current Term' : 'Archived'}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+      {/* TAB 9: REPORTS & AUDIT */}
+      {activeTab === 'reports' && (
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-5 animate-in fade-in duration-150">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-slate-900">Institutional Governance &amp; Audit Trail</h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setReportSubTab('audit')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-xl ${reportSubTab === 'audit' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}
+              >
+                Audit Trail ({auditLogs.length})
+              </button>
+              <button
+                onClick={() => setReportSubTab('shortage')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-xl ${reportSubTab === 'shortage' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}
+              >
+                Shortage Register ({shortageStudents.length})
+              </button>
             </div>
-          )}
+          </div>
 
-          {/* SUB-TAB: ATTENDANCE SHORTAGE REGISTER */}
-          {reportSubTab === 'shortage' && (
-            <div className="space-y-5">
+          <div className="space-y-2">
+            {auditLogs.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1">
+                <ShieldCheck className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+                <span className="font-semibold text-slate-800 text-xs">No audit logs recorded</span>
+                <p className="text-[11px] text-slate-400">All administrative mutations and student operations generate immutable audit events.</p>
+              </div>
+            ) : (
+              auditLogs.slice(0, 30).map((log) => (
+                <div key={log.id} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs flex justify-between items-center">
+                  <div>
+                    <div className="font-bold text-slate-900">{log.action}</div>
+                    <div className="text-[10px] text-slate-400">By {log.actorName} ({log.actorRole}) • {log.createdAt}</div>
+                  </div>
+                  {log.afterJson && (
+                    <span className="text-[10px] font-mono text-slate-600 bg-white px-2 py-1 rounded border border-slate-200 max-w-xs truncate">
+                      {log.afterJson}
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* 🚀 INTERACTIVE SETUP MODALS                                        */}
+      {/* ================================================================= */}
+
+      {/* 1. Department Modal */}
+      {modalType === 'department' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">Register Academic Department</h3>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3 text-xs">
               <div>
-                <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                  Attendance Shortage Register (Criteria &lt;75%)
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Official register of students failing the 75% minimum university threshold. Requires Academic Council condonation or debarment from semester exams.
-                </p>
+                <label className="font-semibold text-slate-700 block mb-1">Department Name</label>
+                <input
+                  type="text"
+                  placeholder="Bachelor of Computer Applications"
+                  value={deptForm.name}
+                  onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                />
               </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider bg-slate-50/70">
-                      <th className="py-2.5 pl-3">Student Name</th>
-                      <th className="py-2.5">Roll No</th>
-                      <th className="py-2.5">Semester</th>
-                      <th className="py-2.5">Classes Attended</th>
-                      <th className="py-2.5">Attendance %</th>
-                      <th className="py-2.5">Shortage Deficit</th>
-                      <th className="py-2.5">Condonation Status</th>
-                      <th className="py-2.5 pr-3 text-right">Council Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {shortageStudents.map((st) => {
-                      const shortagePercent = 75 - st.attendanceRate;
-                      return (
-                        <tr key={st.id} className="hover:bg-slate-50/60">
-                          <td className="py-3 pl-3 font-semibold text-slate-900">{st.name}</td>
-                          <td className="py-3 font-mono text-slate-500">{st.studentId}</td>
-                          <td className="py-3 text-slate-600">BCA Sem {st.semester}</td>
-                          <td className="py-3 text-slate-700">{st.totalClassesAttended} / {st.totalClassesHeld}</td>
-                          <td className="py-3 font-bold text-rose-600">{st.attendanceRate}%</td>
-                          <td className="py-3 font-semibold text-amber-700">-{shortagePercent}%</td>
-                          <td className="py-3">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                st.condonationStatus === 'Approved'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : st.condonationStatus === 'Debarred'
-                                  ? 'bg-rose-100 text-rose-800'
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}
-                            >
-                              {st.condonationStatus || 'Pending Medical'}
-                            </span>
-                          </td>
-                          <td className="py-3 pr-3 text-right space-x-1.5">
-                            <button
-                              onClick={() => updateCondonationStatus(st.id, 'Approved')}
-                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold text-[11px] rounded-full cursor-pointer transition-colors"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => updateCondonationStatus(st.id, 'Debarred')}
-                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-800 font-semibold text-[11px] rounded-full cursor-pointer transition-colors"
-                            >
-                              Debar
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Department Code</label>
+                <input
+                  type="text"
+                  placeholder="BCA"
+                  value={deptForm.code}
+                  onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value.toUpperCase() })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase"
+                />
               </div>
             </div>
-          )}
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setModalType(null)} className="px-4 py-2 text-slate-600 font-semibold text-xs">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!deptForm.name || !deptForm.code) return;
+                  await addDepartment(deptForm);
+                  setModalType(null);
+                  showFeedback('success', `Department ${deptForm.code} created successfully.`);
+                }}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl cursor-pointer"
+              >
+                Create Department
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-          {/* SUB-TAB: TRANSCRIPTS */}
-          {reportSubTab === 'transcripts' && (
-            <div className="space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* 2. Academic Year Modal */}
+      {modalType === 'academic-year' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">Configure Academic Year</h3>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Academic Year</label>
+                <input
+                  type="text"
+                  placeholder="2026–2027"
+                  value={ayForm.name}
+                  onChange={(e) => setAyForm({ ...ayForm, name: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                    Multi-Semester Student Academic Transcript
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Comprehensive 6-semester academic record, internal evaluation marks, and mentor assessments.
-                  </p>
+                  <label className="font-semibold text-slate-700 block mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={ayForm.startDate}
+                    onChange={(e) => setAyForm({ ...ayForm, startDate: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
                 </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={ayForm.endDate}
+                    onChange={(e) => setAyForm({ ...ayForm, endDate: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Statutory Attendance Threshold (%)</label>
+                <input
+                  type="number"
+                  value={ayForm.attendanceRule}
+                  onChange={(e) => setAyForm({ ...ayForm, attendanceRule: Number(e.target.value) })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setModalType(null)} className="px-4 py-2 text-slate-600 font-semibold text-xs">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!ayForm.name) return;
+                  await addAcademicYear(ayForm);
+                  setModalType(null);
+                  showFeedback('success', `Academic Year ${ayForm.name} configured successfully.`);
+                }}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl cursor-pointer"
+              >
+                Save Academic Year
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-slate-500">Select Student:</span>
+      {/* 3. Semester Modal */}
+      {modalType === 'semester' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">Configure Semester Framework</h3>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Semester Number</label>
                   <select
-                    value={transcriptStudentId}
-                    onChange={(e) => setTranscriptStudentId(e.target.value)}
-                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full font-semibold text-slate-900 focus:outline-none"
+                    value={semForm.number}
+                    onChange={(e) => setSemForm({ ...semForm, number: Number(e.target.value), name: `Semester ${e.target.value}` })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                   >
-                    {students.slice(0, 10).map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} (Roll: {s.studentId}) - Sem {s.semester}
-                      </option>
-                    ))}
+                    {[1, 2, 3, 4, 5, 6].map(num => <option key={num} value={num}>Semester {num}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Target Credits</label>
+                  <input
+                    type="number"
+                    value={semForm.credits}
+                    onChange={(e) => setSemForm({ ...semForm, credits: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setModalType(null)} className="px-4 py-2 text-slate-600 font-semibold text-xs">Cancel</button>
+              <button
+                onClick={async () => {
+                  await configureSemester(semForm);
+                  setModalType(null);
+                  showFeedback('success', `Semester ${semForm.number} configured successfully.`);
+                }}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl cursor-pointer"
+              >
+                Save Semester
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Course Modal */}
+      {modalType === 'course' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">Add Course Master Data</h3>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Course Code</label>
+                  <input
+                    type="text"
+                    placeholder="BCA101"
+                    value={courseForm.courseCode}
+                    onChange={(e) => setCourseForm({ ...courseForm, courseCode: e.target.value.toUpperCase() })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Semester</label>
+                  <select
+                    value={courseForm.semester}
+                    onChange={(e) => setCourseForm({ ...courseForm, semester: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    {[1, 2, 3, 4, 5, 6].map(num => <option key={num} value={num}>Semester {num}</option>)}
                   </select>
                 </div>
               </div>
 
-              {/* Transcript Preview Card */}
-              <div className="p-6 rounded-3xl border border-slate-200 bg-white space-y-6">
-                <div className="flex justify-between items-start border-b border-slate-100 pb-4">
-                  <div>
-                    <h4 className="text-2xl font-bold text-slate-900 font-sans">{selectedTranscriptStudent.name}</h4>
-                    <p className="text-xs text-slate-500">
-                      Roll: {selectedTranscriptStudent.studentId} • Course: BCA • Current Semester: {selectedTranscriptStudent.semester}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Assigned Faculty Mentor: <strong className="text-slate-800">{selectedTranscriptStudent.assignedFaculty}</strong>
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-2xl font-bold text-slate-900 font-mono">CGPA: {selectedTranscriptStudent.cgpa}</span>
-                    <span className="text-xs text-slate-500 block">Attendance: {selectedTranscriptStudent.attendanceRate}%</span>
-                  </div>
-                </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Course Name</label>
+                <input
+                  type="text"
+                  placeholder="Programming in C & Data Structures"
+                  value={courseForm.courseName}
+                  onChange={(e) => setCourseForm({ ...courseForm, courseName: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
 
-                {/* 6 Semester Progress Ledger */}
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                    Semester Performance History (Semesters 1 – 6)
-                  </h5>
-                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
-                    {[1, 2, 3, 4, 5, 6].map((semNum) => {
-                      const sgpa = selectedTranscriptStudent.sgpaHistory[semNum - 1] || 0;
-                      return (
-                        <div key={semNum} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-                          <span className="text-[10px] font-semibold text-slate-400 uppercase block">Sem {semNum}</span>
-                          <span className="text-sm font-bold text-slate-900 font-mono">
-                            {sgpa > 0 ? `${sgpa} SGPA` : 'In Progress'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <label className="font-semibold text-slate-700 block mb-1">Course Type</label>
+                  <select
+                    value={courseForm.courseType}
+                    onChange={(e) => setCourseForm({ ...courseForm, courseType: e.target.value as any })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    <option value="Theory">Theory</option>
+                    <option value="Lab">Lab</option>
+                    <option value="Elective">Elective</option>
+                    <option value="Project">Project</option>
+                  </select>
                 </div>
-
-                {/* Subject Internal Assessment Marks */}
                 <div>
-                  <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                    Current Semester Subject Internal Evaluations
-                  </h5>
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-slate-400 uppercase text-[10px]">
-                        <th className="pb-1.5">Code</th>
-                        <th className="pb-1.5">Course Name</th>
-                        <th className="pb-1.5">Internal Marks</th>
-                        <th className="pb-1.5">Attendance</th>
-                        <th className="pb-1.5 text-right">Grade</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {selectedTranscriptStudent.subjectGrades.length > 0 ? (
-                        selectedTranscriptStudent.subjectGrades.map((g) => (
-                          <tr key={g.subjectCode}>
-                            <td className="py-2 font-mono">{g.subjectCode}</td>
-                            <td className="py-2 font-semibold text-slate-900">{g.subjectName}</td>
-                            <td className="py-2">{g.internalObtained} / {g.internalMax}</td>
-                            <td className="py-2">{g.attendancePercent}%</td>
-                            <td className="py-2 text-right font-bold">{g.grade}</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={5} className="py-3 text-slate-400 text-center">
-                            Evaluation marks for enrolled semester currently in draft status.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                  <label className="font-semibold text-slate-700 block mb-1">Credits</label>
+                  <input
+                    type="number"
+                    value={courseForm.credits}
+                    onChange={(e) => setCourseForm({ ...courseForm, credits: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
                 </div>
               </div>
             </div>
-          )}
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setModalType(null)} className="px-4 py-2 text-slate-600 font-semibold text-xs">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!courseForm.courseCode || !courseForm.courseName) return;
+                  await addCourse(courseForm);
+                  setModalType(null);
+                  showFeedback('success', `Course ${courseForm.courseCode} added to Course Master.`);
+                }}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl cursor-pointer"
+              >
+                Add Course
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-          {/* SUB-TAB: AUDIT TRAIL */}
-          {reportSubTab === 'audit' && (
-            <div className="space-y-4">
-              <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                Governance &amp; Audit Trail
-              </h3>
-              <p className="text-xs text-slate-500">
-                Complete verifiable history of institutional mutations.
-              </p>
-              <div className="space-y-2">
-                {auditLogs.map((log) => (
-                  <div key={log.id} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs flex justify-between items-center">
-                    <div>
-                      <div className="font-semibold text-slate-900">{log.action}</div>
-                      <div className="text-[10px] text-slate-400">By {log.actorName} ({log.actorRole}) • {log.createdAt}</div>
-                    </div>
-                    {log.afterJson && (
-                      <span className="text-[10px] font-mono text-slate-600 bg-white px-2 py-1 rounded border border-slate-200 max-w-xs truncate">
-                        {log.afterJson}
-                      </span>
-                    )}
-                  </div>
-                ))}
+      {/* 5. Faculty Modal */}
+      {modalType === 'faculty' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">Add Faculty Member</h3>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Full Name</label>
+                <input
+                  type="text"
+                  placeholder="Dr. Priya Rao"
+                  value={facultyForm.name}
+                  onChange={(e) => setFacultyForm({ ...facultyForm, name: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Official Email</label>
+                <input
+                  type="email"
+                  placeholder="priya.rao@bcafly.edu"
+                  value={facultyForm.email}
+                  onChange={(e) => setFacultyForm({ ...facultyForm, email: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Designation</label>
+                  <input
+                    type="text"
+                    value={facultyForm.designation}
+                    onChange={(e) => setFacultyForm({ ...facultyForm, designation: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Phone</label>
+                  <input
+                    type="text"
+                    placeholder="+91 98765 00000"
+                    value={facultyForm.phone}
+                    onChange={(e) => setFacultyForm({ ...facultyForm, phone: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
               </div>
             </div>
-          )}
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setModalType(null)} className="px-4 py-2 text-slate-600 font-semibold text-xs">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!facultyForm.name || !facultyForm.email) return;
+                  await addFaculty(facultyForm);
+                  setModalType(null);
+                  showFeedback('success', `Faculty account ${facultyForm.name} created.`);
+                }}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl cursor-pointer"
+              >
+                Create Faculty Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Student Modal */}
+      {modalType === 'student' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">Add Student Account</h3>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    placeholder="Aditya Sharma"
+                    value={studentForm.name}
+                    onChange={(e) => setStudentForm({ ...studentForm, name: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">University Roll Number</label>
+                  <input
+                    type="text"
+                    placeholder="BCA26101"
+                    value={studentForm.studentId}
+                    onChange={(e) => setStudentForm({ ...studentForm, studentId: e.target.value.toUpperCase() })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Official Email</label>
+                <input
+                  type="email"
+                  placeholder="aditya.s@bcafly.edu"
+                  value={studentForm.email}
+                  onChange={(e) => setStudentForm({ ...studentForm, email: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Semester</label>
+                  <select
+                    value={studentForm.semester}
+                    onChange={(e) => setStudentForm({ ...studentForm, semester: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    {[1, 2, 3, 4, 5, 6].map(num => <option key={num} value={num}>Semester {num}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Section</label>
+                  <select
+                    value={studentForm.section}
+                    onChange={(e) => setStudentForm({ ...studentForm, section: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    <option value="A">Section A</option>
+                    <option value="B">Section B</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setModalType(null)} className="px-4 py-2 text-slate-600 font-semibold text-xs">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!studentForm.name || !studentForm.email) return;
+                  await addStudent(studentForm);
+                  setModalType(null);
+                  showFeedback('success', `Student account ${studentForm.name} created.`);
+                }}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl cursor-pointer"
+              >
+                Create Student Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. Enroll Student Modal */}
+      {modalType === 'enroll' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">Enroll Student in Course</h3>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Select Student</label>
+                <select
+                  value={enrollForm.studentId}
+                  onChange={(e) => setEnrollForm({ ...enrollForm, studentId: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                >
+                  <option value="">Choose student...</option>
+                  {students.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.studentId})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Select Course</label>
+                <select
+                  value={enrollForm.courseId}
+                  onChange={(e) => setEnrollForm({ ...enrollForm, courseId: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                >
+                  <option value="">Choose course...</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>{c.courseCode} - {c.courseName} (Sem {c.semester})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setModalType(null)} className="px-4 py-2 text-slate-600 font-semibold text-xs">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!enrollForm.studentId || !enrollForm.courseId) return;
+                  await enrollStudentInCourse(enrollForm);
+                  setModalType(null);
+                  showFeedback('success', `Student enrolled in course.`);
+                }}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl cursor-pointer"
+              >
+                Enroll Student
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. Allocate Faculty Modal */}
+      {modalType === 'allocate' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">Assign Faculty to Course &amp; Batch</h3>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Select Faculty Member</label>
+                <select
+                  value={allocateForm.facultyId}
+                  onChange={(e) => setAllocateForm({ ...allocateForm, facultyId: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                >
+                  <option value="">Choose faculty...</option>
+                  {facultyList.map((f) => (
+                    <option key={f.id} value={f.id}>{f.name} ({f.designation})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Select Course</label>
+                <select
+                  value={allocateForm.courseId}
+                  onChange={(e) => setAllocateForm({ ...allocateForm, courseId: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                >
+                  <option value="">Choose course...</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>{c.courseCode} - {c.courseName} (Sem {c.semester})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Section</label>
+                  <select
+                    value={allocateForm.section}
+                    onChange={(e) => setAllocateForm({ ...allocateForm, section: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    <option value="A">Section A</option>
+                    <option value="B">Section B</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Academic Year</label>
+                  <input
+                    type="text"
+                    value={allocateForm.academicYear}
+                    onChange={(e) => setAllocateForm({ ...allocateForm, academicYear: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setModalType(null)} className="px-4 py-2 text-slate-600 font-semibold text-xs">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!allocateForm.facultyId || !allocateForm.courseId) return;
+                  await assignFacultyToCourse(allocateForm);
+                  setModalType(null);
+                  showFeedback('success', `Faculty allocated to course.`);
+                }}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl cursor-pointer"
+              >
+                Assign Faculty
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSV Import Modal */}
+      {modalType === 'csv-import' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">Controlled CSV Batch Import</h3>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+              {(['students', 'faculty', 'courses'] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setCsvType(t)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
+                    csvType === t ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <label className="font-semibold text-slate-700 block">
+                Paste CSV Data ({csvType === 'students' ? 'name, studentId, email, phone, semester' : csvType === 'faculty' ? 'name, email, designation, department' : 'courseCode, courseName, semester, credits'}):
+              </label>
+              <textarea
+                rows={6}
+                value={csvText}
+                onChange={(e) => setCsvText(e.target.value)}
+                placeholder={
+                  csvType === 'students'
+                    ? 'Aditya Sharma, BCA26101, aditya@bcafly.edu, +919876543210, 1\nPooja Patel, BCA26102, pooja@bcafly.edu, +919876543211, 1'
+                    : csvType === 'faculty'
+                    ? 'Dr. Rajesh Kumar, rajesh.k@bcafly.edu, Professor, BCA\nDr. Sneha Verma, sneha.v@bcafly.edu, Associate Professor, BCA'
+                    : 'BCA101, Programming in C, 1, 4\nBCA102, Digital Logic, 1, 4'
+                }
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-[11px] focus:outline-none focus:bg-white"
+              />
+            </div>
+
+            {csvError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800">
+                {csvError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setModalType(null)} className="px-4 py-2 text-slate-600 font-semibold text-xs">Cancel</button>
+              <button
+                onClick={async () => {
+                  try {
+                    setCsvError(null);
+                    const lines = csvText.trim().split('\n').filter(l => l.trim().length > 0);
+                    if (lines.length === 0) {
+                      setCsvError('Please enter at least one CSV row');
+                      return;
+                    }
+
+                    if (csvType === 'students') {
+                      const records = lines.map(line => {
+                        const [name, studentId, email, phone, semester] = line.split(',').map(s => s.trim());
+                        return { name, studentId, email, phone, semester: Number(semester || 1) };
+                      });
+                      const res = await api.importStudentsBatch(records);
+                      showFeedback('success', `Imported ${res.importedCount} students.`);
+                    } else if (csvType === 'faculty') {
+                      const records = lines.map(line => {
+                        const [name, email, designation, department] = line.split(',').map(s => s.trim());
+                        return { name, email, designation: designation || 'Assistant Professor', department: department || 'BCA' };
+                      });
+                      const res = await api.importFacultyBatch(records);
+                      showFeedback('success', `Imported ${res.importedCount} faculty accounts.`);
+                    } else if (csvType === 'courses') {
+                      for (const line of lines) {
+                        const [courseCode, courseName, semester, credits] = line.split(',').map(s => s.trim());
+                        await addCourse({ courseCode, courseName, semester: Number(semester || 1), credits: Number(credits || 4) });
+                      }
+                      showFeedback('success', `Courses imported successfully.`);
+                    }
+
+                    await refreshData();
+                    setModalType(null);
+                    setCsvText('');
+                  } catch (err: any) {
+                    setCsvError(err.message || 'Import failed');
+                  }
+                }}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl cursor-pointer"
+              >
+                Validate &amp; Import
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

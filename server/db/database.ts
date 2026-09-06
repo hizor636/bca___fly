@@ -72,9 +72,43 @@ class DatabaseManager {
       this.db = new this.SQL.Database();
     }
 
-    // Apply schema
+    // Apply schema & automatic column migrations
     if (this.db) {
       this.db.exec(SCHEMA_SQL);
+
+      const safeAddColumn = (table: string, colDef: string) => {
+        try {
+          this.db!.exec(`ALTER TABLE ${table} ADD COLUMN ${colDef}`);
+        } catch {
+          // Column already exists
+        }
+      };
+
+      safeAddColumn('departments', 'dept_head_id TEXT');
+      safeAddColumn('departments', 'is_active INTEGER DEFAULT 1');
+      safeAddColumn('departments', 'archived_at TEXT');
+      safeAddColumn('departments', 'archived_by TEXT');
+
+      safeAddColumn('faculty', 'is_active INTEGER DEFAULT 1');
+      safeAddColumn('faculty', 'archived_at TEXT');
+      safeAddColumn('faculty', 'archived_by TEXT');
+
+      safeAddColumn('students', 'is_active INTEGER DEFAULT 1');
+      safeAddColumn('students', 'archived_at TEXT');
+      safeAddColumn('students', 'archived_by TEXT');
+
+      safeAddColumn('courses', 'is_active INTEGER DEFAULT 1');
+      safeAddColumn('courses', 'archived_at TEXT');
+      safeAddColumn('courses', 'archived_by TEXT');
+
+      safeAddColumn('semesters', 'credits INTEGER DEFAULT 24');
+      safeAddColumn('semesters', 'min_attendance REAL DEFAULT 75.0');
+      safeAddColumn('semesters', 'is_active INTEGER DEFAULT 1');
+      safeAddColumn('semesters', 'archived_at TEXT');
+
+      safeAddColumn('users', 'is_active INTEGER DEFAULT 1');
+      safeAddColumn('users', 'archived_at TEXT');
+      safeAddColumn('users', 'archived_by TEXT');
     }
     this.persist();
     this.initialized = true;
@@ -310,6 +344,33 @@ class DatabaseManager {
     if (!this.db) throw new Error('Database not initialized.');
     this.db.exec(sql);
     this.persist();
+  }
+
+  public wipeAllTables(): { clearedTables: string[]; executionTimeMs: number } {
+    if (!this.db) throw new Error('Database not initialized.');
+    const start = performance.now();
+
+    this.db.exec('PRAGMA foreign_keys = OFF;');
+    const tables = this.getTableNames();
+    for (const table of tables) {
+      this.db.run(`DELETE FROM "${table}"`);
+    }
+    try {
+      this.db.run('DELETE FROM sqlite_sequence');
+    } catch {
+      // ignore if sqlite_sequence does not exist
+    }
+    this.db.exec('PRAGMA foreign_keys = ON;');
+    this.db.exec('VACUUM;');
+    this.persist();
+
+    const executionTimeMs = Number((performance.now() - start).toFixed(2));
+    console.log(`[DatabaseManager] Nuclear clean complete: ${tables.length} tables truncated (${executionTimeMs}ms).`);
+
+    return {
+      clearedTables: tables,
+      executionTimeMs
+    };
   }
 }
 

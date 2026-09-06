@@ -50,13 +50,13 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
     markAndFinalizeAttendance
   } = useDemoStore();
 
-  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || 'cls-bca-501');
-  const selectedClass = classes.find((c) => c.id === selectedClassId) || classes[0];
-  const classSemNum = selectedClass ? (parseInt(selectedClass.semesterId.replace('sem-', ''), 10) || 5) : 5;
+  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
+  const selectedClass = classes.find((c) => c.id === selectedClassId) || classes[0] || null;
+  const classSemNum = selectedClass ? (parseInt(selectedClass.semesterId?.replace('sem-', '') || '5', 10) || 5) : 5;
 
   // Scoped students for roll-call: filter by active faculty's assigned students enrolled in this class's semester
   const classStudents = students.filter(
-    (s) => s.semester === classSemNum && (s.assignedFacultyId === activeFaculty.id || s.assignedFaculty === activeFaculty.name)
+    (s) => s.semester === classSemNum && (s.assignedFacultyId === activeFaculty?.id || s.assignedFaculty === activeFaculty?.name)
   ).slice(0, 12);
 
   // Fallback to top students if active faculty has fewer mentees in this specific class semester
@@ -65,7 +65,7 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
   const [attendanceSheet, setAttendanceSheet] = useState<Record<string, 'present' | 'absent' | 'late'>>(() => {
     const init: Record<string, 'present' | 'absent' | 'late'> = {};
     displayStudents.forEach((s) => {
-      init[s.id] = s.attendanceRate < 75 ? 'absent' : 'present';
+      init[s.id] = 'present';
     });
     return init;
   });
@@ -74,29 +74,7 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
   const [finalizeResult, setFinalizeResult] = useState<{ success: boolean; smsCount: number; message: string } | null>(null);
 
   // Todo tasks
-  const [tasks, setTasks] = useState<QuickTask[]>([
-    {
-      id: 't-1',
-      text: 'Submit Mid-Semester Internal Assessment scores for BCA Sem 5',
-      due: 'Friday, 5:00 PM',
-      priority: 'urgent',
-      completed: false,
-    },
-    {
-      id: 't-2',
-      text: 'Conduct 1-on-1 mentoring review with assigned mentees regarding lab backlog',
-      due: 'Tomorrow, 2:30 PM',
-      priority: 'urgent',
-      completed: false,
-    },
-    {
-      id: 't-3',
-      text: 'Verify Capstone project phase-1 architecture diagram',
-      due: 'Oct 12',
-      priority: 'normal',
-      completed: true,
-    }
-  ]);
+  const [tasks, setTasks] = useState<QuickTask[]>([]);
 
   const [newTaskInput, setNewTaskInput] = useState('');
 
@@ -181,7 +159,7 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
             Smart Faculty Workspace
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-1">
-            Logged in as <strong className="text-slate-800">{activeFaculty.name}</strong> • Access strictly scoped to assigned students.
+            Logged in as <strong className="text-slate-800">{activeFaculty?.name || 'Faculty Member'}</strong> • Access strictly scoped to assigned students.
           </p>
         </div>
 
@@ -194,7 +172,7 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
 
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
-            <span>Cutoff: {attendanceSettings.dailyCutoffTime}</span>
+            <span>Cutoff: {attendanceSettings?.dailyCutoffTime || '09:30 AM'}</span>
           </div>
         </div>
       </div>
@@ -234,11 +212,15 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
                 onChange={(e) => setSelectedClassId(e.target.value)}
                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs font-semibold text-slate-900 focus:outline-none"
               >
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.courseCode} ({c.subjectName})
-                  </option>
-                ))}
+                {classes.length === 0 ? (
+                  <option value="">No classes configured</option>
+                ) : (
+                  classes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.courseCode} ({c.subjectName})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -275,61 +257,68 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
 
             {/* Students List in Session */}
             <div className="space-y-2">
-              {displayStudents.map((st) => {
-                const status = attendanceSheet[st.id] || 'present';
-                return (
-                  <div
-                    key={st.id}
-                    className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center">
-                        {st.initials}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-slate-900">{st.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          Roll: {st.studentId} • Current Rate: {st.attendanceRate}%
+              {displayStudents.length === 0 ? (
+                <div className="py-8 text-center bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                  <p className="text-xs font-semibold text-slate-700">No records yet</p>
+                  <p className="text-[11px] text-slate-400">Enrolled students for this session will appear here.</p>
+                </div>
+              ) : (
+                displayStudents.map((st) => {
+                  const status = attendanceSheet[st.id] || 'present';
+                  return (
+                    <div
+                      key={st.id}
+                      className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center">
+                          {st.initials}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-slate-900">{st.name}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            Roll: {st.studentId} • Current Rate: {st.attendanceRate}%
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Status Pill Toggle */}
-                    <div className="flex items-center bg-white border border-slate-200 rounded-full p-0.5">
-                      <button
-                        onClick={() => setStudentStatus(st.id, 'present')}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
-                          status === 'present'
-                            ? 'bg-emerald-600 text-white'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        Present
-                      </button>
-                      <button
-                        onClick={() => setStudentStatus(st.id, 'late')}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
-                          status === 'late'
-                            ? 'bg-amber-500 text-white'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        Late
-                      </button>
-                      <button
-                        onClick={() => setStudentStatus(st.id, 'absent')}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
-                          status === 'absent'
-                            ? 'bg-rose-600 text-white'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        Absent
-                      </button>
+                      {/* Status Pill Toggle */}
+                      <div className="flex items-center bg-white border border-slate-200 rounded-full p-0.5">
+                        <button
+                          onClick={() => setStudentStatus(st.id, 'present')}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+                            status === 'present'
+                              ? 'bg-emerald-600 text-white'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Present
+                        </button>
+                        <button
+                          onClick={() => setStudentStatus(st.id, 'late')}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+                            status === 'late'
+                              ? 'bg-amber-500 text-white'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Late
+                        </button>
+                        <button
+                          onClick={() => setStudentStatus(st.id, 'absent')}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+                            status === 'absent'
+                              ? 'bg-rose-600 text-white'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Absent
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -340,29 +329,27 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
                 <Calendar className="w-4 h-4 text-slate-900" />
                 <h3 className="text-base font-bold text-slate-900">Today's Academic Schedule</h3>
               </div>
-              <span className="text-xs text-slate-400">3 Sessions Assigned</span>
+              <span className="text-xs text-slate-400">{classes.length} Sessions Assigned</span>
             </div>
 
             <div className="space-y-2.5">
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
-                <div>
-                  <span className="font-bold text-slate-900 block">10:00 AM • BCA-501 Enterprise Web Architecture</span>
-                  <span className="text-slate-500 text-[11px]">Lecture Hall 3 • 42 Mentees Enrolled</span>
+              {classes.length === 0 ? (
+                <div className="py-6 text-center bg-slate-50 rounded-2xl border border-slate-100">
+                  <span className="text-xs text-slate-400 font-medium">No records yet. No lecture or lab sessions scheduled for today.</span>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-800">
-                  Active
-                </span>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-white border border-slate-100 flex items-center justify-between text-xs">
-                <div>
-                  <span className="font-bold text-slate-900 block">02:00 PM • 1-on-1 Mentoring Consultation</span>
-                  <span className="text-slate-500 text-[11px]">Faculty Office 304 • Marcus Thorne scheduled</span>
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
-                  Upcoming
-                </span>
-              </div>
+              ) : (
+                classes.slice(0, 3).map((cls) => (
+                  <div key={cls.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-bold text-slate-900 block">{cls.courseCode} • {cls.subjectName}</span>
+                      <span className="text-slate-500 text-[11px]">Lecture Hall • Semester {cls.semesterId?.replace('sem-', '')}</span>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-800">
+                      Active
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -385,23 +372,29 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
             </div>
 
             <div className="space-y-2.5">
-              {notices.map((n) => (
-                <div
-                  key={n.id}
-                  onClick={onOpenNotice}
-                  className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-100 text-xs space-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-slate-900">{n.title}</span>
-                    {n.isNew && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-white px-2 py-0.5 rounded-full">
-                        New
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-slate-500 text-[11px] line-clamp-2">{n.subtitle}</p>
+              {notices.length === 0 ? (
+                <div className="py-6 text-center bg-slate-50 rounded-2xl border border-slate-100">
+                  <span className="text-xs text-slate-400 font-medium">No records yet. No active circulars or announcements.</span>
                 </div>
-              ))}
+              ) : (
+                notices.map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={onOpenNotice}
+                    className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-100 text-xs space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-slate-900">{n.title}</span>
+                      {n.isNew && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-white px-2 py-0.5 rounded-full">
+                          New
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-slate-500 text-[11px] line-clamp-2">{n.subtitle}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -410,39 +403,45 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
             <h3 className="text-base font-bold text-slate-900">Faculty Priority Tasks</h3>
 
             <div className="space-y-2">
-              {tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs gap-2"
-                >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <button
-                      onClick={() => handleToggleTask(task.id)}
-                      className={`w-4 h-4 rounded-md border flex items-center justify-center cursor-pointer transition-colors ${
-                        task.completed
-                          ? 'bg-slate-900 border-slate-900 text-white'
-                          : 'border-slate-300 hover:border-slate-500'
-                      }`}
-                    >
-                      {task.completed && <Check className="w-3 h-3" />}
-                    </button>
-                    <span
-                      className={`truncate ${
-                        task.completed ? 'line-through text-slate-400' : 'text-slate-800 font-medium'
-                      }`}
-                    >
-                      {task.text}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={() => handleDeleteTask(task.id)}
-                    className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+              {tasks.length === 0 ? (
+                <div className="py-6 text-center bg-slate-50 rounded-2xl border border-slate-100">
+                  <span className="text-xs text-slate-400 font-medium">No records yet. You have no pending faculty tasks.</span>
                 </div>
-              ))}
+              ) : (
+                tasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs gap-2"
+                  >
+                    <div className="flex items-center gap-2.5 truncate">
+                      <button
+                        onClick={() => handleToggleTask(task.id)}
+                        className={`w-4 h-4 rounded-md border flex items-center justify-center cursor-pointer transition-colors ${
+                          task.completed
+                            ? 'bg-slate-900 border-slate-900 text-white'
+                            : 'border-slate-300 hover:border-slate-500'
+                        }`}
+                      >
+                        {task.completed && <Check className="w-3 h-3" />}
+                      </button>
+                      <span
+                        className={`truncate ${
+                          task.completed ? 'line-through text-slate-400' : 'text-slate-800 font-medium'
+                        }`}
+                      >
+                        {task.text}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => handleDeleteTask(task.id)}
+                      className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
 
             <form onSubmit={handleAddTask} className="pt-2 flex gap-2">
@@ -474,7 +473,7 @@ export const SmartWorkspaceView: React.FC<SmartWorkspaceViewProps> = ({
               </div>
               <div>
                 <h3 className="font-bold text-base text-slate-900">Finalize Class Attendance?</h3>
-                <p className="text-xs text-slate-400">{selectedClass.courseCode} • {selectedClass.subjectName}</p>
+                <p className="text-xs text-slate-400">{selectedClass?.courseCode || 'Course Session'} • {selectedClass?.subjectName || 'BCA Lecture'}</p>
               </div>
             </div>
 

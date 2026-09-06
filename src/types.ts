@@ -1,24 +1,65 @@
-export type UserRole = 'admin' | 'faculty' | 'student' | 'counselor';
+export type UserRole = 'super_admin' | 'admin' | 'faculty' | 'student' | 'parent' | 'counselor';
 
 export type ScreenType =
   | 'dashboard'
   | 'home'
   | 'explore'
+  | 'sign-in'
   | 'students'
   | 'tracking'
   | 'workspace'
   | 'faculties'
   | 'admin'
+  | 'admin-users'
   | 'admin-assignments'
   | 'admin-attendance'
+  | 'admin-corrections'
   | 'admin-sms'
   | 'admin-reports'
   | 'admin-audit'
   | 'database-studio'
   | 'student-portal'
+  | 'parent-portal'
   | 'counselor-portal'
+  | 'platform'
+  | 'platform-tenants'
+  | 'platform-security'
   | 'about'
   | 'contact';
+
+export interface UserStats {
+  totalUsers: number;
+  activeCount: number;
+  inactiveCount: number;
+  roles: {
+    admin: number;
+    faculty: number;
+    student: number;
+    counselor: number;
+  };
+}
+
+export interface UserListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: string;
+  semester?: number;
+  departmentId?: string;
+  isActive?: boolean;
+  sortBy?: string;
+  sortDir?: 'ASC' | 'DESC';
+}
+
+export interface UserListResponse {
+  users: User[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
 export interface User {
   id: string;
@@ -40,6 +81,34 @@ export interface Department {
   id: string;
   name: string;
   code: string;
+  deptHeadId?: string;
+  isActive?: boolean;
+  archivedAt?: string;
+  createdAt?: string;
+}
+
+export interface AcademicYear {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  attendanceRule: number;
+  isActive: boolean;
+  archivedAt?: string;
+  createdAt?: string;
+}
+
+export interface Batch {
+  id: string;
+  name: string;
+  departmentId: string;
+  academicYear: string;
+  section: string;
+  shift?: string;
+  startYear: number;
+  endYear: number;
+  isActive: boolean;
+  archivedAt?: string;
 }
 
 export interface SemesterInfo {
@@ -50,8 +119,11 @@ export interface SemesterInfo {
   typicalStatus?: string;
   startDate: string;
   endDate: string;
+  credits?: number;
+  minAttendance?: number;
   isCurrent: boolean;
   totalEnrolled: number;
+  isActive?: boolean;
 }
 
 export type CourseType = 'Theory' | 'Lab' | 'Theory + Lab' | 'Elective' | 'Project' | 'Internship';
@@ -312,7 +384,24 @@ export interface AuditLog {
   actorName: string;
   actorRole: UserRole;
   action: string;
-  entityType: 'attendance' | 'sms' | 'mentoring' | 'counseling' | 'assignment' | 'settings' | 'user' | 'session' | 'auth' | 'course' | 'course_assignment' | 'course_enrollment' | 'marks';
+  entityType:
+    | 'attendance'
+    | 'sms'
+    | 'mentoring'
+    | 'counseling'
+    | 'assignment'
+    | 'settings'
+    | 'user'
+    | 'session'
+    | 'auth'
+    | 'course'
+    | 'course_assignment'
+    | 'course_enrollment'
+    | 'marks'
+    | 'correction_request'
+    | 'student_document'
+    | 'tenant'
+    | 'governance';
   entityId: string;
   beforeJson?: string;
   afterJson?: string;
@@ -454,5 +543,77 @@ export interface AiMentoringAdvice {
   recommendedSmsDraft: string;
   source?: string;
 }
+
+export interface TimetableSlot {
+  id: string;
+  semester: number;
+  section: string;
+  dayOfWeek: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
+  startTime: string;
+  endTime: string;
+  courseId: string;
+  courseCode: string;
+  subjectName: string;
+  facultyId: string;
+  facultyName: string;
+  roomNo: string;
+  sessionType?: 'THEORY' | 'LAB' | 'TUTORIAL';
+}
+
+export interface AttendanceCorrectionRequest {
+  id: string;
+  studentId: string;
+  studentName: string;
+  rollNumber: string;
+  courseId: string;
+  courseName: string;
+  date: string;
+  requestType: 'Medical Leave' | 'On-Duty Attendance' | 'System Discrepancy' | 'Emergency Leave';
+  reason: string;
+  attachmentUrl?: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  adminRemarks?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  createdAt: string;
+}
+
+export interface StudentDocument {
+  id: string;
+  studentId: string;
+  title: string;
+  category: 'Transcript' | 'Certificate' | 'Medical' | 'Assignment' | 'Identity Proof';
+  fileName: string;
+  fileSizeKb: number;
+  uploadDate: string;
+  isVerified: boolean;
+  accessToken: string;
+  mimeType?: string;
+}
+
+export interface TenantInfo {
+  id: string;
+  name: string;
+  code: string;
+  domain?: string;
+  plan: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'TRIAL';
+  studentQuota: number;
+  adminEmail: string;
+  createdAt: string;
+}
+
+export interface SecurityIncident {
+  id: string;
+  eventType: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  description: string;
+  ipAddress: string;
+  userId?: string;
+  userEmail?: string;
+  resolved: boolean;
+  createdAt: string;
+}
+
 
 

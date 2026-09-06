@@ -8,6 +8,7 @@
     "server": "tsx server/index.ts",
     "server:ai": "python server/python/analytics_service.py",
     "dev:all": "concurrently -k \"npm run server\" \"npm run server:ai\" \"npm run dev\"",
+    "sql": "tsx server/db/cli.ts",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "node -e \"const fs=require('fs');if(fs.existsSync('dist'))fs.rmSync('dist',{recursive:true,force:true})\"",

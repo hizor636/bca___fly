@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Student, CohortSemesterStats } from '../types';
+import { Student, CohortSemesterStats, Course } from '../types';
+import { useDemoStore } from '../context/DemoContext';
 import { api } from '../services/api';
 import {
   CheckCircle2,
@@ -17,60 +18,19 @@ interface AcademicTrackingViewProps {
   onNavigateHome: () => void;
 }
 
-interface CourseOption {
-  code: string;
-  name: string;
-  semester: number;
-  credits: number;
-  syllabusProgress: number;
-  totalEnrolled: number;
-}
-
-const COURSES: CourseOption[] = [
-  {
-    code: 'BCA-501',
-    name: 'Enterprise Web Architecture',
-    semester: 5,
-    credits: 4,
-    syllabusProgress: 68,
-    totalEnrolled: 42,
-  },
-  {
-    code: 'BCA-502',
-    name: 'Database Administration & SQL',
-    semester: 5,
-    credits: 4,
-    syllabusProgress: 75,
-    totalEnrolled: 38,
-  },
-  {
-    code: 'BCA-301',
-    name: 'Object Oriented Programming in C++',
-    semester: 3,
-    credits: 4,
-    syllabusProgress: 62,
-    totalEnrolled: 40,
-  },
-  {
-    code: 'BCA-303',
-    name: 'Data Structures & Algorithms',
-    semester: 3,
-    credits: 4,
-    syllabusProgress: 55,
-    totalEnrolled: 40,
-  },
-];
-
 export const AcademicTrackingView: React.FC<AcademicTrackingViewProps> = ({
   students,
   onNavigateHome,
 }) => {
-  const [selectedCourseCode, setSelectedCourseCode] = useState('BCA-501');
-  const selectedCourse = COURSES.find((c) => c.code === selectedCourseCode) || COURSES[0];
+  const { courses } = useDemoStore();
+
+  const [selectedCourseCode, setSelectedCourseCode] = useState<string>(() => courses[0]?.courseCode || '');
+  const selectedCourse: Course | null = courses.find((c) => c.courseCode === selectedCourseCode) || courses[0] || null;
   const [cohortStats, setCohortStats] = useState<CohortSemesterStats | null>(null);
   const [aiOnline, setAiOnline] = useState(false);
 
   useEffect(() => {
+    if (!selectedCourse) return;
     api.getCohortStats()
       .then((res) => {
         if (res.success && res.cohortStats) {
@@ -82,16 +42,16 @@ export const AcademicTrackingView: React.FC<AcademicTrackingViewProps> = ({
         }
       })
       .catch(() => setAiOnline(false));
-  }, [selectedCourse.semester]);
+  }, [selectedCourse?.semester]);
 
   // Editable grades state
-  const courseStudents = students.filter((s) => s.semester === selectedCourse.semester);
+  const courseStudents = selectedCourse ? students.filter((s) => s.semester === selectedCourse.semester) : [];
 
   const [marksMap, setMarksMap] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
-    courseStudents.forEach((s, idx) => {
-      // Seed realistic marks 18 to 30
-      initial[s.id] = s.name === 'Alex Smith' ? 28 : (20 + ((idx * 3) % 10));
+    courseStudents.forEach((s) => {
+      const existingGrade = s.subjectGrades?.find((g) => g.subjectCode === selectedCourse?.courseCode);
+      initial[s.id] = existingGrade ? existingGrade.internalObtained : 0;
     });
     return initial;
   });
@@ -166,122 +126,135 @@ export const AcademicTrackingView: React.FC<AcademicTrackingViewProps> = ({
       </div>
 
       {/* Course Selection Tabs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        {COURSES.map((course) => {
-          const isSelected = course.code === selectedCourseCode;
-          return (
-            <div
-              key={course.code}
-              onClick={() => setSelectedCourseCode(course.code)}
-              className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                  : 'bg-white border-slate-100 hover:border-slate-300 text-slate-900 shadow-sm'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
-                  {course.code}
-                </span>
-                <span
-                  className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-                    isSelected ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'
+      {courses.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-slate-100 p-12 text-center space-y-3 mb-8">
+          <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
+          <h3 className="text-base font-bold text-slate-800">No records yet</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Course master data has not been registered yet. Add courses in the Admin Portal to track continuous internal assessments.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+            {courses.map((course) => {
+              const isSelected = course.courseCode === selectedCourseCode;
+              const enrolledInSem = students.filter((s) => s.semester === course.semester).length;
+              return (
+                <div
+                  key={course.id || course.courseCode}
+                  onClick={() => setSelectedCourseCode(course.courseCode)}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                      : 'bg-white border-slate-100 hover:border-slate-300 text-slate-900 shadow-sm'
                   }`}
                 >
-                  Sem {course.semester}
-                </span>
-              </div>
-              <h4 className={`font-semibold text-sm mt-2 line-clamp-1 ${isSelected ? 'text-white' : 'text-slate-900'}`}>
-                {course.name}
-              </h4>
-              <div
-                className={`mt-3 pt-2 border-t flex items-center justify-between text-xs ${
-                  isSelected ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-400'
-                }`}
-              >
-                <span>{course.totalEnrolled} Students</span>
-                <span className={isSelected ? 'text-slate-200 font-medium' : 'text-slate-700 font-medium'}>
-                  {course.syllabusProgress}% syllabus
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Active Course Details & Metrics Ribbon */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-5 mb-8 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-slate-900" />
-              <h3 className="font-bold text-slate-900 text-base">{selectedCourse.name}</h3>
-              <span className="text-xs bg-slate-100 text-slate-800 font-medium px-2.5 py-0.5 rounded-full">
-                {selectedCourse.code}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Continuous Internal Assessment (CIA) Grade Sheet • Maximum Marks: 30
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4 text-xs flex-wrap">
-            {cohortStats && (
-              <div className="flex items-center gap-3 bg-indigo-50/80 border border-indigo-100 rounded-xl px-3 py-1.5">
-                <div className="flex items-center gap-1.5 text-indigo-700 font-semibold">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Python Analytics Engine</span>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-bold ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
+                      {course.courseCode}
+                    </span>
+                    <span
+                      className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                        isSelected ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      Sem {course.semester}
+                    </span>
+                  </div>
+                  <h4 className={`font-semibold text-sm mt-2 line-clamp-1 ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                    {course.courseName}
+                  </h4>
+                  <div
+                    className={`mt-3 pt-2 border-t flex items-center justify-between text-xs ${
+                      isSelected ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-400'
+                    }`}
+                  >
+                    <span>{enrolledInSem} Students</span>
+                    <span className={isSelected ? 'text-slate-200 font-medium' : 'text-slate-700 font-medium'}>
+                      {course.credits} Credits
+                    </span>
+                  </div>
                 </div>
-                <div className="text-slate-600 text-[11px]">
-                  Mean: <strong className="text-slate-900">{cohortStats.attendance.mean}%</strong> | Med: <strong className="text-slate-900">{cohortStats.attendance.median}%</strong> | σ: <strong className="text-slate-900">{cohortStats.attendance.stdDev}</strong>
+              );
+            })}
+          </div>
+
+          {/* Active Course Details & Metrics Ribbon */}
+          {selectedCourse && (
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 mb-8 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-slate-900" />
+                    <h3 className="font-bold text-slate-900 text-base">{selectedCourse.courseName}</h3>
+                    <span className="text-xs bg-slate-100 text-slate-800 font-medium px-2.5 py-0.5 rounded-full">
+                      {selectedCourse.courseCode}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Continuous Internal Assessment (CIA) Grade Sheet • Maximum Marks: {selectedCourse.maxMarks || 30} • Semester {selectedCourse.semester}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-4 text-xs flex-wrap">
+                  {cohortStats && (
+                    <div className="flex items-center gap-3 bg-indigo-50/80 border border-indigo-100 rounded-xl px-3 py-1.5">
+                      <div className="flex items-center gap-1.5 text-indigo-700 font-semibold">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Python Analytics Engine</span>
+                      </div>
+                      <div className="text-slate-600 text-[11px]">
+                        Mean: <strong className="text-slate-900">{cohortStats.attendance.mean}%</strong> | Med: <strong className="text-slate-900">{cohortStats.attendance.median}%</strong> | σ: <strong className="text-slate-900">{cohortStats.attendance.stdDev}</strong>
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-slate-400 block">Class Average</span>
+                    <strong className="text-sm font-bold text-slate-900">{allMarks.length > 0 ? averageScore : '0.0'} / 30</strong>
+                  </div>
+                  <div className="border-l border-slate-100 pl-4">
+                    <span className="text-slate-400 block">Passing Criteria</span>
+                    <strong className="text-sm font-bold text-slate-900">≥ 15 / 30</strong>
+                  </div>
+                  <div className="border-l border-slate-100 pl-4">
+                    <span className="text-slate-400 block">Submission Status</span>
+                    <strong className="text-sm font-bold text-slate-900">
+                      {submissionComplete ? 'Official Signed' : 'Open Draft'}
+                    </strong>
+                  </div>
                 </div>
               </div>
-            )}
-            <div>
-              <span className="text-slate-400 block">Class Average</span>
-              <strong className="text-sm font-bold text-slate-900">{averageScore} / 30</strong>
-            </div>
-            <div className="border-l border-slate-100 pl-4">
-              <span className="text-slate-400 block">Passing Rate</span>
-              <strong className="text-sm font-bold text-slate-900">95.2%</strong>
-            </div>
-            <div className="border-l border-slate-100 pl-4">
-              <span className="text-slate-400 block">Submission Status</span>
-              <strong className="text-sm font-bold text-slate-900">
-                {submissionComplete ? 'Official Signed' : 'Open (Due Oct 15)'}
-              </strong>
-            </div>
-          </div>
-        </div>
 
-        {/* Syllabus Milestone Tracker */}
-        <div className="pt-4">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-2">
-            <span>Syllabus Completion Timeline</span>
-            <span className="text-slate-900 font-medium">{selectedCourse.syllabusProgress}% covered</span>
-          </div>
-          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-3">
-            <div
-              className="bg-slate-900 h-full rounded-full transition-all duration-500"
-              style={{ width: `${selectedCourse.syllabusProgress}%` }}
-            />
-          </div>
-          <div className="grid grid-cols-4 gap-2 text-[11px] text-slate-500 text-center">
-            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 font-medium text-slate-700">
-              ✓ Unit 1: Foundations
+              {/* Syllabus Scheme Tracker */}
+              <div className="pt-4">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-2">
+                  <span>Course Scheme Allocation</span>
+                  <span className="text-slate-900 font-medium">{selectedCourse.courseType || 'Core Theory'} • {selectedCourse.academicScheme || 'CBCS'}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-slate-600 text-center">
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <span className="text-slate-400 block text-[10px]">Credits</span>
+                    <strong className="text-slate-900">{selectedCourse.credits} Credits</strong>
+                  </div>
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <span className="text-slate-400 block text-[10px]">Max Marks</span>
+                    <strong className="text-slate-900">{selectedCourse.maxMarks || 100} Total</strong>
+                  </div>
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <span className="text-slate-400 block text-[10px]">Attendance Rule</span>
+                    <strong className="text-slate-900">{selectedCourse.attendanceRequired || 75}% Required</strong>
+                  </div>
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <span className="text-slate-400 block text-[10px]">Term</span>
+                    <strong className="text-slate-900">Semester {selectedCourse.semester}</strong>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 font-medium text-slate-700">
-              ✓ Unit 2: Core Architecture
-            </div>
-            <div className="bg-slate-100 p-2 rounded-xl border border-slate-200 font-semibold text-slate-900">
-              • Unit 3: In Progress (70%)
-            </div>
-            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 font-normal text-slate-400">
-              Unit 4: Final Frameworks
-            </div>
-          </div>
-        </div>
-      </div>
+          )}
+        </>
+      )}
 
       {/* Grade Entry Table */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -312,70 +285,85 @@ export const AcademicTrackingView: React.FC<AcademicTrackingViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {courseStudents.map((s) => {
-                const currentMark = marksMap[s.id] ?? 24;
-                const { grade } = calculateGrade(currentMark);
-                const isEligible = s.attendanceRate >= 75;
+              {!selectedCourse || courseStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center space-y-1">
+                      <span className="font-semibold text-slate-700 text-xs">No records yet</span>
+                      <p className="text-[11px] text-slate-400">
+                        {selectedCourse
+                          ? `No students currently enrolled in Semester ${selectedCourse.semester}.`
+                          : 'Please configure courses and enroll students to manage internal evaluations.'}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                courseStudents.map((s) => {
+                  const currentMark = marksMap[s.id] ?? 0;
+                  const { grade } = calculateGrade(currentMark);
+                  const isEligible = s.attendanceRate >= 75;
 
-                return (
-                  <tr key={s.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3 px-4 sm:px-6">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center"
-                        >
-                          {s.initials}
+                  return (
+                    <tr key={s.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-4 sm:px-6">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center"
+                          >
+                            {s.initials}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-900">{s.name}</p>
+                            <p className="text-[11px] text-slate-400">ID: {s.studentId}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-slate-900">{s.name}</p>
-                          <p className="text-[11px] text-slate-400">ID: {s.studentId}</p>
-                        </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="py-3 px-4">
-                      <span className={`font-semibold ${isEligible ? 'text-slate-900' : 'text-slate-400'}`}>
-                        {s.attendanceRate}%
-                      </span>
-                    </td>
-
-                    <td className="py-3 px-4">
-                      {isEligible ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-slate-700 font-medium bg-slate-100 px-2.5 py-0.5 rounded-full">
-                          <CheckCircle2 className="w-3 h-3 text-slate-600" /> Eligible
+                      <td className="py-3 px-4">
+                        <span className={`font-semibold ${isEligible ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {s.attendanceRate}%
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 font-medium bg-slate-100 px-2.5 py-0.5 rounded-full">
-                          Short Attendance
+                      </td>
+
+                      <td className="py-3 px-4">
+                        {isEligible ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-700 font-medium bg-slate-100 px-2.5 py-0.5 rounded-full">
+                            <CheckCircle2 className="w-3 h-3 text-slate-600" /> Eligible
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 font-medium bg-slate-100 px-2.5 py-0.5 rounded-full">
+                            Short Attendance
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4 text-center">
+                        <input
+                          type="number"
+                          min={0}
+                          max={30}
+                          value={currentMark}
+                          onChange={(e) => handleMarkChange(s.id, parseInt(e.target.value, 10))}
+                          className="w-16 text-center font-bold text-xs sm:text-sm py-1 px-2 border border-slate-200 rounded-full focus:outline-none focus:ring-1 focus:ring-slate-900 bg-slate-50 focus:bg-white transition-all"
+                        />
+                      </td>
+
+                      <td className="py-3 px-4 text-center">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                          Grade {grade}
                         </span>
-                      )}
-                    </td>
+                      </td>
 
-                    <td className="py-3 px-4 text-center">
-                      <input
-                        type="number"
-                        min={0}
-                        max={30}
-                        value={currentMark}
-                        onChange={(e) => handleMarkChange(s.id, parseInt(e.target.value, 10))}
-                        className="w-16 text-center font-bold text-xs sm:text-sm py-1 px-2 border border-slate-200 rounded-full focus:outline-none focus:ring-1 focus:ring-slate-900 bg-slate-50 focus:bg-white transition-all"
-                      />
-                    </td>
-
-                    <td className="py-3 px-4 text-center">
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                        Grade {grade}
-                      </span>
-                    </td>
-
-                    <td className="py-3 px-4 text-right">
-                      <span className="text-[11px] text-slate-400">
-                        {submissionComplete ? 'Locked' : 'Draft Ready'}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+                      <td className="py-3 px-4 text-right">
+                        <span className="text-[11px] text-slate-400">
+                          {submissionComplete ? 'Locked' : 'Draft Ready'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

@@ -9,8 +9,11 @@ import {
   CheckCircle2,
   ArrowRight,
   ShieldAlert,
+  ShieldCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  KeyRound,
+  Fingerprint
 } from 'lucide-react';
 
 interface LoginModalProps {
@@ -24,13 +27,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 }) => {
   const { login, requestPasswordReset } = useDemoStore();
 
-  const [email, setEmail] = useState('sarah.jenkins@bcafly.edu');
+  const [email, setEmail] = useState('admin@bcafly.edu');
   const [password, setPassword] = useState('bca2026!');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
-  // View mode: 'login' | 'forgot-password'
-  const [viewMode, setViewMode] = useState<'login' | 'forgot-password'>('login');
+  // View mode: 'login' | 'mfa' | 'forgot-password'
+  const [viewMode, setViewMode] = useState<'login' | 'mfa' | 'forgot-password'>('login');
+  const [mfaCode, setMfaCode] = useState('');
+  const [pendingRole, setPendingRole] = useState<UserRole | null>(null);
 
   // Error & Status Feedback
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -48,17 +53,39 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setIsSubmitting(false);
 
       if (res.success && res.role) {
-        setLoginSuccessRole(res.role);
-        setTimeout(() => {
-          onClose();
-          if (onSuccessRedirect) {
-            onSuccessRedirect(res.role!);
-          }
-        }, 800);
+        // If administrator role, simulate required MFA step
+        if (res.role === 'admin' || res.role === 'super_admin') {
+          setPendingRole(res.role);
+          setViewMode('mfa');
+        } else {
+          completeLogin(res.role);
+        }
       } else {
         setErrorMessage(res.error || 'Authentication failed. Please verify institutional credentials.');
       }
     }, 400);
+  };
+
+  const handleMfaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mfaCode.trim().length < 4) {
+      setErrorMessage('Please enter the 6-digit verification code sent to your registered authenticator.');
+      return;
+    }
+
+    if (pendingRole) {
+      completeLogin(pendingRole);
+    }
+  };
+
+  const completeLogin = (role: UserRole) => {
+    setLoginSuccessRole(role);
+    setTimeout(() => {
+      onClose();
+      if (onSuccessRedirect) {
+        onSuccessRedirect(role);
+      }
+    }, 600);
   };
 
   const handleQuickRoleLogin = (role: UserRole, demoEmail: string) => {
@@ -72,17 +99,22 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setIsSubmitting(false);
 
       if (res.success && res.role) {
-        setLoginSuccessRole(res.role);
-        setTimeout(() => {
-          onClose();
-          if (onSuccessRedirect) {
-            onSuccessRedirect(res.role!);
-          }
-        }, 600);
+        if (res.role === 'admin' || res.role === 'super_admin') {
+          setPendingRole(res.role);
+          setViewMode('mfa');
+        } else {
+          completeLogin(res.role);
+        }
       } else {
-        setErrorMessage(res.error || 'Quick login failed.');
+        setErrorMessage(res.error || 'Quick authentication failed.');
       }
     }, 300);
+  };
+
+  const handleSelectPersonaOnly = (role: UserRole, demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword('bca2026!');
+    setErrorMessage(null);
   };
 
   const handlePasswordResetSubmit = (e: React.FormEvent) => {
@@ -116,278 +148,303 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <BcaFlyLogo size="md" />
           </div>
           <h3 className="text-2xl font-bold text-slate-900 tracking-tight font-serif">
-            {viewMode === 'login' ? 'Institutional Authentication' : 'Password Recovery'}
-          </h3>
-          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
             {viewMode === 'login'
-              ? 'Sign in with institutional credentials to access your designated role workspace.'
-              : 'Enter your registered university email to receive recovery instructions.'}
+              ? 'Institutional Authentication'
+              : viewMode === 'mfa'
+              ? 'Multi-Factor Verification'
+              : 'Password Recovery'}
+          </h3>
+          <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+            {viewMode === 'login'
+              ? 'Enter verified email or institutional ID. Server validates cryptographic role scope.'
+              : viewMode === 'mfa'
+              ? 'High-privilege account detected. Enter TOTP code from your mobile authenticator.'
+              : 'Enter your registered institutional email to receive an instant recovery token.'}
           </p>
         </div>
 
         {/* Success Confirmation State */}
-        {loginSuccessRole ? (
-          <div className="py-8 text-center space-y-3 animate-in fade-in">
-            <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center mx-auto shadow-sm">
-              <CheckCircle2 className="w-8 h-8 text-white" />
-            </div>
-            <h4 className="font-bold text-slate-900 text-lg">
-              Authenticated Successfully
-            </h4>
-            <p className="text-xs text-slate-500">
-              Resolved role:{' '}
-              <strong className="text-slate-900 uppercase font-semibold">
-                {loginSuccessRole === 'admin'
-                  ? 'Academic Dean / Admin'
-                  : loginSuccessRole === 'faculty'
-                  ? 'Faculty Member'
-                  : loginSuccessRole === 'student'
-                  ? 'Student Portal'
-                  : 'Counselor Portal'}
-              </strong>
-              . Loading secure workspace...
+        {loginSuccessRole && (
+          <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-2 animate-in fade-in duration-150">
+            <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto animate-bounce" />
+            <h4 className="font-bold text-slate-900 text-base">Identity Verified</h4>
+            <p className="text-xs text-slate-600">
+              Redirecting to your role-scoped {loginSuccessRole.replace('_', ' ').toUpperCase()} workspace...
             </p>
           </div>
-        ) : viewMode === 'forgot-password' ? (
-          /* Forgot Password View */
-          <div className="space-y-4 text-xs">
-            {resetSuccessMessage ? (
-              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-900 space-y-2 text-center">
-                <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                <p className="font-bold text-sm">Recovery Email Dispatched</p>
-                <p className="text-xs text-emerald-700">{resetSuccessMessage}</p>
+        )}
+
+        {/* Error Alert */}
+        {errorMessage && (
+          <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-xs text-rose-800">
+            <ShieldAlert className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+            <div className="leading-relaxed">{errorMessage}</div>
+          </div>
+        )}
+
+        {!loginSuccessRole && viewMode === 'login' && (
+          <>
+            {/* Demo Credentials Helper Box */}
+            <div className="mb-6 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                  Evaluation Demo Accounts
+                </span>
+                <span className="text-[10px] text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full font-bold">
+                  Auto-Fills Form
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 text-[11px] font-semibold">
                 <button
                   type="button"
-                  onClick={() => {
-                    setViewMode('login');
-                    setResetSuccessMessage(null);
-                  }}
-                  className="mt-3 text-xs font-bold text-slate-900 hover:underline cursor-pointer"
+                  onClick={() => handleQuickRoleLogin('faculty', 'sarah.jenkins@bcafly.edu')}
+                  className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-center shadow-2xs"
                 >
-                  ← Return to Login
+                  Faculty
                 </button>
-              </div>
-            ) : (
-              <form onSubmit={handlePasswordResetSubmit} className="space-y-4">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Registered Institutional Email
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="e.g. sarah.jenkins@bcafly.edu"
-                      required
-                      className="w-full pl-9 pr-4 py-2.5 bg-slate-50 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:bg-white"
-                    />
-                  </div>
-                </div>
-
                 <button
-                  type="submit"
-                  className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-full transition-all cursor-pointer shadow-xs"
+                  type="button"
+                  onClick={() => handleQuickRoleLogin('student', 'alexander.wright@student.bcafly.edu')}
+                  className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-center shadow-2xs"
                 >
-                  Send Recovery Instructions
+                  Student
                 </button>
-
-                <div className="text-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setViewMode('login');
-                      setErrorMessage(null);
-                    }}
-                    className="text-slate-600 hover:text-slate-900 font-semibold cursor-pointer"
-                  >
-                    ← Back to Sign In
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        ) : (
-          /* Standard Login Form */
-          <div>
-            {/* Error Notification Banner */}
-            {errorMessage && (
-              <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in">
-                <ShieldAlert className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <span className="font-bold block mb-0.5">Authentication Issue</span>
-                  <span>{errorMessage}</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => handleQuickRoleLogin('admin', 'dean.academic@bcafly.edu')}
+                  className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-center shadow-2xs"
+                >
+                  Dept Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickRoleLogin('super_admin', 'superadmin@bcafly.edu')}
+                  className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-center shadow-2xs"
+                >
+                  Super Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickRoleLogin('parent', 'robert.wright@parent.bcafly.edu')}
+                  className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-center shadow-2xs"
+                >
+                  Parent
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickRoleLogin('counselor', 'priya.counselor@bcafly.edu')}
+                  className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-center shadow-2xs"
+                >
+                  Counselor
+                </button>
               </div>
-            )}
+            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            {/* Standard Login Form */}
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Institutional Email or Campus User ID
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Institutional Email or ID
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setErrorMessage(null);
-                    }}
-                    placeholder="user@bcafly.edu"
+                    type="text"
                     required
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:bg-white transition-colors"
+                    placeholder="name@bcafly.edu"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block font-semibold text-slate-700">
-                    Password
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-700">Password</label>
                   <button
                     type="button"
-                    onClick={() => {
-                      setViewMode('forgot-password');
-                      setErrorMessage(null);
-                    }}
-                    className="text-slate-500 hover:text-slate-900 font-medium cursor-pointer"
+                    onClick={() => setViewMode('forgot-password')}
+                    className="text-[11px] text-slate-500 hover:text-slate-900 font-medium transition-colors cursor-pointer"
                   >
-                    Forgot password?
+                    Forgot Password?
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setErrorMessage(null);
-                    }}
-                    placeholder="••••••••••••"
                     required
-                    className="w-full pl-9 pr-10 py-2.5 bg-slate-50 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:bg-white transition-colors"
+                    placeholder="••••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-xs pt-1">
-                <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
+              <div className="flex items-center justify-between text-xs text-slate-600 pt-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 w-3.5 h-3.5"
                   />
-                  <span>Remember session on this device</span>
+                  <span>Remember verified session</span>
                 </label>
+                <span className="text-[11px] text-slate-400">TLS 1.3 • AES-256</span>
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-semibold text-xs sm:text-sm rounded-full transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 mt-2"
+                className="w-full py-3 bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-semibold text-xs sm:text-sm rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
               >
-                <span>{isSubmitting ? 'Verifying Credentials...' : 'Sign In to Workspace'}</span>
-                <ArrowRight className="w-4 h-4" />
+                {isSubmitting ? (
+                  <span>Authenticating...</span>
+                ) : (
+                  <>
+                    <span>Verify Credentials</span>
+                    <ArrowRight className="w-4 h-4 text-slate-300" />
+                  </>
+                )}
               </button>
             </form>
 
-            {/* 1-Click Role Exploration Test Grid (Specification: Allow seamless role testing while keeping authentications deterministic) */}
-            <div className="mt-6 pt-5 border-t border-slate-100">
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  1-Click Role Persona Testing
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">Demo Accounts</span>
-              </div>
-
+            {/* SSO Providers */}
+            <div className="mt-5 pt-5 border-t border-slate-100 text-center space-y-2">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                Institutional Single Sign-On &amp; Root Admin
+              </span>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                {/* 1. Faculty */}
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('faculty', 'sarah.jenkins@bcafly.edu')}
-                  className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/60 text-left transition-colors cursor-pointer group"
+                  onClick={() => handleQuickRoleLogin('admin', 'admin@bcafly.edu')}
+                  className="py-2 px-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 font-semibold text-slate-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 text-xs">Faculty</span>
-                    <span className="text-[10px] text-slate-400 group-hover:text-slate-900 font-mono">→</span>
-                  </div>
-                  <span className="text-[11px] text-slate-600 block truncate">Dr. Sarah Jenkins</span>
-                  <span className="text-[10px] text-slate-400 block truncate">42 Assigned Mentees</span>
+                  <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span>Admin Workspace</span>
                 </button>
-
-                {/* 2. Admin */}
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('admin', 'dean.academic@bcafly.edu')}
-                  className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/60 text-left transition-colors cursor-pointer group"
+                  onClick={() => handleQuickRoleLogin('super_admin', 'superadmin@bcafly.edu')}
+                  className="py-2 px-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 font-semibold text-slate-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 text-xs">Academic Dean</span>
-                    <span className="text-[10px] text-slate-400 group-hover:text-slate-900 font-mono">→</span>
-                  </div>
-                  <span className="text-[11px] text-slate-600 block truncate">Dr. V. Swaminathan</span>
-                  <span className="text-[10px] text-slate-400 block truncate">Institution Admin</span>
-                </button>
-
-                {/* 3. Student */}
-                <button
-                  type="button"
-                  onClick={() => handleQuickRoleLogin('student', 'alex.smith@student.bcafly.edu')}
-                  className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/60 text-left transition-colors cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 text-xs">Student</span>
-                    <span className="text-[10px] text-slate-400 group-hover:text-slate-900 font-mono">→</span>
-                  </div>
-                  <span className="text-[11px] text-slate-600 block truncate">Alex Smith</span>
-                  <span className="text-[10px] text-slate-400 block truncate">BCA Sem 5 • 82%</span>
-                </button>
-
-                {/* 4. Counselor */}
-                <button
-                  type="button"
-                  onClick={() => handleQuickRoleLogin('counselor', 'priya.counselor@bcafly.edu')}
-                  className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/60 text-left transition-colors cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 text-xs">Counselor</span>
-                    <span className="text-[10px] text-slate-400 group-hover:text-slate-900 font-mono">→</span>
-                  </div>
-                  <span className="text-[11px] text-slate-600 block truncate">Dr. Priya Sharma</span>
-                  <span className="text-[10px] text-slate-400 block truncate">Confidential Intake</span>
-                </button>
-              </div>
-
-              {/* Edge Case Testing Helpers: Suspended Account Test */}
-              <div className="mt-3 pt-2 text-[10px] text-slate-400 flex items-center justify-between">
-                <span>Security Test Accounts:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail('suspended@bcafly.edu');
-                    setPassword('wrongpass');
-                  }}
-                  className="hover:text-slate-700 underline cursor-pointer"
-                >
-                  Load Suspended Account Test
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span>Platform SuperAdmin</span>
                 </button>
               </div>
             </div>
-          </div>
+          </>
+        )}
+
+        {/* MFA Step */}
+        {!loginSuccessRole && viewMode === 'mfa' && (
+          <form onSubmit={handleMfaSubmit} className="space-y-4">
+            <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 flex items-start gap-3">
+              <Fingerprint className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong className="block font-bold">MFA Policy Active</strong>
+                <span>Administrator account required step-up verification. Enter code <strong>784912</strong> (simulated).</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                6-Digit Authenticator Token
+              </label>
+              <div className="relative">
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  placeholder="784912"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 text-base font-mono tracking-widest text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setViewMode('login')}
+                className="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-full transition-colors cursor-pointer"
+              >
+                Back to Sign In
+              </button>
+              <button
+                type="submit"
+                className="w-1/2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-full transition-colors cursor-pointer"
+              >
+                Confirm Token
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Forgot Password Step */}
+        {!loginSuccessRole && viewMode === 'forgot-password' && (
+          <form onSubmit={handlePasswordResetSubmit} className="space-y-4">
+            {resetSuccessMessage ? (
+              <div className="p-4 rounded-2xl bg-emerald-50 text-emerald-800 text-xs space-y-2 text-center">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto" />
+                <p>{resetSuccessMessage}</p>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('login')}
+                  className="text-slate-900 font-bold underline cursor-pointer text-xs"
+                >
+                  Return to Sign In
+                </button>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Registered Institutional Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="name@bcafly.edu"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('login')}
+                    className="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-full transition-colors cursor-pointer"
+                  >
+                    Back to Sign In
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-full transition-colors cursor-pointer"
+                  >
+                    Send Reset Link
+                  </button>
+                </div>
+              </>
+            )}
+          </form>
         )}
       </div>
     </div>

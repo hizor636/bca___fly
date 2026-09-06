@@ -670,7 +670,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                     <div>
                       <strong className="block font-semibold">Counselor Privacy Protected</strong>
                       <span>
-                        Clinical session observations and psychotherapeutic notes entered by Dr. Priya Sharma are confidential and withheld from faculty records. The mentor is notified of progression status only.
+                        Clinical session observations and psychotherapeutic notes entered by the counseling cell are confidential and withheld from faculty records. The mentor is notified of progression status only.
                       </span>
                     </div>
                   </div>
@@ -680,7 +680,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                   <div>
                     <h4 className="font-semibold text-slate-900 text-sm">Refer Student to Counseling Cell</h4>
                     <p className="text-xs text-slate-500">
-                      If {student.name} is experiencing severe academic stress, chronic absenteeism, or personal challenges, submit a confidential referral to Dr. Priya Sharma.
+                      If {student.name} is experiencing severe academic stress, chronic absenteeism, or personal challenges, submit a confidential referral to the institutional counseling cell.
                     </p>
                   </div>
 
@@ -728,7 +728,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                   {referralFeedback && (
                     <div className="p-3 bg-emerald-50 text-emerald-800 rounded-2xl text-xs flex items-center gap-2 border border-emerald-200">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>Referral submitted to Counselor Dr. Priya Sharma and logged to audit trail.</span>
+                      <span>Referral submitted to the Counseling Cell and logged to audit trail.</span>
                     </div>
                   )}
                 </form>

@@ -3,7 +3,7 @@ import { DepartmentNotice } from '../types';
 import { Bell, X, Calendar, CheckCircle2, ArrowRight } from 'lucide-react';
 
 interface DepartmentUpdateModalProps {
-  notice: DepartmentNotice;
+  notice?: DepartmentNotice | null;
   onClose: () => void;
   onOpenTracking: () => void;
 }
@@ -13,6 +13,15 @@ export const DepartmentUpdateModal: React.FC<DepartmentUpdateModalProps> = ({
   onClose,
   onOpenTracking,
 }) => {
+  const currentNotice = notice || {
+    id: 'notice-default',
+    title: 'Department Academic Circular',
+    subtitle: 'Institutional Notice Board',
+    body: 'No official urgent notices at this moment. Academic schedules and assessments are running as scheduled.',
+    deadline: 'Ongoing',
+    isNew: false
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
       <div
@@ -34,23 +43,23 @@ export const DepartmentUpdateModal: React.FC<DepartmentUpdateModalProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-900">Official Notice</span>
               <span className="bg-slate-200 text-slate-700 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
-                New Circular
+                Circular
               </span>
             </div>
             <h3 className="text-xl font-bold text-slate-900 leading-tight mt-0.5">
-              {notice.title}
+              {currentNotice.title}
             </h3>
           </div>
         </div>
 
         <div className="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 mb-4">
-          <p className="text-sm font-semibold text-slate-900 mb-1">{notice.subtitle}</p>
-          <p className="text-xs text-slate-500 leading-relaxed">{notice.body}</p>
+          <p className="text-sm font-semibold text-slate-900 mb-1">{currentNotice.subtitle}</p>
+          <p className="text-xs text-slate-500 leading-relaxed">{currentNotice.body}</p>
 
           <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-500">
             <span className="flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              Deadline: <strong className="text-slate-900">{notice.deadline || 'End of Week'}</strong>
+              Deadline: <strong className="text-slate-900">{currentNotice.deadline || 'End of Term'}</strong>
             </span>
             <span className="text-slate-700 bg-slate-200/70 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
               Portal Active

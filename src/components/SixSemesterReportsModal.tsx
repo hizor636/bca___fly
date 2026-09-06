@@ -36,14 +36,14 @@ export const SixSemesterReportsModal: React.FC<SixSemesterReportsModalProps> = (
 
   // 6-Semester Summary Metrics
   const semMetrics = [1, 2, 3, 4, 5, 6].map((sem) => {
-    const semStudents = students.filter((s) => s.semester === sem);
-    const count = semStudents.length || Math.floor(60 + sem * 5);
+    const semStudents = (students || []).filter((s) => s.semester === sem);
+    const count = semStudents.length;
     const avgAtt = semStudents.length
       ? Math.round(semStudents.reduce((a, b) => a + b.attendanceRate, 0) / semStudents.length)
-      : Math.round(82 + (sem % 3) * 3);
+      : 0;
     const avgCgpa = semStudents.length
       ? (semStudents.reduce((a, b) => a + b.cgpa, 0) / semStudents.length).toFixed(2)
-      : (7.4 + (sem * 0.15)).toFixed(2);
+      : '0.00';
     const shortageCount = semStudents.filter((s) => s.attendanceRate < 75).length;
 
     return {
@@ -53,8 +53,8 @@ export const SixSemesterReportsModal: React.FC<SixSemesterReportsModalProps> = (
       studentsCount: count,
       avgAttendance: avgAtt,
       avgCgpa: avgCgpa,
-      shortageCount: shortageCount || (sem === 3 ? 3 : sem === 5 ? 2 : 1),
-      passRate: `${91 + (sem % 4)}%`,
+      shortageCount: shortageCount,
+      passRate: semStudents.length ? '100%' : '0%',
     };
   });
 
@@ -148,65 +148,64 @@ export const SixSemesterReportsModal: React.FC<SixSemesterReportsModalProps> = (
           {copiedNotification && (
             <span className="text-xs font-medium text-emerald-600 flex items-center gap-1">
               <CheckCircle className="w-3.5 h-3.5" />
-              Report exported successfully
+              <span>Report Exported</span>
             </span>
           )}
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="p-6 overflow-y-auto flex-1 text-xs">
           {/* TAB 1: 6-SEMESTER OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Consolidated 6-Semester Performance &amp; Attendance Matrix
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Semester-wise cohort health, pass percentage benchmarking, and aggregate attendance tracking.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                 {semMetrics.map((sem) => (
                   <div
                     key={sem.sem}
-                    className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 hover:border-slate-300 transition-all space-y-3"
+                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5 hover:border-slate-300 transition-colors"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-800 shadow-2xs">
-                          {sem.sem}
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-slate-900">{sem.name}</h4>
-                          <span className="text-[10px] text-slate-400 font-mono">{sem.code}</span>
-                        </div>
-                      </div>
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {sem.passRate} Pass
+                      <span className="font-bold text-slate-900 text-sm">{sem.name}</span>
+                      <span className="text-[10px] font-mono text-slate-400 font-bold bg-white px-2 py-0.5 rounded border border-slate-200">
+                        {sem.code}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-slate-200/60">
+                    <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-200/60">
                       <div>
-                        <span className="text-[10px] font-medium text-slate-400 block">Enrolled</span>
-                        <span className="text-xs font-bold text-slate-800">{sem.studentsCount}</span>
+                        <span className="text-slate-400 block text-[10px]">Total Enrolled</span>
+                        <span className="font-semibold text-slate-800">{sem.studentsCount} students</span>
                       </div>
                       <div>
-                        <span className="text-[10px] font-medium text-slate-400 block">Avg Attd</span>
-                        <span className="text-xs font-bold text-slate-800">{sem.avgAttendance}%</span>
+                        <span className="text-slate-400 block text-[10px]">Avg Attendance</span>
+                        <span className="font-bold text-slate-900">{sem.avgAttendance}%</span>
                       </div>
                       <div>
-                        <span className="text-[10px] font-medium text-slate-400 block">Mean CGPA</span>
-                        <span className="text-xs font-bold text-slate-800">{sem.avgCgpa}</span>
+                        <span className="text-slate-400 block text-[10px]">Avg SGPA</span>
+                        <span className="font-semibold text-slate-800 font-mono">{sem.avgCgpa} / 10</span>
                       </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] pt-1 text-slate-500">
-                      <span>Condonation alerts:</span>
-                      <span className={`font-bold ${sem.shortageCount > 0 ? 'text-rose-600' : 'text-slate-600'}`}>
-                        {sem.shortageCount} students
-                      </span>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Shortage (&lt;75%)</span>
+                        <span className={`font-bold ${sem.shortageCount > 0 ? 'text-rose-600' : 'text-slate-600'}`}>
+                          {sem.shortageCount} students
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Departmental Accreditation Footnote */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-start gap-3">
-                <GraduationCap className="w-5 h-5 text-slate-700 shrink-0 mt-0.5" />
+              <div className="p-4 rounded-2xl bg-slate-100/70 border border-slate-200 flex items-start gap-3 text-xs text-slate-600">
+                <GraduationCap className="w-5 h-5 text-slate-900 flex-shrink-0 mt-0.5" />
                 <div>
                   <h5 className="font-bold text-slate-900">BCA Curriculum Compliance</h5>
                   <p className="mt-0.5 text-slate-500">
@@ -246,46 +245,60 @@ export const SixSemesterReportsModal: React.FC<SixSemesterReportsModalProps> = (
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {shortageStudents.map((st) => {
-                      const shortagePercent = 75 - st.attendanceRate;
-                      return (
-                        <tr key={st.id} className="hover:bg-slate-50/70">
-                          <td className="py-3 pl-3 font-semibold text-slate-900">{st.name}</td>
-                          <td className="py-3 font-mono text-slate-500">{st.studentId}</td>
-                          <td className="py-3 text-slate-600">Sem {st.semester}</td>
-                          <td className="py-3 text-slate-700">{st.totalClassesAttended} / {st.totalClassesHeld}</td>
-                          <td className="py-3 font-bold text-rose-600">{st.attendanceRate}%</td>
-                          <td className="py-3 font-semibold text-amber-700">-{shortagePercent}%</td>
-                          <td className="py-3">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                st.condonationStatus === 'Approved'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : st.condonationStatus === 'Debarred'
-                                  ? 'bg-rose-100 text-rose-800'
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}
-                            >
-                              {st.condonationStatus || 'Pending Medical'}
-                            </span>
-                          </td>
-                          <td className="py-3 pr-3 text-right space-x-1.5">
-                            <button
-                              onClick={() => updateCondonationStatus(st.id, 'Approved')}
-                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold text-[11px] rounded-full cursor-pointer transition-colors"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => updateCondonationStatus(st.id, 'Debarred')}
-                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-800 font-semibold text-[11px] rounded-full cursor-pointer transition-colors"
-                            >
-                              Debar
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {shortageStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-8 text-center text-slate-500">
+                          <div className="flex flex-col items-center justify-center space-y-1.5">
+                            <CheckCircle className="w-6 h-6 text-emerald-600" />
+                            <span className="font-semibold text-slate-800 text-xs">No pending shortage alerts</span>
+                            <p className="text-[11px] text-slate-400 max-w-sm">
+                              All students currently meet or exceed the statutory 75% institutional attendance threshold.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      shortageStudents.map((st) => {
+                        const shortagePercent = 75 - st.attendanceRate;
+                        return (
+                          <tr key={st.id} className="hover:bg-slate-50/70">
+                            <td className="py-3 pl-3 font-semibold text-slate-900">{st.name}</td>
+                            <td className="py-3 font-mono text-slate-500">{st.studentId}</td>
+                            <td className="py-3 text-slate-600">Sem {st.semester}</td>
+                            <td className="py-3 text-slate-700">{st.totalClassesAttended} / {st.totalClassesHeld}</td>
+                            <td className="py-3 font-bold text-rose-600">{st.attendanceRate}%</td>
+                            <td className="py-3 font-semibold text-amber-700">-{shortagePercent}%</td>
+                            <td className="py-3">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  st.condonationStatus === 'Approved'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : st.condonationStatus === 'Debarred'
+                                    ? 'bg-rose-100 text-rose-800'
+                                    : 'bg-amber-100 text-amber-800'
+                                }`}
+                              >
+                                {st.condonationStatus || 'Pending Medical'}
+                              </span>
+                            </td>
+                            <td className="py-3 pr-3 text-right space-x-1.5">
+                              <button
+                                onClick={() => updateCondonationStatus(st.id, 'Approved')}
+                                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold text-[11px] rounded-full cursor-pointer transition-colors"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => updateCondonationStatus(st.id, 'Debarred')}
+                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-800 font-semibold text-[11px] rounded-full cursor-pointer transition-colors"
+                              >
+                                Debar
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -293,7 +306,13 @@ export const SixSemesterReportsModal: React.FC<SixSemesterReportsModalProps> = (
           )}
 
           {/* TAB 3: STUDENT TRANSCRIPT AUDITOR */}
-          {activeTab === 'transcript' && currentStudent && (
+          {activeTab === 'transcript' && (!currentStudent ? (
+            <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200">
+              <GraduationCap className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-slate-700">No Student Records Available</p>
+              <p className="text-xs text-slate-400 mt-1">Enroll students to generate and audit multi-semester transcripts.</p>
+            </div>
+          ) : (
             <div className="space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
                 <div>
@@ -327,7 +346,7 @@ export const SixSemesterReportsModal: React.FC<SixSemesterReportsModalProps> = (
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div>
                     <h4 className="font-bold text-slate-900 text-sm">Official BCA Progression Summary</h4>
-                    <span className="text-xs text-slate-500">Mentor: {currentStudent.assignedFaculty}</span>
+                    <span className="text-xs text-slate-500">Mentor: {currentStudent.assignedFaculty || 'Unassigned'}</span>
                   </div>
                   <div className="text-right">
                     <span className="text-xs text-slate-400 block">Cumulative CGPA</span>
@@ -367,14 +386,7 @@ export const SixSemesterReportsModal: React.FC<SixSemesterReportsModalProps> = (
                   <div className="flex items-center gap-2 overflow-x-auto pb-1">
                     {(currentStudent.sgpaHistory && currentStudent.sgpaHistory.length > 0
                       ? currentStudent.sgpaHistory
-                      : [
-                          Math.max(6.0, Number((currentStudent.cgpa - 0.4).toFixed(2))),
-                          Math.max(6.2, Number((currentStudent.cgpa - 0.2).toFixed(2))),
-                          currentStudent.cgpa,
-                          Math.min(9.8, Number((currentStudent.cgpa + 0.1).toFixed(2))),
-                          Math.min(9.9, Number((currentStudent.cgpa + 0.3).toFixed(2))),
-                          currentStudent.cgpa
-                        ]
+                      : [currentStudent.cgpa]
                     ).slice(0, currentStudent.semester).map((sg: any, idx: number) => {
                       const semNum = typeof sg === 'object' && sg !== null && 'semester' in sg ? sg.semester : idx + 1;
                       const sgpaVal = typeof sg === 'object' && sg !== null && 'sgpa' in sg ? sg.sgpa : (typeof sg === 'number' ? sg.toFixed(2) : currentStudent.cgpa.toFixed(2));
@@ -389,7 +401,7 @@ export const SixSemesterReportsModal: React.FC<SixSemesterReportsModalProps> = (
                 </div>
               </div>
             </div>
-          )}
+          ))}
         </div>
 
         {/* Modal Footer */}

@@ -218,18 +218,24 @@ export const AssignedStudentsView: React.FC<AssignedStudentsViewProps> = ({
       {filteredStudents.length === 0 ? (
         <div className="bg-white rounded-3xl border border-slate-100 p-12 text-center">
           <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-slate-800">No students match your criteria</h3>
-          <p className="text-xs text-slate-400 mt-1">Try resetting your search query or semester filters.</p>
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setSelectedSemester('all');
-              setSelectedStatus('all');
-            }}
-            className="mt-4 px-5 py-2 bg-slate-100 text-slate-800 text-xs font-medium rounded-full hover:bg-slate-200 cursor-pointer"
-          >
-            Reset Filters
-          </button>
+          <h3 className="text-base font-semibold text-slate-800">No records yet</h3>
+          <p className="text-xs text-slate-400 mt-1">
+            {effectiveStudents.length === 0
+              ? 'No mentees have been assigned to this faculty member in the database.'
+              : 'Try resetting your search query or semester filters.'}
+          </p>
+          {effectiveStudents.length > 0 && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedSemester('all');
+                setSelectedStatus('all');
+              }}
+              className="mt-4 px-5 py-2 bg-slate-100 text-slate-800 text-xs font-medium rounded-full hover:bg-slate-200 cursor-pointer"
+            >
+              Reset Filters
+            </button>
+          )}
         </div>
       ) : viewMode === 'table' ? (
         <div className="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">

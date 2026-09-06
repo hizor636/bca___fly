@@ -1,7 +1,6 @@
 import React, { Component, useState } from 'react';
 import { DemoProvider, useDemoStore } from './context/DemoContext';
 import { ScreenType, Student, UserRole } from './types';
-import { INITIAL_NOTICES, INITIAL_FACULTY } from './data/mockStore';
 import { AuditTrailModal } from './components/AuditTrailModal';
 import { Header } from './components/Header';
 import { FacultyDashboardView } from './components/FacultyDashboardView';
@@ -14,6 +13,8 @@ import { DatabaseStudioView } from './components/DatabaseStudioView';
 import { AdminPortalView } from './components/AdminPortalView';
 import { StudentPortalView } from './components/StudentPortalView';
 import { CounselorPortalView } from './components/CounselorPortalView';
+import { PlatformDashboardView } from './components/PlatformDashboardView';
+import { ParentPortalView } from './components/ParentPortalView';
 import { Footer } from './components/Footer';
 import { StudentDetailModal } from './components/StudentDetailModal';
 import { DepartmentUpdateModal } from './components/DepartmentUpdateModal';
@@ -31,7 +32,8 @@ const AppContent: React.FC = () => {
     activeFaculty,
     setActiveFaculty,
     students,
-    activeStudent,
+    facultyList,
+    smsMessages,
     getScopedStudentsForActiveFaculty
   } = useDemoStore();
 
@@ -57,7 +59,7 @@ const AppContent: React.FC = () => {
     }
 
     // Guard academic workspace screens if unauthenticated
-    const protectedScreens: ScreenType[] = ['dashboard', 'students', 'tracking', 'workspace', 'faculties'];
+    const protectedScreens: ScreenType[] = ['dashboard', 'students', 'tracking', 'workspace', 'faculties', 'admin', 'student-portal', 'parent-portal', 'counselor-portal', 'platform'];
     if (protectedScreens.includes(screen) && !isAuthenticated) {
       setShowLoginModal(true);
       return;
@@ -69,8 +71,18 @@ const AppContent: React.FC = () => {
 
   const handleLoginSuccess = (role: UserRole) => {
     setShowLoginModal(false);
-    if (role === 'faculty') {
+    if (role === 'super_admin') {
+      setCurrentScreen('platform');
+    } else if (role === 'admin') {
+      setCurrentScreen('admin');
+    } else if (role === 'faculty') {
       setCurrentScreen('dashboard');
+    } else if (role === 'student') {
+      setCurrentScreen('student-portal');
+    } else if (role === 'parent') {
+      setCurrentScreen('parent-portal');
+    } else if (role === 'counselor') {
+      setCurrentScreen('counselor-portal');
     }
   };
 
@@ -86,7 +98,7 @@ const AppContent: React.FC = () => {
             currentScreen={currentScreen}
             onNavigate={handleNavigation}
             activeFaculty={activeFaculty}
-            allFaculties={INITIAL_FACULTY}
+            allFaculties={facultyList}
             onSelectFaculty={(fac) => setActiveFaculty(fac)}
             onOpenLogin={() => setShowLoginModal(true)}
             onOpenReports={() => setShowReportsModal(true)}
@@ -109,7 +121,7 @@ const AppContent: React.FC = () => {
             currentScreen="home"
             onNavigate={handleNavigation}
             activeFaculty={activeFaculty}
-            allFaculties={INITIAL_FACULTY}
+            allFaculties={facultyList}
             onSelectFaculty={(fac) => setActiveFaculty(fac)}
             onOpenLogin={() => setShowLoginModal(true)}
           />
@@ -120,8 +132,19 @@ const AppContent: React.FC = () => {
             />
           </main>
         </>
+      ) : currentRole === 'super_admin' ? (
+        /* 3. Platform Hub: Super Admin Console */
+        <div className="flex-1">
+          <PlatformDashboardView
+            onLogout={() => {
+              logout();
+              setCurrentScreen('home');
+            }}
+            onNavigatePublic={() => setCurrentScreen('home')}
+          />
+        </div>
       ) : currentRole === 'admin' ? (
-        /* 3. Secure Academic Workspace: Admin / Academic Dean */
+        /* 4. Secure Academic Workspace: Admin / Academic Dean */
         <div className="flex-1">
           <AdminPortalView
             onNavigateHome={() => {
@@ -136,7 +159,7 @@ const AppContent: React.FC = () => {
           />
         </div>
       ) : currentRole === 'student' ? (
-        /* 4. Secure Academic Workspace: Student Portal */
+        /* 5. Secure Academic Workspace: Student Portal */
         <div className="flex-1">
           <StudentPortalView
             onNavigateHome={() => {
@@ -150,8 +173,23 @@ const AppContent: React.FC = () => {
             onNavigatePublic={() => setCurrentScreen('home')}
           />
         </div>
+      ) : currentRole === 'parent' ? (
+        /* 6. Secure Academic Workspace: Parent Portal */
+        <div className="flex-1">
+          <ParentPortalView
+            onNavigateHome={() => {
+              switchRole('faculty');
+              setCurrentScreen('dashboard');
+            }}
+            onLogout={() => {
+              logout();
+              setCurrentScreen('home');
+            }}
+            onNavigatePublic={() => setCurrentScreen('home')}
+          />
+        </div>
       ) : currentRole === 'counselor' ? (
-        /* 5. Secure Academic Workspace: Counselor Portal */
+        /* 7. Secure Academic Workspace: Counselor Portal */
         <div className="flex-1">
           <CounselorPortalView
             onNavigateHome={() => {
@@ -172,7 +210,7 @@ const AppContent: React.FC = () => {
             currentScreen={currentScreen}
             onNavigate={handleNavigation}
             activeFaculty={activeFaculty}
-            allFaculties={INITIAL_FACULTY}
+            allFaculties={facultyList}
             onSelectFaculty={(fac) => setActiveFaculty(fac)}
             onOpenLogin={() => setShowLoginModal(true)}
             onOpenReports={() => setShowReportsModal(true)}
@@ -208,7 +246,7 @@ const AppContent: React.FC = () => {
             {currentScreen === 'workspace' && (
               <SmartWorkspaceView
                 students={scopedStudents}
-                notices={INITIAL_NOTICES}
+                notices={[]}
                 onOpenNotice={() => setShowNoticeModal(true)}
                 onSelectStudent={(st) => setSelectedStudent(st)}
                 onNavigateHome={() => handleNavigation('dashboard')}
@@ -219,7 +257,7 @@ const AppContent: React.FC = () => {
 
             {currentScreen === 'faculties' && (
               <FacultiesView
-                faculties={INITIAL_FACULTY}
+                faculties={facultyList}
                 activeFaculty={activeFaculty}
                 onSelectFaculty={(fac) => setActiveFaculty(fac)}
                 onNavigateHome={() => handleNavigation('dashboard')}
@@ -265,7 +303,7 @@ const AppContent: React.FC = () => {
       {/* Department Notice Modal */}
       {showNoticeModal && (
         <DepartmentUpdateModal
-          notice={INITIAL_NOTICES[0]}
+          notice={null}
           onClose={() => setShowNoticeModal(false)}
           onOpenTracking={() => {
             setShowNoticeModal(false);

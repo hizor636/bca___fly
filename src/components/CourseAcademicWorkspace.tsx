@@ -56,7 +56,7 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
         ? courses
         : courses.filter((c) => c.semester === selectedSemester);
     }
-    const myCourses = getAssignedCoursesForFaculty(activeFaculty.id, selectedSemester === 'all' ? undefined : selectedSemester);
+    const myCourses = getAssignedCoursesForFaculty(activeFaculty?.id || '', selectedSemester === 'all' ? undefined : selectedSemester);
     // If no course assigned for that semester, fall back to active courses in that semester so faculty is never blocked
     if (myCourses.length === 0) {
       return selectedSemester === 'all'
@@ -64,17 +64,17 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
         : courses.filter((c) => c.semester === selectedSemester);
     }
     return myCourses;
-  }, [courses, activeFaculty.id, selectedSemester, showAllDeptCourses, getAssignedCoursesForFaculty]);
+  }, [courses, activeFaculty?.id, selectedSemester, showAllDeptCourses, getAssignedCoursesForFaculty]);
 
   // 2. COURSE SELECTION
   const [selectedCourseId, setSelectedCourseId] = useState<string>(() => {
-    const initial = facultyAssignedCourses[0]?.id || courses[0]?.id || 'BCA301';
+    const initial = facultyAssignedCourses[0]?.id || courses[0]?.id || '';
     return initial;
   });
 
   // Ensure selected course is valid in current list
   const activeCourse = useMemo(() => {
-    return courses.find((c) => c.id === selectedCourseId) || facultyAssignedCourses[0] || courses[0];
+    return courses.find((c) => c.id === selectedCourseId) || facultyAssignedCourses[0] || courses[0] || null;
   }, [courses, selectedCourseId, facultyAssignedCourses]);
 
   // Sub-tab inside Course view: 'roster' | 'attendance' | 'marks' | 'performance'
@@ -157,7 +157,7 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
     setAttendanceSheet(next);
   };
 
-  const handleSaveAttendance = (finalize: boolean) => {
+  const handleSaveAttendance = async (finalize: boolean) => {
     if (!activeCourse) return;
     if (!todayCalendar.isWorking && finalize) {
       setAttendanceFeedback({
@@ -176,7 +176,7 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
       remarks: data.remarks,
     }));
 
-    const result = saveCourseAttendance(
+    const result = await saveCourseAttendance(
       activeCourse.id,
       activeFaculty.id,
       attendanceDate,
@@ -185,23 +185,21 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
       finalize
     );
 
-    setTimeout(() => {
-      setSavingAttendance(false);
-      if (result.success) {
-        setAttendanceFeedback({
-          type: 'success',
-          message: finalize
-            ? `Attendance finalized! ${result.smsCount || 0} SMS notifications dispatched to parents.`
-            : 'Draft attendance saved successfully.',
-        });
-        setTimeout(() => setAttendanceFeedback(null), 4500);
-      } else {
-        setAttendanceFeedback({
-          type: 'error',
-          message: result.message || 'Failed to save attendance.',
-        });
-      }
-    }, 400);
+    setSavingAttendance(false);
+    if (result.success) {
+      setAttendanceFeedback({
+        type: 'success',
+        message: finalize
+          ? `Attendance finalized! SMS notifications dispatched to parents.`
+          : 'Draft attendance saved successfully.',
+      });
+      setTimeout(() => setAttendanceFeedback(null), 4500);
+    } else {
+      setAttendanceFeedback({
+        type: 'error',
+        message: result.message || 'Failed to save attendance.',
+      });
+    }
   };
 
   // --- MARKS ENTRY TAB STATE ---
@@ -260,7 +258,7 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
     }));
   };
 
-  const handleSaveMarks = (finalize: boolean) => {
+  const handleSaveMarks = async (finalize: boolean) => {
     if (!activeCourse) return;
     setSavingMarks(true);
     setMarksFeedback(null);
@@ -277,25 +275,23 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
       mark: data.isAbsent ? 0 : data.marksObtained,
     }));
 
-    const result = saveCourseMarks(activeCourse.id, assessmentKey, records, finalize);
+    const result = await saveCourseMarks(activeCourse.id, assessmentKey, records, finalize);
 
-    setTimeout(() => {
-      setSavingMarks(false);
-      if (result.success) {
-        setMarksFeedback({
-          type: 'success',
-          message: finalize
-            ? `${assessmentType} marks finalized and locked in course ledger.`
-            : `Draft ${assessmentType} marks saved.`,
-        });
-        setTimeout(() => setMarksFeedback(null), 4000);
-      } else {
-        setMarksFeedback({
-          type: 'error',
-          message: result.message || 'Failed to save marks.',
-        });
-      }
-    }, 400);
+    setSavingMarks(false);
+    if (result.success) {
+      setMarksFeedback({
+        type: 'success',
+        message: finalize
+          ? `${assessmentType} marks finalized and locked in course ledger.`
+          : `Draft ${assessmentType} marks saved.`,
+      });
+      setTimeout(() => setMarksFeedback(null), 4000);
+    } else {
+      setMarksFeedback({
+        type: 'error',
+        message: result.message || 'Failed to save marks.',
+      });
+    }
   };
 
   // --- PERFORMANCE METRICS ---
@@ -428,68 +424,75 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
         </div>
 
         {/* Course Cards Carousel / Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {facultyAssignedCourses.map((c) => {
-            const isSelected = activeCourse?.id === c.id;
-            const enrStudents = getEnrolledStudentsForCourse(c.id);
+        {facultyAssignedCourses.length === 0 ? (
+          <div className="py-8 text-center bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+            <p className="text-xs font-semibold text-slate-700">No courses available for this semester selection</p>
+            <p className="text-[11px] text-slate-400">Add or allocate courses using the Database Studio or Admin Portal.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {facultyAssignedCourses.map((c) => {
+              const isSelected = activeCourse?.id === c.id;
+              const enrStudents = getEnrolledStudentsForCourse(c.id);
 
-            return (
-              <div
-                key={c.id}
-                onClick={() => setSelectedCourseId(c.id)}
-                className={`p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${
-                  isSelected
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-900 ring-offset-2'
-                    : 'bg-slate-50 hover:bg-white text-slate-800 border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-800'
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => setSelectedCourseId(c.id)}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${
+                    isSelected
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-900 ring-offset-2'
+                      : 'bg-slate-50 hover:bg-white text-slate-800 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                        isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-800'
+                      }`}>
+                        {c.courseCode}
+                      </span>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        isSelected ? 'bg-white/10 text-slate-200' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        Sem {c.semester}
+                      </span>
+                    </div>
+
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                      isSelected ? 'text-slate-300' : 'text-slate-500'
                     }`}>
-                      {c.courseCode}
-                    </span>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                      isSelected ? 'bg-white/10 text-slate-200' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      Sem {c.semester}
+                      {c.credits} Credits
                     </span>
                   </div>
 
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                    isSelected ? 'text-slate-300' : 'text-slate-500'
-                  }`}>
-                    {c.credits} Credits
-                  </span>
+                  <h4 className="font-bold text-sm sm:text-base mt-2 leading-snug">
+                    {c.courseName}
+                  </h4>
+
+                  <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-200/50 text-xs">
+                    <span className={`flex items-center gap-1 font-medium ${
+                      isSelected ? 'text-slate-300' : 'text-slate-500'
+                    }`}>
+                      <Users className="w-3.5 h-3.5" />
+                      <span>{enrStudents.length} Students</span>
+                    </span>
+
+                    <span className={`text-[11px] font-semibold ${
+                      isSelected ? 'text-emerald-300' : 'text-emerald-700'
+                    }`}>
+                      {c.courseType}
+                    </span>
+                  </div>
                 </div>
-
-                <h4 className="font-bold text-sm sm:text-base mt-2 leading-snug">
-                  {c.courseName}
-                </h4>
-
-                <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-200/50 text-xs">
-                  <span className={`flex items-center gap-1 font-medium ${
-                    isSelected ? 'text-slate-300' : 'text-slate-500'
-                  }`}>
-                    <Users className="w-3.5 h-3.5" />
-                    <span>{enrStudents.length} Students</span>
-                  </span>
-
-                  <span className={`text-[11px] font-semibold ${
-                    isSelected ? 'text-emerald-300' : 'text-emerald-700'
-                  }`}>
-                    {c.courseType}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 3. ACTIVE COURSE WORKSPACE (Roster, Attendance, CIA Marks, Performance) */}
-      {activeCourse && (
+      {activeCourse ? (
         <div className="bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-6 shadow-2xs space-y-6">
           {/* Active Course Header & Meta */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-100">
@@ -1093,6 +1096,11 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
               </div>
             </div>
           )}
+        </div>
+      ) : (
+        <div className="bg-white border border-slate-200/90 rounded-3xl p-12 text-center shadow-2xs space-y-2">
+          <p className="text-sm font-semibold text-slate-800">No Course Selected</p>
+          <p className="text-xs text-slate-400">Select an active subject from above to view students, record attendance, and enter CIA marks.</p>
         </div>
       )}
     </div>

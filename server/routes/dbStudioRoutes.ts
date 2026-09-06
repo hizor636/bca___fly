@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { dbManager } from '../db/database.js';
-import { seedDatabase } from '../db/seeder.js';
+import { seedDatabase, wipeDatabase } from '../db/seeder.js';
 
 export const dbStudioRouter = Router();
 
@@ -267,11 +267,36 @@ dbStudioRouter.post('/import', (req: Request, res: Response) => {
   }
 });
 
-// 10. Reset / Re-seed Database
-dbStudioRouter.post('/reset', (req: Request, res: Response) => {
+// 10. Nuclear Clean Database (Empty all tables)
+dbStudioRouter.post('/clean', (req: Request, res: Response) => {
   try {
-    seedDatabase(true);
-    res.json({ success: true, message: 'Database re-seeded successfully to initial state' });
+    const result = wipeDatabase();
+    res.json({
+      success: true,
+      message: `Database wiped completely clean (${result.clearedTables.length} tables truncated)`,
+      clearedTables: result.clearedTables,
+      executionTimeMs: result.executionTimeMs
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 11. Reset / Clean Database
+dbStudioRouter.post('/reset', (req: Request, res: Response) => {
+  const { mode } = req.body || {};
+  try {
+    if (mode === 'seed') {
+      seedDatabase(true);
+      res.json({ success: true, message: 'Database re-seeded successfully with demo state' });
+    } else {
+      const result = wipeDatabase();
+      res.json({
+        success: true,
+        message: `Database cleaned to pristine empty state (${result.clearedTables.length} tables truncated)`,
+        clearedTables: result.clearedTables
+      });
+    }
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
