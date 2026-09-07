@@ -106,7 +106,7 @@ export const DashboardRibbon: React.FC<DashboardRibbonProps> = ({
                 </span>
                 {facultyList.length === 0 ? (
                   <div className="p-2 text-center text-xs text-slate-400">
-                    No faculty profiles in database
+                    No faculty profiles found
                   </div>
                 ) : (
                   facultyList.map((fac) => {
@@ -186,7 +186,7 @@ export const DashboardRibbon: React.FC<DashboardRibbonProps> = ({
           <div className="bg-white text-slate-900 rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 animate-in zoom-in-95">
             <h4 className="font-bold text-base mb-1">Reset Platform State?</h4>
             <p className="text-xs text-slate-500 mb-4">
-              This will clear temporary in-memory changes and synchronize with the clean relational database state.
+              This will reset local changes and synchronize with default platform state.
             </p>
             <div className="flex gap-2">
               <button

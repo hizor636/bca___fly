@@ -146,9 +146,9 @@ export const PlatformDashboardView: React.FC<PlatformDashboardViewProps> = ({
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Database Engine</span>
-          <div className="text-2xl font-bold text-slate-900 font-mono">PostgreSQL 18</div>
-          <span className="text-[11px] text-slate-500">29 Tables • Indexed Scopes</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">System Engine</span>
+          <div className="text-2xl font-bold text-slate-900 font-mono">React 19 + TS</div>
+          <span className="text-[11px] text-slate-500">In-Memory Scope</span>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-1">
@@ -230,7 +230,7 @@ export const PlatformDashboardView: React.FC<PlatformDashboardViewProps> = ({
             <div>
               <h3 className="text-lg font-bold text-slate-900">Onboarded Academic Institutions</h3>
               <p className="text-xs text-slate-500">
-                Independent tenant databases isolated by university domain and cryptographic scope.
+                Independent tenant environments isolated by university domain and cryptographic scope.
               </p>
             </div>
             <button
@@ -367,7 +367,7 @@ export const PlatformDashboardView: React.FC<PlatformDashboardViewProps> = ({
 
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-700">Database Engine</span>
+                <span className="font-semibold text-slate-700">System Engine</span>
                 <span className="text-emerald-700 font-mono font-bold">OPTIMAL</span>
               </div>
               <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
@@ -435,7 +435,7 @@ export const PlatformDashboardView: React.FC<PlatformDashboardViewProps> = ({
           <div>
             <h3 className="text-lg font-bold text-slate-900">Data Retention &amp; Recovery Controls</h3>
             <p className="text-xs text-slate-500">
-              Manage database snapshots, compliance archiving, and demo storage reset procedures.
+              Manage platform snapshots, compliance archiving, and demo storage reset procedures.
             </p>
           </div>
 

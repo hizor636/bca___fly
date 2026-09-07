@@ -227,7 +227,7 @@ export const AssignedStudentsView: React.FC<AssignedStudentsViewProps> = ({
           <h3 className="text-base font-semibold text-slate-800">No records yet</h3>
           <p className="text-xs text-slate-400 mt-1">
             {effectiveStudents.length === 0
-              ? 'No mentees have been assigned to this faculty in the database.'
+              ? 'No mentees have been assigned to this faculty.'
               : 'Try resetting your search query or semester filters.'}
           </p>
           {effectiveStudents.length > 0 && (

@@ -9,7 +9,6 @@ import { AssignedStudentsView } from './components/AssignedStudentsView';
 import { AcademicTrackingView } from './components/AcademicTrackingView';
 import { SmartWorkspaceView } from './components/SmartWorkspaceView';
 import { FacultiesView } from './components/FacultiesView';
-import { DatabaseStudioView } from './components/DatabaseStudioView';
 import { AdminPortalView } from './components/AdminPortalView';
 import { StudentPortalView } from './components/StudentPortalView';
 import { CounselorPortalView } from './components/CounselorPortalView';
@@ -296,6 +295,10 @@ const AppContent: React.FC = () => {
                 onNavigateHome={() => handleNavigation('dashboard')}
               />
             )}
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0bbc11c (refactor: permanently remove database system, database folder, and database studio components)
           </main>
         </>
       )}

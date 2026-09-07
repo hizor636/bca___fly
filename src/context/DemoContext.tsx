@@ -429,7 +429,7 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (attRes.status === 'fulfilled' && Array.isArray(attRes.value)) setCourseAttendance(attRes.value);
       if (auditRes.status === 'fulfilled' && Array.isArray(auditRes.value)) setAuditLogs(auditRes.value);
     } catch (err) {
-      console.error('Error refreshing institutional database state:', err);
+      console.error('Error refreshing institutional state:', err);
     } finally {
       setIsLoading(false);
     }
@@ -1059,11 +1059,7 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetDemoData = () => {
-    try {
-      api.cleanDatabase().then(() => refreshData());
-    } catch {
-      // ignore
-    }
+    refreshData();
   };
 
   const submitCorrectionRequest = (req: Omit<AttendanceCorrectionRequest, 'id' | 'createdAt' | 'status'>) => {

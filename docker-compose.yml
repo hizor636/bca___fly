@@ -1,29 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. PostgreSQL 16 - Authoritative Source of Truth
-  postgres:
-    image: postgres:16-alpine
-    container_name: bcafly-postgres
-    restart: always
-    environment:
-      POSTGRES_DB: bcafly
-      POSTGRES_USER: bcafly_admin
-      POSTGRES_PASSWORD: bcafly_secure_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./server/db/schema.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - bcafly-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bcafly_admin -d bcafly"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # 2. Redis 7 - Cache & Active Sync Event Bus
+  # 1. Redis 7 - Cache & Active Sync Event Bus
   redis:
     image: redis:7-alpine
     container_name: bcafly-redis
@@ -40,7 +18,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # 3. Java Spring Boot 3 - Institutional Core Service & Master Data
+  # 2. Java Spring Boot 3 - Institutional Core Service & Master Data
   core-java:
     build:
       context: ./services/core-java
@@ -48,14 +26,9 @@ services:
     container_name: bcafly-core-java
     restart: always
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bcafly
-      SPRING_DATASOURCE_USERNAME: bcafly_admin
-      SPRING_DATASOURCE_PASSWORD: bcafly_secure_password
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SERVER_PORT: 8080
@@ -64,25 +37,21 @@ services:
     networks:
       - bcafly-network
 
-  # 4. Python FastAPI - Academic Intelligence & Analytics Microservice
+  # 3. Python FastAPI - Academic Intelligence & Analytics Microservice
   analytics-python:
     build:
       context: ./services/analytics-python
       dockerfile: Dockerfile
     container_name: bcafly-analytics-python
     restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://bcafly_admin:bcafly_secure_password@postgres:5432/bcafly
       PORT: 8000
     ports:
       - "8000:8000"
     networks:
       - bcafly-network
 
-  # 5. TypeScript Node.js - API Gateway & Real-Time WebSockets
+  # 4. TypeScript Node.js - API Gateway & Real-Time WebSockets
   gateway-ts:
     build:
       context: ./services/gateway-ts
@@ -103,7 +72,7 @@ services:
     networks:
       - bcafly-network
 
-  # 6. React 19 Frontend Client
+  # 5. React 19 Frontend Client
   web-client:
     build:
       context: .
@@ -124,5 +93,4 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
   redis_data:

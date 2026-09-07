@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { dbManager } from '../../database/database.js';
+import { dbManager } from '../store.js';
 
 export const userRoutes = Router();
 

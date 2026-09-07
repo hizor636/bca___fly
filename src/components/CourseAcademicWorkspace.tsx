@@ -427,7 +427,7 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
         {facultyAssignedCourses.length === 0 ? (
           <div className="py-8 text-center bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
             <p className="text-xs font-semibold text-slate-700">No courses available for this semester selection</p>
-            <p className="text-[11px] text-slate-400">Add or allocate courses using the Database Studio or Admin Portal.</p>
+            <p className="text-[11px] text-slate-400">Add or allocate courses using the Admin Portal.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

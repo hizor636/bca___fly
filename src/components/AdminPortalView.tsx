@@ -302,7 +302,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
             Institutional Master Data &amp; Governance
           </h2>
           <p className="text-xs text-slate-500">
-            Centralized institutional database controlling Faculty Workspace, Student Portal, and Guardian Portal.
+            Centralized institutional platform controlling Faculty Workspace, Student Portal, and Guardian Portal.
           </p>
         </div>
 

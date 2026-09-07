@@ -53,18 +53,9 @@ def query_postgres(sql, params=None):
 # 1. Health & Engine Status
 @app.route('/health', methods=['GET'])
 def health():
-    db_ok = False
-    try:
-        df = query_postgres("SELECT 1 as ping")
-        db_ok = df is not None and not df.empty
-    except Exception:
-        pass
-
     return jsonify({
         'status': 'online',
-        'engine': 'Python 3.12 (Flask + Pandas + NumPy AI Engine)',
-        'databaseConnected': db_ok,
-        'databaseEngine': 'PostgreSQL 18'
+        'engine': 'Python 3.12 (Flask + Pandas + NumPy AI Engine)'
     })
 
 # 2. Predictive Attendance Shortage Forecaster (Pandas/NumPy)

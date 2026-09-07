@@ -92,7 +92,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
       setTotalPages(res.pagination.totalPages);
       setTotalUsersCount(res.pagination.total);
     } catch (err: any) {
-      setFeedback({ type: 'error', message: err.message || 'Failed to load users from database' });
+      setFeedback({ type: 'error', message: err.message || 'Failed to load users' });
     } finally {
       setLoading(false);
     }
@@ -149,7 +149,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
         createdBy: currentUser?.name || 'Admin'
       });
 
-      setFeedback({ type: 'success', message: `User "${formData.name}" was successfully registered in PostgreSQL database.` });
+      setFeedback({ type: 'success', message: `User "${formData.name}" was successfully registered.` });
       setIsAddModalOpen(false);
       loadUsersData();
       if (onRefreshGlobal) onRefreshGlobal();
@@ -686,7 +686,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">Add New User</h3>
-                  <p className="text-xs text-slate-400">Creates record in PostgreSQL database</p>
+                  <p className="text-xs text-slate-400">Creates new user account</p>
                 </div>
               </div>
               <button
@@ -1028,7 +1028,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
                 className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors flex items-center justify-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
-                Permanently Delete from Database
+                Permanently Delete User
               </button>
 
               <button

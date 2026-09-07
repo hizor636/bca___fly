@@ -15,9 +15,6 @@ import {
   CourseMarks,
   CourseAttendanceRecord,
   AuditLog,
-  DbStats,
-  DbTableInfo,
-  DbQueryResult,
   AttendanceForecastResult,
   RiskMatrixItem,
   CohortStatsResult,
@@ -29,10 +26,6 @@ const API_BASE = '/api';
 export interface HealthStatus {
   online: boolean;
   latencyMs: number;
-  engine?: string;
-  tableCount?: number;
-  totalRows?: number;
-  sizeKb?: number;
 }
 
 class ApiService {
@@ -45,16 +38,11 @@ class ApiService {
       const res = await fetch(`${API_BASE}/health`, { method: 'GET', signal: AbortSignal.timeout(3000) });
       const latencyMs = Math.round(performance.now() - start);
       if (res.ok) {
-        const data = await res.json();
         this.isOnline = true;
         this.latency = latencyMs;
         return {
           online: true,
-          latencyMs,
-          engine: data.database?.engine,
-          tableCount: data.database?.tableCount,
-          totalRows: data.database?.totalRows,
-          sizeKb: data.database?.sizeKb
+          latencyMs
         };
       }
       this.isOnline = false;
@@ -641,138 +629,7 @@ class ApiService {
     return json.data;
   }
 
-  // --- Database Studio Endpoints ---
-  public async getDbStats(): Promise<DbStats> {
-    const res = await fetch(`${API_BASE}/db/stats`);
-    if (!res.ok) throw new Error('Failed to fetch DB stats');
-    const json = await res.json();
-    return json.data;
-  }
 
-  public async getDbSchema(): Promise<{ tables: DbTableInfo[] }> {
-    const res = await fetch(`${API_BASE}/db/schema`);
-    if (!res.ok) throw new Error('Failed to fetch DB schema');
-    const json = await res.json();
-    return json.data;
-  }
-
-  public async executeQuery(sql: string, params: any[] = []): Promise<DbQueryResult> {
-    const res = await fetch(`${API_BASE}/db/query`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sql, params })
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.error || 'SQL Execution failed');
-    }
-    return json;
-  }
-
-  public async getTableData(
-    table: string,
-    page = 1,
-    limit = 50,
-    search = '',
-    sortBy = '',
-    sortDir = 'ASC'
-  ): Promise<{
-    table: string;
-    tableInfo: DbTableInfo;
-    rows: Record<string, any>[];
-    pagination: { page: number; limit: number; total: number; totalPages: number };
-    executionTimeMs: number;
-  }> {
-    const params = new URLSearchParams({
-      page: String(page),
-      limit: String(limit),
-      search,
-      sortBy,
-      sortDir
-    });
-    const res = await fetch(`${API_BASE}/db/tables/${table}?${params.toString()}`);
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || `Failed to fetch table ${table}`);
-    }
-    const json = await res.json();
-    return json.data;
-  }
-
-  public async insertTableRow(table: string, record: Record<string, any>): Promise<void> {
-    const res = await fetch(`${API_BASE}/db/tables/${table}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(record)
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Insert failed');
-    }
-  }
-
-  public async updateTableRow(table: string, id: string, updates: Record<string, any>): Promise<void> {
-    const res = await fetch(`${API_BASE}/db/tables/${table}/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Update failed');
-    }
-  }
-
-  public async deleteTableRow(table: string, id: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/db/tables/${table}/${id}`, {
-      method: 'DELETE'
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Delete failed');
-    }
-  }
-
-  public async exportDatabase(format: 'sql' | 'json' = 'json'): Promise<any> {
-    const res = await fetch(`${API_BASE}/db/export?format=${format}`);
-    if (format === 'sql') {
-      return await res.text();
-    }
-    return await res.json();
-  }
-
-  public async importDatabase(payload: { format: 'sql' | 'json'; sql?: string; data?: any }): Promise<void> {
-    const res = await fetch(`${API_BASE}/db/import`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Import failed');
-    }
-  }
-
-  public async cleanDatabase(): Promise<{ success: boolean; message: string; clearedTables?: string[] }> {
-    const res = await fetch(`${API_BASE}/db/clean`, { method: 'POST' });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Clean failed');
-    }
-    return await res.json();
-  }
-
-  public async resetDatabase(mode?: 'clean' | 'seed'): Promise<void> {
-    const res = await fetch(`${API_BASE}/db/reset`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: mode || 'clean' })
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Reset failed');
-    }
-  }
 
   // --- Python AI & Data Analytics Services ---
   public async getAnalyticsStatus(): Promise<{ online: boolean; engine?: string; message?: string }> {
