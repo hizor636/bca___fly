@@ -332,15 +332,9 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [failedLoginAttempts, setFailedLoginAttempts] = useState<number>(0);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
 
-<<<<<<< HEAD
-  // Master Data State (PostgreSQL Source of Truth)
-  const [departments, setDepartments] = useState<Department[]>(INITIAL_DEPARTMENTS);
-  const [academicYears, setAcademicYears] = useState<AcademicYear[]>(INITIAL_ACADEMIC_YEARS);
-=======
   // Master Data State (Institutional Source of Truth)
   const [departments, setDepartments] = useState<Department[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
->>>>>>> 04e41ce (refactor: permanently remove PostgreSQL connections, dependencies, and configuration)
   const [semesters, setSemesters] = useState<SemesterInfo[]>(DEFAULT_SEMESTERS);
   const [batches, setBatches] = useState<Batch[]>(INITIAL_BATCHES);
   const [courses, setCourses] = useState<Course[]>(INITIAL_COURSES);
@@ -500,102 +494,64 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = (emailOrUsername: string, password: string, roleHint?: UserRole): { success: boolean; error?: string; role?: UserRole } => {
+  const login = (email: string, password: string, roleHint?: UserRole): { success: boolean; error?: string; role?: UserRole } => {
     if (failedLoginAttempts >= 5) {
       return { success: false, error: 'Too many failed login attempts. Rate limiting engaged.' };
     }
 
-    const trimmed = emailOrUsername.trim().toLowerCase();
+    const input = email.trim().toLowerCase();
+    const pass = password.trim();
 
     let matchedRole: UserRole | null = null;
-    let targetUser: { id: string; name: string; email: string } | null = null;
+    let targetUser: User | null = null;
 
-    if (roleHint === 'super_admin' || trimmed === 'superadmin' || trimmed.includes('superadmin')) {
+    if (input === 'superadmin' || input === 'superadmin@bcafly.edu' || (roleHint === 'super_admin' && !input.includes('@'))) {
       matchedRole = 'super_admin';
-      targetUser = superAdminList[0] || DEFAULT_SUPER_ADMIN;
-    } else if (roleHint === 'parent' || trimmed === 'parent1' || trimmed.includes('parent') || trimmed.includes('robert.wright')) {
-      matchedRole = 'parent';
-      targetUser = parentList[0] || DEFAULT_FALLBACK_PARENT;
-    } else if (roleHint === 'counselor' || trimmed === 'counselor1' || trimmed.includes('counselor') || trimmed.includes('priya')) {
-      matchedRole = 'counselor';
-      const cn = counselorList[0] || DEFAULT_FALLBACK_COUNSELOR;
-      targetUser = cn;
-      setActiveCounselorState(cn);
-    } else if (roleHint === 'admin' || trimmed === 'admin' || trimmed.includes('admin') || trimmed === 'admin@bcafly.edu') {
+      targetUser = activeSuperAdmin || DEFAULT_SUPER_ADMIN;
+    } else if (input === 'admin' || input === 'admin@bcafly.edu' || (roleHint === 'admin' && !input.includes('@'))) {
       matchedRole = 'admin';
       targetUser = adminList[0] || DEFAULT_ROOT_ADMIN;
-    } else if (
-      trimmed === 'faculty1' ||
-      trimmed.includes('sarah') ||
-      trimmed === 'faculty-1'
-    ) {
+    } else if (input === 'faculty1' || input === 'faculty1@bcafly.edu' || input === 'sarah.jenkins@bcafly.edu' || input.includes('sarah')) {
+      matchedRole = 'faculty';
+      const fac = facultyList.find((f) => f.id === 'fac-001' || f.email.toLowerCase().includes('sarah')) || facultyList[0] || DEFAULT_FALLBACK_FACULTY;
+      targetUser = { id: fac.id, name: fac.name, email: fac.email, role: 'faculty', phone: fac.phone, departmentId: 'dept-bca', isActive: true, createdAt: '2026-08-01', designation: fac.designation };
+      setActiveFacultyState(fac);
+    } else if (input === 'faculty2' || input === 'faculty2@bcafly.edu' || input === 'rajesh.kumar@bcafly.edu' || input.includes('rajesh')) {
+      matchedRole = 'faculty';
+      const fac = facultyList.find((f) => f.id === 'fac-002' || f.email.toLowerCase().includes('rajesh')) || facultyList[1] || facultyList[0] || DEFAULT_FALLBACK_FACULTY;
+      targetUser = { id: fac.id, name: fac.name, email: fac.email, role: 'faculty', phone: fac.phone, departmentId: 'dept-bca', isActive: true, createdAt: '2026-08-01', designation: fac.designation };
+      setActiveFacultyState(fac);
+    } else if (input.startsWith('student') || input.includes('@student.bcafly.edu') || roleHint === 'student') {
+      matchedRole = 'student';
+      let st: Student | undefined;
+      const numMatch = input.match(/student(\d+)/);
+      if (numMatch) {
+        const idx = parseInt(numMatch[1], 10);
+        st = students.find((s) => s.studentId === `BCA261${idx.toString().padStart(2, '0')}` || s.id === `stu-${idx.toString().padStart(3, '0')}`);
+      }
+      if (!st) {
+        st = students.find((s) => s.email.toLowerCase() === input) || students[0] || DEFAULT_FALLBACK_STUDENT;
+      }
+      targetUser = { id: st.id, name: st.name, email: st.email, role: 'student', phone: st.phone, departmentId: 'dept-bca', isActive: true, createdAt: '2026-08-01', studentId: st.studentId, semester: st.semester };
+      setActiveStudentState(st);
+    } else if (input === 'parent1' || input.includes('parent') || roleHint === 'parent') {
+      matchedRole = 'parent';
+      targetUser = parentList[0] || DEFAULT_FALLBACK_PARENT;
+    } else if (input === 'counselor1' || input.includes('counselor') || roleHint === 'counselor') {
+      matchedRole = 'counselor';
+      targetUser = activeCounselor || DEFAULT_FALLBACK_COUNSELOR;
+    } else if (roleHint === 'faculty') {
       matchedRole = 'faculty';
       const fac = facultyList[0] || DEFAULT_FALLBACK_FACULTY;
-      targetUser = fac;
+      targetUser = { id: fac.id, name: fac.name, email: fac.email, role: 'faculty', phone: fac.phone, departmentId: 'dept-bca', isActive: true, createdAt: '2026-08-01', designation: fac.designation };
       setActiveFacultyState(fac);
-    } else if (
-      trimmed === 'faculty2' ||
-      trimmed.includes('rajesh') ||
-      trimmed === 'faculty-2'
-    ) {
-      matchedRole = 'faculty';
-      const fac = facultyList[1] || facultyList[0] || DEFAULT_FALLBACK_FACULTY;
-      targetUser = fac;
-      setActiveFacultyState(fac);
-    } else if (roleHint === 'faculty' || trimmed.includes('faculty') || trimmed.endsWith('@bcafly.edu')) {
-      matchedRole = 'faculty';
-      const fac = facultyList.find((f) => f.email.toLowerCase() === trimmed) || facultyList[0] || DEFAULT_FALLBACK_FACULTY;
-      targetUser = fac;
-      setActiveFacultyState(fac);
-    } else if (
-      roleHint === 'student' ||
-      trimmed.startsWith('student') ||
-      trimmed.includes('alexander') ||
-      trimmed.includes('elena') ||
-      trimmed.includes('marcus') ||
-      trimmed.includes('chloe') ||
-      trimmed.includes('devon') ||
-      trimmed.includes('aarav') ||
-      trimmed.includes('sophie') ||
-      trimmed.includes('liam') ||
-      trimmed.includes('ananya') ||
-      trimmed.includes('lucas') ||
-      trimmed.includes('@student')
-    ) {
-      matchedRole = 'student';
-      // Match student1..student10 or email
-      let matchedStudent = students.find((s) => s.email.toLowerCase() === trimmed);
-      if (!matchedStudent && trimmed.startsWith('student')) {
-        const indexStr = trimmed.replace('student', '');
-        const index = parseInt(indexStr, 10);
-        if (!isNaN(index) && index >= 1 && index <= students.length) {
-          matchedStudent = students[index - 1];
-        }
-      }
-      if (!matchedStudent) {
-        matchedStudent = students[0] || DEFAULT_FALLBACK_STUDENT;
-      }
-      targetUser = { id: matchedStudent.id, name: matchedStudent.name, email: matchedStudent.email };
-      setActiveStudentState(matchedStudent);
     } else {
       matchedRole = roleHint || 'admin';
       targetUser = DEFAULT_ROOT_ADMIN;
     }
 
-    const validPasswords = [
-      'password123',
-      'superadmin123',
-      'admin123',
-      'faculty123',
-      'student123',
-      'parent123',
-      'counselor123',
-      'bca2026!',
-      'bca2026',
-      'password',
-      '••••••••••••'
-    ];
-    const isPasswordValid = validPasswords.includes(password) || Boolean(roleHint) || password.length >= 6;
+    const validPasswords = ['student123', 'bca2026!', 'bca2026', 'password', 'faculty123', 'admin123', 'superadmin', 'admin', 'faculty1', 'faculty2', 'student1', 'student6', 'parent1', 'counselor1', '••••••••••••'];
+    const isPasswordValid = validPasswords.includes(pass) || pass.length >= 4;
 
     if (!matchedRole || !targetUser || !isPasswordValid) {
       setFailedLoginAttempts((prev) => prev + 1);
@@ -828,13 +784,16 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // =========================================================================
 
   const getScopedStudentsForActiveFaculty = (): Student[] => {
-    if (!activeFaculty || activeFaculty.id === 'fac-default') {
+    if (currentRole === 'admin' || currentRole === 'super_admin') {
+      return students;
+    }
+    if (!activeFaculty || !activeFaculty.id || activeFaculty.id === 'fac-default') {
       return students;
     }
     const myStudents = students.filter(
-      (s) => s.assignedFacultyId === activeFaculty.id || s.assignedFaculty === activeFaculty.name
+      (s) => s.assignedFacultyId === activeFaculty.id || (s.assignedFaculty && s.assignedFaculty.toLowerCase() === activeFaculty.name.toLowerCase())
     );
-    return myStudents.length > 0 ? myStudents : students;
+    return myStudents;
   };
 
   const getAssignedCoursesForFaculty = (facultyId: string, semester?: number | 'all'): Course[] => {

@@ -247,7 +247,7 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => onNavigate('explore')}
                   className="hidden sm:inline-block text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-1.5 transition-colors cursor-pointer"
                 >
-                  Explore Platform
+                  Platform Features
                 </button>
                 <button
                   id="header-login-btn"

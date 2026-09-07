@@ -27,10 +27,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 }) => {
   const { login, requestPasswordReset } = useDemoStore();
 
-  const [email, setEmail] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('faculty1');
+  const [password, setPassword] = useState('student123');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [showAllStudents, setShowAllStudents] = useState(false);
 
   // View mode: 'login' | 'mfa' | 'forgot-password'
   const [viewMode, setViewMode] = useState<'login' | 'mfa' | 'forgot-password'>('login');
@@ -42,7 +43,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginSuccessRole, setLoginSuccessRole] = useState<UserRole | null>(null);
-  const [showAllStudents, setShowAllStudents] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,14 +89,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     }, 600);
   };
 
-  const handleQuickRoleLogin = (role: UserRole, demoIdentifier: string, demoPassword = 'password123') => {
-    setEmail(demoIdentifier);
-    setPassword(demoPassword);
+  const handleQuickRoleLogin = (role: UserRole, demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword('student123');
     setErrorMessage(null);
     setIsSubmitting(true);
 
     setTimeout(() => {
-      const res = login(demoIdentifier, demoPassword, role);
+      const res = login(demoEmail, 'student123', role);
       setIsSubmitting(false);
 
       if (res.success && res.role) {
@@ -185,163 +185,114 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
         {!loginSuccessRole && viewMode === 'login' && (
           <>
-            {/* Demo Credentials Helper Box */}
-            <div className="mb-5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+            {/* Quick Login Credentials Helper Box */}
+            <div className="mb-6 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-slate-700 tracking-tight flex items-center gap-1.5">
-                  <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                   Quick Login Credentials (1-Click Fill)
                 </span>
-                <span className="text-[10px] text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded-md font-semibold">
-                  Pre-configured
+                <span className="text-[10px] text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full font-bold">
+                  Password: student123
                 </span>
               </div>
-
-              <div className="grid grid-cols-2 gap-1.5 text-[11px] font-medium">
+              <div className="grid grid-cols-2 gap-1.5 text-[11px] font-semibold">
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('super_admin', 'superadmin', 'superadmin123')}
-                  className="py-1.5 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
+                  onClick={() => handleQuickRoleLogin('super_admin', 'superadmin')}
+                  className="py-2 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left shadow-2xs flex flex-col"
                 >
-                  <span className="font-semibold">Super Admin</span>
-                  <span className="text-[10px] font-mono text-slate-500">superadmin</span>
+                  <span className="font-bold text-rose-700 text-[10px] uppercase">Super Admin</span>
+                  <span className="text-slate-600 font-mono text-[10px]">superadmin</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('admin', 'admin', 'admin123')}
-                  className="py-1.5 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
+                  onClick={() => handleQuickRoleLogin('admin', 'admin')}
+                  className="py-2 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left shadow-2xs flex flex-col"
                 >
-                  <span className="font-semibold">Dept Admin (HOD)</span>
-                  <span className="text-[10px] font-mono text-slate-500">admin</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickRoleLogin('faculty', 'faculty1', 'faculty123')}
-                  className="py-1.5 px-2.5 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/80 rounded-xl text-indigo-950 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
-                >
-                  <div>
-                    <span className="font-semibold block leading-tight">Faculty 1</span>
-                    <span className="text-[9px] text-indigo-600">Dr. Sarah (Group A)</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-indigo-700">faculty1</span>
+                  <span className="font-bold text-purple-700 text-[10px] uppercase">Dept Admin (HOD)</span>
+                  <span className="text-slate-600 font-mono text-[10px]">admin</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('faculty', 'faculty2', 'faculty123')}
-                  className="py-1.5 px-2.5 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/80 rounded-xl text-indigo-950 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
+                  onClick={() => handleQuickRoleLogin('faculty', 'faculty1')}
+                  className="py-2 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left shadow-2xs flex flex-col"
                 >
-                  <div>
-                    <span className="font-semibold block leading-tight">Faculty 2</span>
-                    <span className="text-[9px] text-indigo-600">Prof. Rajesh (Group B)</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-indigo-700">faculty2</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickRoleLogin('student', 'student1', 'student123')}
-                  className="py-1.5 px-2.5 bg-emerald-50/70 hover:bg-emerald-100 border border-emerald-200/80 rounded-xl text-emerald-950 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
-                >
-                  <div>
-                    <span className="font-semibold block leading-tight">Student (Group A)</span>
-                    <span className="text-[9px] text-emerald-600">Alexander Wright</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-emerald-700">student1</span>
+                  <span className="font-bold text-blue-700 text-[10px] uppercase">Faculty 1 (Dr. Sarah - Group A)</span>
+                  <span className="text-slate-600 font-mono text-[10px]">faculty1</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('student', 'student6', 'student123')}
-                  className="py-1.5 px-2.5 bg-emerald-50/70 hover:bg-emerald-100 border border-emerald-200/80 rounded-xl text-emerald-950 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
+                  onClick={() => handleQuickRoleLogin('faculty', 'faculty2')}
+                  className="py-2 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left shadow-2xs flex flex-col"
                 >
-                  <div>
-                    <span className="font-semibold block leading-tight">Student (Group B)</span>
-                    <span className="text-[9px] text-emerald-600">Aarav Patel</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-emerald-700">student6</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickRoleLogin('parent', 'parent1', 'parent123')}
-                  className="py-1.5 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
-                >
-                  <span className="font-semibold">Parent</span>
-                  <span className="text-[10px] font-mono text-slate-500">parent1</span>
+                  <span className="font-bold text-indigo-700 text-[10px] uppercase">Faculty 2 (Prof. Rajesh - Group B)</span>
+                  <span className="text-slate-600 font-mono text-[10px]">faculty2</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickRoleLogin('counselor', 'counselor1', 'counselor123')}
-                  className="py-1.5 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left flex items-center justify-between shadow-2xs"
+                  onClick={() => handleQuickRoleLogin('student', 'student1')}
+                  className="py-2 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left shadow-2xs flex flex-col"
                 >
-                  <span className="font-semibold">Counselor</span>
-                  <span className="text-[10px] font-mono text-slate-500">counselor1</span>
+                  <span className="font-bold text-emerald-700 text-[10px] uppercase">Student (Group A)</span>
+                  <span className="text-slate-600 font-mono text-[10px]">Alexander Wright (student1)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickRoleLogin('student', 'student6')}
+                  className="py-2 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left shadow-2xs flex flex-col"
+                >
+                  <span className="font-bold text-teal-700 text-[10px] uppercase">Student (Group B)</span>
+                  <span className="text-slate-600 font-mono text-[10px]">Aarav Patel (student6)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickRoleLogin('parent', 'parent1')}
+                  className="py-2 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left shadow-2xs flex flex-col"
+                >
+                  <span className="font-bold text-amber-700 text-[10px] uppercase">Parent</span>
+                  <span className="text-slate-600 font-mono text-[10px]">parent1</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickRoleLogin('counselor', 'counselor1')}
+                  className="py-2 px-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 cursor-pointer transition-colors text-left shadow-2xs flex flex-col"
+                >
+                  <span className="font-bold text-sky-700 text-[10px] uppercase">Counselor</span>
+                  <span className="text-slate-600 font-mono text-[10px]">counselor1</span>
                 </button>
               </div>
 
-              {/* Toggle to view all 10 students */}
-              <div className="mt-2.5 pt-2 border-t border-slate-200">
+              {/* View All 10 Students Drawer */}
+              <div className="mt-2.5 pt-2 border-t border-slate-200/80 text-center">
                 <button
                   type="button"
                   onClick={() => setShowAllStudents(!showAllStudents)}
-                  className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer flex items-center justify-between w-full"
+                  className="text-xs font-bold text-indigo-700 hover:text-indigo-900 transition-colors cursor-pointer inline-flex items-center gap-1"
                 >
-                  <span>{showAllStudents ? 'Hide All 10 Students' : 'View All 10 Students (5 in Group A, 5 in Group B)'}</span>
-                  <span className="text-[10px] font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">
-                    pw: student123
-                  </span>
+                  <span>{showAllStudents ? 'Hide Student List' : 'View All 10 Students (5 in Group A, 5 in Group B)'}</span>
                 </button>
 
                 {showAllStudents && (
-                  <div className="mt-2 space-y-2 max-h-44 overflow-y-auto pr-1">
-                    <div className="p-2 bg-indigo-50/50 rounded-lg border border-indigo-100">
-                      <div className="text-[10px] font-bold text-indigo-800 uppercase tracking-wider mb-1">
-                        Group A (Mentor: Dr. Sarah Jenkins)
-                      </div>
-                      <div className="grid grid-cols-1 gap-1">
-                        {[
-                          { u: 'student1', n: 'Alexander Wright', s: 'BCA-2026-001' },
-                          { u: 'student2', n: 'Elena Rostova', s: 'BCA-2026-002' },
-                          { u: 'student3', n: 'Marcus Vance', s: 'BCA-2026-003' },
-                          { u: 'student4', n: 'Chloe Bennett', s: 'BCA-2026-004' },
-                          { u: 'student5', n: 'Devon Miller', s: 'BCA-2026-005' }
-                        ].map((item) => (
-                          <button
-                            key={item.u}
-                            type="button"
-                            onClick={() => handleQuickRoleLogin('student', item.u, 'student123')}
-                            className="w-full flex items-center justify-between px-2 py-1 bg-white hover:bg-indigo-50 rounded border border-slate-200 text-left cursor-pointer"
-                          >
-                            <span className="text-[10px] font-medium text-slate-800">{item.n} ({item.s})</span>
-                            <span className="text-[10px] font-mono text-indigo-600 font-bold">{item.u}</span>
-                          </button>
-                        ))}
-                      </div>
+                  <div className="mt-2.5 text-left p-2.5 bg-white rounded-xl border border-slate-200 text-xs space-y-2 max-h-48 overflow-y-auto font-mono">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase border-b border-slate-100 pb-1">
+                      All Accounts Password: <span className="text-slate-900 font-bold">student123</span>
+                    </div>
+                    <div className="font-bold text-blue-800 text-[11px] pt-1">Group A (Assigned to Faculty 1 - Dr. Sarah):</div>
+                    <div className="grid grid-cols-1 gap-1 text-[11px]">
+                      <button type="button" onClick={() => handleQuickRoleLogin('student', 'student1')} className="text-left p-1 hover:bg-slate-100 rounded text-slate-800">1. student1 (Alexander Wright) — BCA26101</button>
+                      <button type="button" onClick={() => handleQuickRoleLogin('student', 'student2')} className="text-left p-1 hover:bg-slate-100 rounded text-slate-800">2. student2 (Sophia Chen) — BCA26102</button>
+                      <button type="button" onClick={() => handleQuickRoleLogin('student', 'student3')} className="text-left p-1 hover:bg-slate-100 rounded text-slate-800">3. student3 (Marcus Vance) — BCA26103</button>
+                      <button type="button" onClick={() => handleQuickRoleLogin('student', 'student4')} className="text-left p-1 hover:bg-slate-100 rounded text-slate-800">4. student4 (Emily Watson) — BCA26104</button>
+                      <button type="button" onClick={() => handleQuickRoleLogin('student', 'student5')} className="text-left p-1 hover:bg-slate-100 rounded text-slate-800">5. student5 (David Kim) — BCA26105</button>
                     </div>
 
-                    <div className="p-2 bg-emerald-50/50 rounded-lg border border-emerald-100">
-                      <div className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1">
-                        Group B (Mentor: Prof. Rajesh Kumar)
-                      </div>
-                      <div className="grid grid-cols-1 gap-1">
-                        {[
-                          { u: 'student6', n: 'Aarav Patel', s: 'BCA-2026-006' },
-                          { u: 'student7', n: 'Sophie Zhang', s: 'BCA-2026-007' },
-                          { u: 'student8', n: "Liam O'Connor", s: 'BCA-2026-008' },
-                          { u: 'student9', n: 'Ananya Sharma', s: 'BCA-2026-009' },
-                          { u: 'student10', n: 'Lucas Garcia', s: 'BCA-2026-010' }
-                        ].map((item) => (
-                          <button
-                            key={item.u}
-                            type="button"
-                            onClick={() => handleQuickRoleLogin('student', item.u, 'student123')}
-                            className="w-full flex items-center justify-between px-2 py-1 bg-white hover:bg-emerald-50 rounded border border-slate-200 text-left cursor-pointer"
-                          >
-                            <span className="text-[10px] font-medium text-slate-800">{item.n} ({item.s})</span>
-                            <span className="text-[10px] font-mono text-emerald-600 font-bold">{item.u}</span>
-                          </button>
-                        ))}
-                      </div>
+                    <div className="font-bold text-indigo-800 text-[11px] pt-2 border-t border-slate-100">Group B (Assigned to Faculty 2 - Prof. Rajesh):</div>
+                    <div className="grid grid-cols-1 gap-1 text-[11px]">
+                      <button type="button" onClick={() => handleQuickRoleLogin('student', 'student6')} className="text-left p-1 hover:bg-slate-100 rounded text-slate-800">6. student6 (Aarav Patel) — BCA26106</button>
+                      <button type="button" onClick={() => handleQuickRoleLogin('student', 'student7')} className="text-left p-1 hover:bg-slate-100 rounded text-slate-800">7. student7 (Isabella Torres) — BCA26107</button>
+                      <button type="button" onClick={() => handleQuickRoleLogin('student', 'student8')} className="text-left p-1 hover:bg-slate-100 rounded text-slate-800">8. student8 (James Wilson) — BCA26108</button>
+                      <button type="button" onClick={() => handleQuickRoleLogin('student', 'student9')} className="text-left p-1 hover:bg-slate-100 rounded text-slate-800">9. student9 (Liam Becker) — BCA26109</button>
+                      <button type="button" onClick={() => handleQuickRoleLogin('student', 'student10')} className="text-left p-1 hover:bg-slate-100 rounded text-slate-800">10. student10 (Olivia Taylor) — BCA26110</button>
                     </div>
                   </div>
                 )}

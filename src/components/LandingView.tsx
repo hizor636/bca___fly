@@ -149,7 +149,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
                   onClick={() => scrollToSection('architecture-preview')}
                   className="bg-white border border-slate-300 hover:bg-slate-50 active:scale-[0.98] text-slate-800 font-medium px-6 py-3.5 rounded-full transition-all text-sm sm:text-base w-full sm:w-auto cursor-pointer"
                 >
-                  Explore Platform Architecture
+                  Explore Platform Workflows
                 </button>
 
                 <button
@@ -178,13 +178,13 @@ export const LandingView: React.FC<LandingViewProps> = ({
               </div>
             </div>
 
-            {/* Right Column: Interactive Anonymized Architecture Diagram (Strict Public Privacy: Zero Real Academic Data Exposed) */}
+            {/* Right Column: Interactive Anonymized Operations Diagram */}
             <div id="architecture-preview" className="lg:col-span-5 flex justify-center">
               <div className="w-full max-w-[460px] bg-white rounded-3xl p-6 border border-slate-200/80 shadow-md">
                 <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                      Platform Blueprints
+                      Institutional Workflows
                     </span>
                     <h3 className="font-bold text-slate-900 text-base">
                       Core Academic Engine
