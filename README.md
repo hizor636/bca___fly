@@ -12,7 +12,7 @@ BcaFly is a modern institutional academic management platform designed for the D
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  [TypeScript: 98.5%]                                                        │
 │  ├── Frontend: React 19 • Vite 6 • Tailwind CSS 4 • Lucide Icons            │
-│  └── Backend: Node.js 22 • Express 5 • TSX • PostgreSQL 18                  │
+│  └── Backend: Node.js 22 • Express 5 • TSX                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  [Python: 1.3%]                                                             │
 │  └── Analytics Microservice: Python 3.12 • Flask • Pandas • NumPy           │
@@ -27,9 +27,9 @@ BcaFly is a modern institutional academic management platform designed for the D
 | Technology Layer | Languages & Frameworks | Codebase Share | Purpose & Core Capabilities |
 |---|---|---|---|
 | **Frontend Application** | **TypeScript 5.8**, React 19, Vite 6, Tailwind CSS 4, Lucide Icons | **~65%** | Multi-portal interfaces (Admin, Faculty, Student, Guardian, Counselor), live reactive contexts (`DemoContext.tsx`), assignment-scoped views, clean zero-record states. |
-| **Core Backend REST API** | **TypeScript 5.8**, Node.js 22, Express 5, TSX, PostgreSQL 18 Layer | **~33.5%** | Authoritative Single Source of Truth database engine (29 relational tables), role-based middleware, transactional CSV batch importers, immutable audit logger. |
+| **Core Backend REST API** | **TypeScript 5.8**, Node.js 22, Express 5, TSX, In-Memory Store Layer | **~33.5%** | Authoritative Single Source of Truth engine (29 relational schemas), role-based middleware, transactional CSV batch importers, immutable audit logger. |
 | **Analytics & AI Engine** | **Python 3.12**, Flask, Pandas, NumPy | **1.3%** | Attendance shortage trajectory forecaster, statistical CIA marks distribution, condonation eligibility calculator, academic risk classification (`server/python/analytics_service.py`). |
-| **Infrastructure & DDL** | PostgreSQL 18 DDL, JSON, PowerShell / Bash | **0.2%** | Relational schemas, foreign key constraints, migration scripts, platform architecture specifications. |
+| **Infrastructure & DDL** | DDL Schemas, JSON, PowerShell / Bash | **0.2%** | Relational schemas, foreign key constraints, migration scripts, platform architecture specifications. |
 
 ---
 
@@ -37,7 +37,7 @@ BcaFly is a modern institutional academic management platform designed for the D
 
 For detailed architecture specifications, data flows, and security boundaries, refer to the [Platform Architecture Specification](docs/PLATFORM_ARCHITECTURE.md).
 
-- **PostgreSQL / Relational Backend — Source of Truth:** Central authoritative database maintaining departments, courses (Sem 1–6), faculty allocations, student enrollments, attendance ledgers, marks, mentoring notes, and immutable audit logs.
+- **In-Memory Store — Source of Truth:** Central authoritative data engine maintaining departments, courses (Sem 1–6), faculty allocations, student enrollments, attendance ledgers, marks, mentoring notes, and immutable audit logs.
 - **Active Sync:** Automatically cascades administrator-approved master data across Faculty Workspaces, Student Portals, Guardian Portals, and Public Sites without requiring manual database queries or redeployments.
 - **Live DB:** Production-ready database engine with transactional safety, automated auditing, and soft-delete/archive preservation for academic history.
 - **CSV Batch Import:** Controlled batch onboarding tool with column validation, duplicate detection, interactive row-level error reporting, and transactional commit.

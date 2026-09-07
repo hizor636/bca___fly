@@ -443,7 +443,7 @@ export const PlatformDashboardView: React.FC<PlatformDashboardViewProps> = ({
             <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
               <h4 className="font-bold text-slate-900 text-sm">Download Full Cluster Snapshot</h4>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Generate an encrypted PostgreSQL / JSON snapshot of all 29 schema tables including audit trails and marks ledgers.
+                Generate an encrypted JSON snapshot of all 29 schema tables including audit trails and marks ledgers.
               </p>
               <button
                 onClick={() => alert('Snapshot downloaded successfully (simulated).')}

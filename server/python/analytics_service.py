@@ -27,9 +27,9 @@ def handle_preflight():
 
 API_BASE_URL = os.environ.get('API_BASE_URL', 'http://localhost:5000')
 
-def query_postgres(sql, params=None):
+def query_store(sql, params=None):
     """
-    Executes SQL directly against the live BCAFly PostgreSQL backend via internal API query console.
+    Executes SQL directly against the live BCAFly backend via internal API query console.
     Returns a pandas DataFrame.
     """
     url = f"{API_BASE_URL}/api/db/query"
@@ -70,7 +70,7 @@ def forecast_attendance():
     total_planned_classes = data.get('totalPlannedClasses', 60)
     
     try:
-        df = query_postgres("SELECT * FROM students WHERE id = $1 OR student_id = $2", [student_id, student_id])
+        df = query_store("SELECT * FROM students WHERE id = $1 OR student_id = $2", [student_id, student_id])
         if df is None:
             return jsonify({'error': 'Database unavailable'}), 500
         if df.empty:
@@ -138,8 +138,8 @@ def calculate_risk_matrix():
     - CGPA performance trajectory (20%)
     """
     try:
-        students_df = query_postgres("SELECT id, student_id, name, semester, attendance_rate, cgpa, assigned_faculty FROM students")
-        marks_df = query_postgres("SELECT student_id, AVG(internal_total) as avg_internal FROM course_marks GROUP BY student_id")
+        students_df = query_store("SELECT id, student_id, name, semester, attendance_rate, cgpa, assigned_faculty FROM students")
+        marks_df = query_store("SELECT student_id, AVG(internal_total) as avg_internal FROM course_marks GROUP BY student_id")
         
         if students_df is None or students_df.empty:
             return jsonify({'success': True, 'riskMatrix': []})
@@ -201,7 +201,7 @@ def calculate_risk_matrix():
 @app.route('/analytics/cohort-stats', methods=['GET'])
 def cohort_statistics():
     try:
-        df = query_postgres("SELECT semester, attendance_rate, cgpa FROM students WHERE attendance_rate > 0")
+        df = query_store("SELECT semester, attendance_rate, cgpa FROM students WHERE attendance_rate > 0")
         if df is None or df.empty:
             return jsonify({'success': True, 'stats': {}})
         
@@ -277,5 +277,5 @@ def generate_ai_mentoring_advice():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
-    print(f"[Python AI Engine] BCAFly Python AI & Analytics Service listening on http://localhost:{port} (PostgreSQL backend)")
+    print(f"[Python AI Engine] BCAFly Python AI & Analytics Service listening on http://localhost:{port}")
     app.run(host='0.0.0.0', port=port, debug=False)

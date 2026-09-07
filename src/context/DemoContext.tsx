@@ -332,9 +332,15 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [failedLoginAttempts, setFailedLoginAttempts] = useState<number>(0);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
 
+<<<<<<< HEAD
   // Master Data State (PostgreSQL Source of Truth)
   const [departments, setDepartments] = useState<Department[]>(INITIAL_DEPARTMENTS);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>(INITIAL_ACADEMIC_YEARS);
+=======
+  // Master Data State (Institutional Source of Truth)
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+>>>>>>> 04e41ce (refactor: permanently remove PostgreSQL connections, dependencies, and configuration)
   const [semesters, setSemesters] = useState<SemesterInfo[]>(DEFAULT_SEMESTERS);
   const [batches, setBatches] = useState<Batch[]>(INITIAL_BATCHES);
   const [courses, setCourses] = useState<Course[]>(INITIAL_COURSES);

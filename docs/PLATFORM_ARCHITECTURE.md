@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary & Governance Principle
 
-> **PostgreSQL stores the authoritative institutional record. CSV imports are controlled entry points, Active Sync distributes approved changes, Live DB powers authenticated operations, and the Public Site receives only safe, approved, read-only information.**
+> **The central database stores the authoritative institutional record. CSV imports are controlled entry points, Active Sync distributes approved changes, Live DB powers authenticated operations, and the Public Site receives only safe, approved, read-only information.**
 
 ---
 
@@ -12,7 +12,7 @@
 Administrators / Faculty
         │
         ▼
-PostgreSQL Source of Truth (Authoritative 29-Table Relational Schema)
+Institutional Source of Truth (Authoritative 29-Table Relational Schema)
         │
         ├───► Live DB Operations
         │       ├── Faculty Workspace (Assignment-Scoped)
@@ -38,8 +38,8 @@ PostgreSQL Source of Truth (Authoritative 29-Table Relational Schema)
 
 ## 3. Component Details & Security Rules
 
-### 3.1 PostgreSQL — Source of Truth
-PostgreSQL is the central, authoritative database for the platform. All institutional records are created, validated, and maintained here before being exposed to other modules or portals.
+### 3.1 Central Data Engine — Source of Truth
+The central data engine is the authoritative store for the platform. All institutional records are created, validated, and maintained here before being exposed to other modules or portals.
 
 **Core Data Managed:**
 - Departments, academic calendars, semesters 1–6, courses, and subjects
@@ -50,7 +50,7 @@ PostgreSQL is the central, authoritative database for the platform. All institut
 - Documents, uploads, metadata, and access-control matrices
 
 **Rules & Safeguards:**
-- PostgreSQL remains the final authority when records conflict.
+- Central store remains the final authority when records conflict.
 - Every write operation is validated and recorded in immutable audit logs (`audit_logs`).
 - Public-facing applications never directly access unrestricted database tables.
 - Sensitive fields (passwords, phone numbers, confidential counseling notes) use server-side RBAC.
@@ -129,7 +129,7 @@ The Public Site is the outward-facing institutional portal for content accessibl
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  [TypeScript: 98.5%]                                                        │
 │  ├── Client Portal Layer: React 19 • Vite 6 • Tailwind CSS 4                │
-│  └── Server API Layer: Node.js 22 • Express 5 • TSX • PostgreSQL 18         │
+│  └── Server API Layer: Node.js 22 • Express 5 • TSX                         │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  [Python: 1.3%]                                                             │
 │  └── Analytics & Forecaster: Python 3.12 • Flask • Pandas • NumPy           │
@@ -142,9 +142,9 @@ The Public Site is the outward-facing institutional portal for content accessibl
 | Layer | Languages & Frameworks | Codebase % | Purpose & Capabilities |
 |---|---|---|---|
 | **Frontend Applications** | **TypeScript 5.8**, React 19, Vite 6, Tailwind CSS 4, Lucide Icons | **~65.0%** | Multi-role portals (Admin, Faculty, Student, Guardian, Counselor), live reactive contexts, dynamic ledger grids. |
-| **Backend REST Core** | **TypeScript 5.8**, Node.js 22, Express 5, TSX, PostgreSQL 18 Layer | **~33.5%** | Authoritative 29-table relational database engine, RBAC middleware, CSV batch importer, audit logger. |
+| **Backend REST Core** | **TypeScript 5.8**, Node.js 22, Express 5, TSX, Store Layer | **~33.5%** | Authoritative 29-table relational database engine, RBAC middleware, CSV batch importer, audit logger. |
 | **Analytics Microservice** | **Python 3.12**, Flask, Pandas, NumPy | **1.3%** | Attendance deficit trajectory forecaster, statistical CIA regression modeling, condonation eligibility calculator. |
-| **DDL & Configuration** | PostgreSQL 18 DDL, JSON, PowerShell / Bash | **0.2%** | Relational schemas, foreign key constraints, migration scripts, CI/CD and deployment manifests. |
+| **DDL & Configuration** | DDL Schemas, JSON, PowerShell / Bash | **0.2%** | Relational schemas, foreign key constraints, migration scripts, CI/CD and deployment manifests. |
 
 ---
 
@@ -152,7 +152,7 @@ The Public Site is the outward-facing institutional portal for content accessibl
 
 | Criteria | Enforcement Mechanism | Status |
 |---|---|---|
-| **Single Source of Truth** | Relational PostgreSQL backend (`schema.ts`) | **Enforced** |
+| **Single Source of Truth** | Relational backend store (`schema.ts`) | **Enforced** |
 | **Role-Based Isolation** | Scoped APIs (`/api/faculty/*`, `/api/student/*`, `/api/guardian/*`) | **Enforced** |
 | **No Mock Data in Production** | Dynamic database queries + clean empty states | **Enforced** |
 | **Controlled Batch Onboarding** | CSV Import modal with preview, validation & transactional rollback | **Enforced** |

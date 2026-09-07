@@ -32,7 +32,6 @@ BcaFly must protect:
 | Frontend | Next.js / Vite React deployed on Vercel | Do not expose secrets in browser code |
 | Repository | GitHub/Git | No passwords, tokens, API keys, or database URLs committed |
 | Demo mode | Mock/demo data | Use fictional data only; never real student data |
-| Future database | PostgreSQL | Private network access, least-privilege database roles, backups |
 | Future backend/API | Server-side API or backend | Enforce authentication, role checks, assignment checks, validation, and audit logging |
 
 ---
@@ -187,8 +186,7 @@ Never commit secrets to Git, even in a private repository. GitHub secret scannin
 - `.env.local`
 - `.env.production`
 - API keys
-- Database URLs
-- PostgreSQL passwords
+- Database credentials
 - JWT secrets
 - Session secrets
 - SMTP credentials
@@ -251,7 +249,6 @@ Commit only placeholders:
 NEXT_PUBLIC_APP_NAME=BcaFly
 
 # Server-only values: placeholders only
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
 SESSION_SECRET=replace_with_a_long_random_secret
 JWT_SECRET=replace_with_a_long_random_secret
 
@@ -369,10 +366,10 @@ When document uploads are implemented:
 
 ## Database Security
 
-When PostgreSQL is added:
+When a database is added:
 
 - Use a dedicated production database and separate development database.
-- Never expose PostgreSQL directly to the public internet unless absolutely necessary.
+- Never expose database instances directly to the public internet unless absolutely necessary.
 - Use a non-superuser database account for the application.
 - Give each service only the permissions it needs.
 - Use TLS for database connections when supported.

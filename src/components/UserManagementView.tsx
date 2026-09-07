@@ -462,7 +462,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
             <button
               onClick={() => loadUsersData()}
               className="p-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
-              title="Refresh users from PostgreSQL"
+              title="Refresh users list"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
             </button>
@@ -506,7 +506,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-                    Loading users from PostgreSQL...
+                    Loading users...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
