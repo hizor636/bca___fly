@@ -90,42 +90,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans text-slate-900 selection:bg-slate-200 selection:text-slate-900">
-      {/* 0. Dedicated Database Studio & Data Architecture View (Directly accessible to all users & visitors) */}
-      {currentScreen === 'database-studio' ? (
-        <>
-          <Header
-            currentScreen={currentScreen}
-            onNavigate={handleNavigation}
-            activeFaculty={activeFaculty}
-            allFaculties={facultyList}
-            onSelectFaculty={(fac) => setActiveFaculty(fac)}
-            onOpenLogin={() => setShowLoginModal(true)}
-            onOpenReports={() => setShowReportsModal(true)}
-            onOpenAudit={() => setShowAuditModal(true)}
-          />
-          <main className="flex-1 w-full">
-            <DatabaseStudioView
-              onNavigateHome={() =>
-                handleNavigation(
-                  isAuthenticated
-                    ? currentRole === 'faculty'
-                      ? 'dashboard'
-                      : currentRole === 'admin'
-                      ? 'admin'
-                      : currentRole === 'student'
-                      ? 'student-portal'
-                      : currentRole === 'super_admin'
-                      ? 'platform'
-                      : currentRole === 'parent'
-                      ? 'parent-portal'
-                      : 'counselor-portal'
-                    : 'home'
-                )
-              }
-            />
-          </main>
-        </>
-      ) : isPublicScreen ? (
+      {isPublicScreen ? (
         <>
           <Header
             currentScreen={currentScreen}
@@ -295,10 +260,7 @@ const AppContent: React.FC = () => {
                 onNavigateHome={() => handleNavigation('dashboard')}
               />
             )}
-<<<<<<< HEAD
-=======
 
->>>>>>> 0bbc11c (refactor: permanently remove database system, database folder, and database studio components)
           </main>
         </>
       )}
