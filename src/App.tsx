@@ -12,12 +12,13 @@ import { FacultiesView } from './components/FacultiesView';
 import { AdminPortalView } from './components/AdminPortalView';
 import { StudentPortalView } from './components/StudentPortalView';
 import { CounselorPortalView } from './components/CounselorPortalView';
-import { PlatformDashboardView } from './components/PlatformDashboardView';
+import { SuperAdminConsole } from './components/SuperAdminConsole';
 import { ParentPortalView } from './components/ParentPortalView';
 import { Footer } from './components/Footer';
 import { StudentDetailModal } from './components/StudentDetailModal';
 import { DepartmentUpdateModal } from './components/DepartmentUpdateModal';
 import { LoginModal } from './components/LoginModal';
+import { AuthenticationView } from './components/AuthenticationView';
 import { AboutContactModals } from './components/AboutContactModals';
 import { SixSemesterReportsModal } from './components/SixSemesterReportsModal';
 
@@ -87,10 +88,19 @@ const AppContent: React.FC = () => {
 
   // Determine if we should display the public landing / explore view
   const isPublicScreen = currentScreen === 'home' || currentScreen === 'explore';
+  const isSignInScreen = currentScreen === 'sign-in';
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans text-slate-900 selection:bg-slate-200 selection:text-slate-900">
-      {isPublicScreen ? (
+      {isSignInScreen ? (
+        /* Full-Page Role-Based Authentication Screen */
+        <main className="flex-1 w-full">
+          <AuthenticationView
+            onSuccessRedirect={handleLoginSuccess}
+            onNavigateHome={() => setCurrentScreen('home')}
+          />
+        </main>
+      ) : isPublicScreen ? (
         <>
           <Header
             currentScreen={currentScreen}
@@ -98,7 +108,7 @@ const AppContent: React.FC = () => {
             activeFaculty={activeFaculty}
             allFaculties={facultyList}
             onSelectFaculty={(fac) => setActiveFaculty(fac)}
-            onOpenLogin={() => setShowLoginModal(true)}
+            onOpenLogin={() => handleNavigation('sign-in')}
             onOpenReports={() => setShowReportsModal(true)}
             onOpenAudit={() => setShowAuditModal(true)}
           />
@@ -106,14 +116,14 @@ const AppContent: React.FC = () => {
           <main className="flex-1 w-full">
             <LandingView
               onNavigate={handleNavigation}
-              onOpenLogin={() => setShowLoginModal(true)}
+              onOpenLogin={() => handleNavigation('sign-in')}
               onOpenAudit={() => setShowAuditModal(true)}
               onOpenReports={() => setShowReportsModal(true)}
             />
           </main>
         </>
       ) : !isAuthenticated ? (
-        /* 2. Unauthenticated Guard Fallback: Redirect to Public Landing Page */
+        /* 2. Unauthenticated Guard Fallback: Redirect to Sign-In Page */
         <>
           <Header
             currentScreen="home"
@@ -121,19 +131,19 @@ const AppContent: React.FC = () => {
             activeFaculty={activeFaculty}
             allFaculties={facultyList}
             onSelectFaculty={(fac) => setActiveFaculty(fac)}
-            onOpenLogin={() => setShowLoginModal(true)}
+            onOpenLogin={() => handleNavigation('sign-in')}
           />
           <main className="flex-1 w-full">
             <LandingView
               onNavigate={handleNavigation}
-              onOpenLogin={() => setShowLoginModal(true)}
+              onOpenLogin={() => handleNavigation('sign-in')}
             />
           </main>
         </>
       ) : currentRole === 'super_admin' ? (
         /* 3. Platform Hub: Super Admin Console */
         <div className="flex-1">
-          <PlatformDashboardView
+          <SuperAdminConsole
             onLogout={() => {
               logout();
               setCurrentScreen('home');

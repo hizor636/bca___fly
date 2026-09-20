@@ -28,9 +28,18 @@ import {
   RefreshCw,
   Archive,
   Trash2,
-  Edit
+  Edit,
+  Bell,
+  Award,
+  Megaphone,
+  Sliders,
+  FileText,
+  Send,
+  Smartphone,
+  RotateCcw
 } from 'lucide-react';
-import { Department, AcademicYear, Course, FacultyMember, Student } from '../types';
+import { Department, AcademicYear, Course, FacultyMember, Student, DepartmentNotice, AssessmentScheme, SmsType, SmsStatus, SmsSettings } from '../types';
+import { renderTemplate } from '../services/sms/smsService';
 
 interface AdminPortalViewProps {
   onNavigateHome?: () => void;
@@ -75,14 +84,25 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     toggleWorkingDay,
     updateCondonationStatus,
     updateSmsTemplate,
+    smsSettings,
+    updateSmsSettings,
+    dispatchManualSms,
+    retrySmsMessage,
     correctionRequests,
     reviewCorrectionRequest,
     refreshData,
-    isLoading
+    isLoading,
+    notices,
+    assessmentSchemes,
+    addNotice,
+    deleteNotice,
+    addAssessmentScheme,
+    updateAssessmentScheme,
+    deleteAssessmentScheme
   } = useDemoStore();
 
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'departments-years' | 'courses' | 'users' | 'assignments' | 'attendance-settings' | 'corrections' | 'sms' | 'reports'
+    'overview' | 'departments-years' | 'courses' | 'assessment-schemes' | 'users' | 'assignments' | 'attendance-settings' | 'corrections' | 'announcements' | 'sms' | 'reports'
   >('overview');
 
   const [reviewRemarks, setReviewRemarks] = useState<Record<string, string>>({});
@@ -93,7 +113,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
   // Setup Modals State
   const [modalType, setModalType] = useState<
-    'department' | 'academic-year' | 'semester' | 'course' | 'faculty' | 'student' | 'enroll' | 'allocate' | 'csv-import' | null
+    'department' | 'academic-year' | 'semester' | 'course' | 'faculty' | 'student' | 'enroll' | 'allocate' | 'csv-import' | 'notice' | 'scheme' | null
   >(null);
 
   // Forms State
@@ -105,6 +125,64 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [studentForm, setStudentForm] = useState({ name: '', studentId: '', email: '', phone: '', parentPhone: '', semester: 1, section: 'A', course: 'Bachelor of Computer Applications' });
   const [enrollForm, setEnrollForm] = useState({ studentId: '', courseId: '', semester: 1, section: 'A' });
   const [allocateForm, setAllocateForm] = useState({ facultyId: '', courseId: '', section: 'A', batch: '2026-27', academicYear: '2026-27' });
+
+  // Notice & Assessment Scheme Forms
+  const [noticeForm, setNoticeForm] = useState<{
+    title: string;
+    subtitle: string;
+    body: string;
+    priority: 'Normal' | 'High' | 'Urgent';
+    audience: 'ALL' | 'FACULTY' | 'STUDENT' | 'PARENT';
+    targetSemester: number | 'all';
+    deadline: string;
+  }>({
+    title: '',
+    subtitle: '',
+    body: '',
+    priority: 'Normal',
+    audience: 'ALL',
+    targetSemester: 'all',
+    deadline: ''
+  });
+
+  const [schemeForm, setSchemeForm] = useState<{
+    id?: string;
+    name: string;
+    type: 'CIA' | 'LAB' | 'FINAL' | 'ASSIGNMENT';
+    maxMarks: number;
+    weightagePercent: number;
+    minPassingMarks: number;
+    applicableSemesters: string;
+    guidelines: string;
+  }>({
+    name: '',
+    type: 'CIA',
+    maxMarks: 20,
+    weightagePercent: 20,
+    minPassingMarks: 8,
+    applicableSemesters: 'All Semesters (1-6)',
+    guidelines: ''
+  });
+  const [editingSchemeId, setEditingSchemeId] = useState<string | null>(null);
+  const [noticeAudienceFilter, setNoticeAudienceFilter] = useState<'ALL' | 'FACULTY' | 'STUDENT' | 'PARENT' | 'EVERYTHING'>('EVERYTHING');
+
+  // SMS Management Sub-tab & Dispatch States
+  const [smsSubTab, setSmsSubTab] = useState<'overview' | 'send' | 'history' | 'templates' | 'settings'>('overview');
+  const [smsSendForm, setSmsSendForm] = useState<{
+    studentId: string;
+    recipientPhone: string;
+    templateKey: string;
+    customMessage: string;
+    messageType: SmsType;
+  }>({
+    studentId: '',
+    recipientPhone: '',
+    templateKey: 'ATTENDANCE_ALERT',
+    customMessage: '',
+    messageType: 'ATTENDANCE'
+  });
+  const [smsHistoryFilter, setSmsHistoryFilter] = useState<'ALL' | 'sent' | 'failed'>('ALL');
+  const [isSendingSms, setIsSendingSms] = useState(false);
 
   // CSV Import State
   const [csvType, setCsvType] = useState<'students' | 'faculty' | 'courses'>('students');
@@ -311,10 +389,12 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
             { id: 'overview', label: 'Setup & Overview' },
             { id: 'departments-years', label: 'Dept & Calendar' },
             { id: 'courses', label: 'Course Master' },
+            { id: 'assessment-schemes', label: 'Assessment Scheme' },
             { id: 'users', label: 'User Directory' },
             { id: 'assignments', label: 'Allocations & Mentees' },
             { id: 'attendance-settings', label: 'Attendance Rules' },
             { id: 'corrections', label: 'Leave Reviews' },
+            { id: 'announcements', label: 'Circulars & Notices' },
             { id: 'sms', label: 'SMS Gateway' },
             { id: 'reports', label: 'Reports & Audit' }
           ].map((tab) => (
@@ -837,41 +917,472 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         </div>
       )}
 
-      {/* TAB 8: SMS */}
+      {/* TAB 8: SMS GATEWAY & DISPATCH ENGINE */}
       {activeTab === 'sms' && (
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4 animate-in fade-in duration-150">
-          <h3 className="text-lg font-bold text-slate-900">SMS Gateway &amp; Automated Templates</h3>
-          <p className="text-xs text-slate-500">Edit institutional parent notification SMS drafts.</p>
+        <div className="space-y-6 animate-in fade-in duration-150">
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-5">
+            {/* Header with Service Mode Pill */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-2xl bg-indigo-50 text-indigo-700">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">SMS Gateway &amp; Automated Dispatch Service</h3>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      smsSettings.smsEnabled ? (smsSettings.provider === 'mock' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200') : 'bg-rose-50 text-rose-700 border border-rose-200'
+                    }`}>
+                      {smsSettings.smsEnabled ? (smsSettings.provider === 'mock' ? 'Mock Engine (Safe)' : 'Twilio Production') : 'Service Disabled'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Automated attendance shortage alerts, student account provisioning, and broadcast dispatches.
+                  </p>
+                </div>
+              </div>
 
-          <div className="space-y-3">
-            <label className="text-xs font-bold text-slate-700 block">Select Template</label>
-            <select
-              value={selectedTemplateId}
-              onChange={(e) => {
-                setSelectedTemplateId(e.target.value);
-                const t = smsTemplates.find((tmpl) => tmpl.id === e.target.value);
-                if (t) setTemplateEditText(t.body);
-              }}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs w-full max-w-md"
-            >
-              {smsTemplates.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
+              {/* Sub Navigation */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl">
+                {[
+                  { id: 'overview', label: 'Overview' },
+                  { id: 'send', label: 'Send SMS' },
+                  { id: 'history', label: `History (${smsMessages.length})` },
+                  { id: 'templates', label: `Templates (${smsTemplates.length})` },
+                  { id: 'settings', label: 'Settings' }
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    onClick={() => setSmsSubTab(st.id as any)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      smsSubTab === st.id ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-            <textarea
-              rows={4}
-              value={templateEditText}
-              onChange={(e) => setTemplateEditText(e.target.value)}
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono focus:outline-none focus:bg-white"
-            />
+            {/* SUBTAB 1: OVERVIEW */}
+            {smsSubTab === 'overview' && (
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Messages</span>
+                    <span className="text-2xl font-extrabold text-slate-900">{smsMessages.length}</span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">All tracked dispatches</span>
+                  </div>
+                  <div className="p-4 bg-emerald-50/50 border border-emerald-100/60 rounded-2xl">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block">Delivered / Sent</span>
+                    <span className="text-2xl font-extrabold text-emerald-700">
+                      {smsMessages.filter(m => m.status === 'sent').length}
+                    </span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">Confirmed delivery</span>
+                  </div>
+                  <div className="p-4 bg-indigo-50/50 border border-indigo-100/60 rounded-2xl">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 block">Shortage Alerts</span>
+                    <span className="text-2xl font-extrabold text-indigo-700">
+                      {smsMessages.filter(m => m.messageType === 'ATTENDANCE').length}
+                    </span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">&lt; {smsSettings.attendanceThresholdPct}% auto-alerts</span>
+                  </div>
+                  <div className="p-4 bg-amber-50/50 border border-amber-100/60 rounded-2xl">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 block">Daily Quota</span>
+                    <span className="text-2xl font-extrabold text-slate-900">
+                      {smsMessages.length} / {smsSettings.dailyLimit}
+                    </span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">Capacity remaining</span>
+                  </div>
+                </div>
 
-            <button
-              onClick={handleSaveTemplate}
-              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
-            >
-              {templateSaveFeedback ? 'Saved!' : 'Save Template'}
-            </button>
+                {/* Recent Dispatches Preview */}
+                <div className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">Recent Dispatches (Real-Time Ledger)</h4>
+                    <button
+                      onClick={() => setSmsSubTab('history')}
+                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                    >
+                      View All History →
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {smsMessages.slice(0, 4).map((msg) => (
+                      <div key={msg.id} className="p-3 bg-white rounded-xl border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900">{msg.studentName || 'Recipient'}</span>
+                            <span className="text-slate-400 font-mono text-[11px]">{msg.recipientPhone}</span>
+                            <span className="px-2 py-0.5 text-[9px] font-bold rounded-md bg-slate-100 text-slate-600 uppercase">
+                              {msg.messageType || 'GENERAL'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 line-clamp-1">{msg.body}</p>
+                        </div>
+
+                        <div className="flex items-center gap-3 self-end sm:self-center">
+                          <span className="text-[10px] text-slate-400">{msg.sentAt}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            msg.status === 'sent' ? 'bg-emerald-100 text-emerald-800' :
+                            msg.status === 'failed' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {msg.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUBTAB 2: DIRECT MANUAL DISPATCH */}
+            {smsSubTab === 'send' && (
+              <div className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-4 max-w-2xl">
+                <h4 className="text-sm font-bold text-slate-900">Direct SMS Dispatcher</h4>
+                <p className="text-xs text-slate-500">Send an immediate SMS to a student or guardian using a pre-defined template or custom message.</p>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Select Student</label>
+                    <select
+                      value={smsSendForm.studentId}
+                      onChange={(e) => {
+                        const s = students.find(st => st.id === e.target.value);
+                        if (s) {
+                          setSmsSendForm({
+                            ...smsSendForm,
+                            studentId: s.id,
+                            recipientPhone: s.parentPhone || s.phone
+                          });
+                        } else {
+                          setSmsSendForm({ ...smsSendForm, studentId: '' });
+                        }
+                      }}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl"
+                    >
+                      <option value="">Choose student to auto-populate phone...</option>
+                      {students.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.studentId}) — Parent: {s.parentPhone || s.phone}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Destination Phone Number</label>
+                    <input
+                      type="text"
+                      placeholder="+1 (555) 301-9911"
+                      value={smsSendForm.recipientPhone}
+                      onChange={(e) => setSmsSendForm({ ...smsSendForm, recipientPhone: e.target.value })}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-mono"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="font-semibold text-slate-700 block mb-1">Template Preset</label>
+                      <select
+                        value={smsSendForm.templateKey}
+                        onChange={(e) => {
+                          const tKey = e.target.value;
+                          const tpl = smsTemplates.find(t => t.key === tKey);
+                          const s = students.find(st => st.id === smsSendForm.studentId);
+                          let body = tpl?.body || '';
+                          if (tpl && s) {
+                            body = renderTemplate(tpl.body, {
+                              student_name: s.name,
+                              roll_no: s.studentId,
+                              subject: 'Web Application Architecture',
+                              attendance_rate: s.attendanceRate,
+                              threshold: smsSettings.attendanceThresholdPct,
+                              title: 'Official Notification',
+                              deadline: 'Friday'
+                            });
+                          }
+                          setSmsSendForm({
+                            ...smsSendForm,
+                            templateKey: tKey,
+                            customMessage: body,
+                            messageType: (tpl?.type || 'GENERAL') as SmsType
+                          });
+                        }}
+                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl"
+                      >
+                        <option value="ATTENDANCE_ALERT">Attendance Shortage Alert</option>
+                        <option value="ACCOUNT_CREATED">Student Portal Account Created</option>
+                        <option value="ANNOUNCEMENT">Campus Circular Broadcast</option>
+                        <option value="RESULT_PUBLISHED">CIA Marks Released</option>
+                        <option value="CUSTOM">Custom Message</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-semibold text-slate-700 block mb-1">Message Type</label>
+                      <select
+                        value={smsSendForm.messageType}
+                        onChange={(e) => setSmsSendForm({ ...smsSendForm, messageType: e.target.value as SmsType })}
+                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl"
+                      >
+                        <option value="ATTENDANCE">ATTENDANCE</option>
+                        <option value="ACCOUNT">ACCOUNT</option>
+                        <option value="ANNOUNCEMENT">ANNOUNCEMENT</option>
+                        <option value="ASSESSMENT">ASSESSMENT</option>
+                        <option value="GENERAL">GENERAL</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Message Body (Interpolated Preview)</label>
+                    <textarea
+                      rows={4}
+                      value={smsSendForm.customMessage}
+                      onChange={(e) => setSmsSendForm({ ...smsSendForm, customMessage: e.target.value })}
+                      placeholder="Type custom SMS text or choose a template preset above..."
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl font-mono text-xs focus:outline-none"
+                    />
+                  </div>
+
+                  <button
+                    disabled={isSendingSms}
+                    onClick={async () => {
+                      if (!smsSendForm.recipientPhone || !smsSendForm.customMessage) {
+                        showFeedback('error', 'Please enter destination telephone and message body.');
+                        return;
+                      }
+                      setIsSendingSms(true);
+                      const s = students.find(st => st.id === smsSendForm.studentId);
+                      const res = await dispatchManualSms({
+                        recipientPhone: smsSendForm.recipientPhone,
+                        studentId: s?.id,
+                        studentName: s?.name,
+                        body: smsSendForm.customMessage,
+                        messageType: smsSendForm.messageType,
+                        triggerReason: 'admin_manual'
+                      });
+                      setIsSendingSms(false);
+                      if (res.success) {
+                        showFeedback('success', `SMS successfully transmitted to ${smsSendForm.recipientPhone}.`);
+                        setSmsSubTab('history');
+                      } else {
+                        showFeedback('error', res.error || 'Failed to transmit SMS.');
+                      }
+                    }}
+                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-2"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    {isSendingSms ? 'Transmitting via Provider...' : 'Dispatch SMS'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* SUBTAB 3: LIVE DISPATCH HISTORY */}
+            {smsSubTab === 'history' && (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    {(['ALL', 'sent', 'failed'] as const).map((filter) => (
+                      <button
+                        key={filter}
+                        onClick={() => setSmsHistoryFilter(filter)}
+                        className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          smsHistoryFilter === filter ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        {filter === 'ALL' ? 'All Logs' : filter.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+
+                  <span className="text-xs text-slate-400">
+                    Showing {smsMessages.filter(m => smsHistoryFilter === 'ALL' || m.status === smsHistoryFilter).length} messages
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
+                      <tr>
+                        <th className="p-3">Recipient &amp; Phone</th>
+                        <th className="p-3">Type</th>
+                        <th className="p-3">Message Body</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3">Provider Ref</th>
+                        <th className="p-3">Sent Time</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {smsMessages
+                        .filter(m => smsHistoryFilter === 'ALL' || m.status === smsHistoryFilter)
+                        .map((msg) => (
+                          <tr key={msg.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-3">
+                              <div className="font-bold text-slate-900">{msg.studentName || 'Recipient'}</div>
+                              <div className="font-mono text-[10px] text-slate-400">{msg.recipientPhone}</div>
+                            </td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 text-[9px] font-bold rounded-md bg-slate-100 text-slate-700 uppercase">
+                                {msg.messageType || 'GENERAL'}
+                              </span>
+                            </td>
+                            <td className="p-3 max-w-xs">
+                              <p className="text-[11px] text-slate-600 line-clamp-2">{msg.body}</p>
+                            </td>
+                            <td className="p-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                msg.status === 'sent' ? 'bg-emerald-100 text-emerald-800' :
+                                msg.status === 'failed' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {msg.status}
+                              </span>
+                            </td>
+                            <td className="p-3 font-mono text-[10px] text-slate-500">
+                              {msg.providerMessageId || '—'}
+                            </td>
+                            <td className="p-3 text-slate-400 text-[11px]">
+                              {msg.sentAt || '—'}
+                            </td>
+                            <td className="p-3 text-right">
+                              <button
+                                onClick={async () => {
+                                  const res = await retrySmsMessage(msg.id);
+                                  if (res.success) {
+                                    showFeedback('success', `Message resent to ${msg.recipientPhone}.`);
+                                  } else {
+                                    showFeedback('error', res.error || 'Retry failed.');
+                                  }
+                                }}
+                                className="px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1"
+                                title="Resend / Retry transmission"
+                              >
+                                <RotateCcw className="w-3 h-3" /> Resend
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SUBTAB 4: TEMPLATES */}
+            {smsSubTab === 'templates' && (
+              <div className="space-y-4 max-w-2xl">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 block">Select Template to Customize</label>
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => {
+                      setSelectedTemplateId(e.target.value);
+                      const t = smsTemplates.find((tmpl) => tmpl.id === e.target.value);
+                      if (t) setTemplateEditText(t.body);
+                    }}
+                    className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs w-full font-medium"
+                  >
+                    {smsTemplates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.key || t.type})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 block">Template Content</label>
+                  <textarea
+                    rows={4}
+                    value={templateEditText}
+                    onChange={(e) => setTemplateEditText(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono focus:outline-none focus:bg-white"
+                  />
+                  <div className="flex items-center gap-1 flex-wrap pt-1">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">Supported tags:</span>
+                    {['{student_name}', '{subject}', '{attendance_rate}', '{threshold}', '{roll_no}', '{title}', '{deadline}'].map(tag => (
+                      <span key={tag} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-mono">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleSaveTemplate}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                >
+                  {templateSaveFeedback ? 'Saved!' : 'Save Template Changes'}
+                </button>
+              </div>
+            )}
+
+            {/* SUBTAB 5: SETTINGS */}
+            {smsSubTab === 'settings' && (
+              <div className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-4 max-w-xl text-xs">
+                <h4 className="text-sm font-bold text-slate-900">SMS Gateway Configuration</h4>
+                <p className="text-slate-500">Manage provider connections, kill-switches, and delivery caps.</p>
+
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100">
+                    <div>
+                      <span className="font-bold text-slate-900 block">SMS Service Master Switch</span>
+                      <span className="text-slate-500 text-[11px]">Globally enable or pause all automatic &amp; manual SMS dispatches.</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={smsSettings.smsEnabled}
+                      onChange={(e) => updateSmsSettings({ smsEnabled: e.target.checked })}
+                      className="w-4 h-4 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="p-3 bg-white rounded-xl border border-slate-100 space-y-1">
+                    <label className="font-bold text-slate-900 block">Active Gateway Provider</label>
+                    <select
+                      value={smsSettings.provider}
+                      onChange={(e) => updateSmsSettings({ provider: e.target.value as any })}
+                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium"
+                    >
+                      <option value="mock">Mock SMS Engine (Safe Demo Mode — No real network text)</option>
+                      <option value="twilio">Twilio SMS Gateway (Production Mode — Uses TWILIO_AUTH_TOKEN)</option>
+                    </select>
+                    <span className="text-slate-400 text-[11px] block mt-1">
+                      In Mock mode, dispatches log to the console and update the live delivery ledger with mock references.
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-white rounded-xl border border-slate-100">
+                      <label className="font-bold text-slate-900 block mb-1">Shortage Threshold (%)</label>
+                      <input
+                        type="number"
+                        value={smsSettings.attendanceThresholdPct}
+                        onChange={(e) => updateSmsSettings({ attendanceThresholdPct: Number(e.target.value) })}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                      />
+                      <span className="text-slate-400 text-[10px]">Triggers auto SMS if attendance &lt; this %</span>
+                    </div>
+
+                    <div className="p-3 bg-white rounded-xl border border-slate-100">
+                      <label className="font-bold text-slate-900 block mb-1">Daily Cap Limit</label>
+                      <input
+                        type="number"
+                        value={smsSettings.dailyLimit}
+                        onChange={(e) => updateSmsSettings({ dailyLimit: Number(e.target.value) })}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                      />
+                      <span className="text-slate-400 text-[10px]">Max messages allowed per 24h</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -919,6 +1430,280 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 </div>
               ))
             )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: ASSESSMENT SCHEMES */}
+      {activeTab === 'assessment-schemes' && (
+        <div className="space-y-6 animate-in fade-in duration-150">
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-indigo-50 text-indigo-700">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      Institutional Assessment Policy &amp; Scheme
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Configure continuous internal evaluation (CIA-1, CIA-2), lab tests, and final exam marks. Caps automatically propagate to Faculty grading.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setEditingSchemeId(null);
+                  setSchemeForm({
+                    name: '',
+                    type: 'CIA',
+                    maxMarks: 20,
+                    weightagePercent: 20,
+                    minPassingMarks: 8,
+                    applicableSemesters: 'All Semesters (1-6)',
+                    guidelines: ''
+                  });
+                  setModalType('scheme');
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-semibold cursor-pointer shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Component
+              </button>
+            </div>
+
+            {/* Scheme Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-4 bg-indigo-50/40 border border-indigo-100/60 rounded-2xl">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 block">Total Internal Weightage</span>
+                <span className="text-2xl font-extrabold text-slate-900">
+                  {assessmentSchemes.filter(s => s.type !== 'FINAL').reduce((sum, s) => sum + s.weightagePercent, 0)}%
+                </span>
+                <span className="text-[11px] text-slate-500 block mt-0.5">Continuous Internal Assessment</span>
+              </div>
+              <div className="p-4 bg-emerald-50/40 border border-emerald-100/60 rounded-2xl">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block">Terminal Exam Weightage</span>
+                <span className="text-2xl font-extrabold text-slate-900">
+                  {assessmentSchemes.filter(s => s.type === 'FINAL').reduce((sum, s) => sum + s.weightagePercent, 0)}%
+                </span>
+                <span className="text-[11px] text-slate-500 block mt-0.5">University End Semester Evaluation</span>
+              </div>
+              <div className="p-4 bg-amber-50/40 border border-amber-100/60 rounded-2xl">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 block">Active Evaluation Components</span>
+                <span className="text-2xl font-extrabold text-slate-900">{assessmentSchemes.length}</span>
+                <span className="text-[11px] text-slate-500 block mt-0.5">CIA-1, CIA-2, Lab, Terminal</span>
+              </div>
+            </div>
+
+            {/* Scheme Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {assessmentSchemes.map((scheme) => (
+                <div key={scheme.id} className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase tracking-wider ${
+                          scheme.type === 'CIA' ? 'bg-indigo-100 text-indigo-800' :
+                          scheme.type === 'FINAL' ? 'bg-emerald-100 text-emerald-800' :
+                          scheme.type === 'LAB' ? 'bg-amber-100 text-amber-800' : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {scheme.type}
+                        </span>
+                        <span className="text-xs font-bold text-slate-400">
+                          {scheme.applicableSemesters}
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900 mt-1">{scheme.name}</h4>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setEditingSchemeId(scheme.id);
+                          setSchemeForm({
+                            name: scheme.name,
+                            type: scheme.type,
+                            maxMarks: scheme.maxMarks,
+                            weightagePercent: scheme.weightagePercent,
+                            minPassingMarks: scheme.minPassingMarks,
+                            applicableSemesters: scheme.applicableSemesters,
+                            guidelines: scheme.guidelines || ''
+                          });
+                          setModalType('scheme');
+                        }}
+                        className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-white transition-colors cursor-pointer"
+                        title="Edit Scheme"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (confirm(`Remove ${scheme.name}?`)) {
+                            await deleteAssessmentScheme(scheme.id);
+                            showFeedback('success', `Scheme ${scheme.name} removed.`);
+                          }
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-white transition-colors cursor-pointer"
+                        title="Delete Scheme"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 bg-white p-3 rounded-xl border border-slate-100 text-center">
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase block">Max Marks</span>
+                      <span className="text-sm font-extrabold text-slate-900">{scheme.maxMarks}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase block">Weightage</span>
+                      <span className="text-sm font-extrabold text-indigo-600">{scheme.weightagePercent}%</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase block">Pass Marks</span>
+                      <span className="text-sm font-extrabold text-emerald-600">{scheme.minPassingMarks}</span>
+                    </div>
+                  </div>
+
+                  {scheme.guidelines && (
+                    <p className="text-[11px] text-slate-500 bg-white/70 p-2.5 rounded-xl border border-slate-100 leading-relaxed">
+                      {scheme.guidelines}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: CIRCULARS & NOTICES */}
+      {activeTab === 'announcements' && (
+        <div className="space-y-6 animate-in fade-in duration-150">
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-amber-50 text-amber-700">
+                    <Megaphone className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      Campus Circulars &amp; Targeted Announcements
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Broadcast notices to all campus users, or target specifically to Faculty, Students, or specific cohorts.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setNoticeForm({
+                    title: '',
+                    subtitle: '',
+                    body: '',
+                    priority: 'Normal',
+                    audience: 'ALL',
+                    targetSemester: 'all',
+                    deadline: ''
+                  });
+                  setModalType('notice');
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-semibold cursor-pointer shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" /> Publish Circular
+              </button>
+            </div>
+
+            {/* Audience Filter Pills */}
+            <div className="flex items-center gap-1.5 border-b border-slate-100 pb-3">
+              {(['EVERYTHING', 'ALL', 'FACULTY', 'STUDENT', 'PARENT'] as const).map((aud) => (
+                <button
+                  key={aud}
+                  onClick={() => setNoticeAudienceFilter(aud)}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    noticeAudienceFilter === aud ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {aud === 'EVERYTHING' ? 'All Broadcasts' : `Target: ${aud}`}
+                </button>
+              ))}
+            </div>
+
+            {/* Notices List */}
+            <div className="space-y-3">
+              {notices.filter((n) => {
+                if (noticeAudienceFilter === 'EVERYTHING') return true;
+                return (n.audience || 'ALL') === noticeAudienceFilter;
+              }).length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1">
+                  <Megaphone className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+                  <span className="font-semibold text-slate-800 text-xs">No active circulars for this filter</span>
+                  <p className="text-[11px] text-slate-400">Click "Publish Circular" to issue an official academic circular.</p>
+                </div>
+              ) : (
+                notices.filter((n) => {
+                  if (noticeAudienceFilter === 'EVERYTHING') return true;
+                  return (n.audience || 'ALL') === noticeAudienceFilter;
+                }).map((notice) => (
+                  <div key={notice.id} className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase tracking-wider ${
+                            notice.priority === 'Urgent' ? 'bg-rose-100 text-rose-800' :
+                            notice.priority === 'High' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {notice.priority} Priority
+                          </span>
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-200 text-slate-700 uppercase">
+                            Audience: {notice.audience || 'ALL'}
+                          </span>
+                          {notice.targetSemester && notice.targetSemester !== 'all' && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-indigo-100 text-indigo-700">
+                              Sem {notice.targetSemester}
+                            </span>
+                          )}
+                          <span className="text-xs text-slate-400">{notice.date}</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-900">{notice.title}</h4>
+                        {notice.subtitle && (
+                          <p className="text-xs text-slate-600 font-medium">{notice.subtitle}</p>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={async () => {
+                          if (confirm(`Withdraw and delete circular: "${notice.title}"?`)) {
+                            await deleteNotice(notice.id);
+                            showFeedback('success', 'Circular withdrawn.');
+                          }
+                        }}
+                        className="px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-colors cursor-pointer self-start"
+                      >
+                        Withdraw
+                      </button>
+                    </div>
+
+                    <p className="text-xs text-slate-600 bg-white p-3 rounded-xl border border-slate-100 leading-relaxed">
+                      {notice.body}
+                    </p>
+
+                    {notice.deadline && (
+                      <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100 w-fit">
+                        <Clock className="w-3.5 h-3.5" /> Action Deadline: {notice.deadline}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1463,7 +2248,253 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         </div>
       )}
 
-      {/* CSV Import Modal */}
+      {/* Notice Modal */}
+      {modalType === 'notice' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">Publish Campus Circular</h3>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Circular Title</label>
+                <input
+                  type="text"
+                  placeholder="e.g. CIA-2 Examination Schedule & Registration"
+                  value={noticeForm.title}
+                  onChange={(e) => setNoticeForm({ ...noticeForm, title: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Subtitle / Summary</label>
+                <input
+                  type="text"
+                  placeholder="Brief 1-line overview"
+                  value={noticeForm.subtitle}
+                  onChange={(e) => setNoticeForm({ ...noticeForm, subtitle: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Target Audience</label>
+                  <select
+                    value={noticeForm.audience}
+                    onChange={(e) => setNoticeForm({ ...noticeForm, audience: e.target.value as any })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    <option value="ALL">All (Campus-wide)</option>
+                    <option value="FACULTY">Faculty Only</option>
+                    <option value="STUDENT">Students Only</option>
+                    <option value="PARENT">Parents Only</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Priority</label>
+                  <select
+                    value={noticeForm.priority}
+                    onChange={(e) => setNoticeForm({ ...noticeForm, priority: e.target.value as any })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    <option value="Normal">Normal</option>
+                    <option value="High">High</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Target Semester</label>
+                  <select
+                    value={noticeForm.targetSemester}
+                    onChange={(e) => setNoticeForm({ ...noticeForm, targetSemester: e.target.value === 'all' ? 'all' : Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    <option value="all">All Semesters</option>
+                    {[1, 2, 3, 4, 5, 6].map(s => (
+                      <option key={s} value={s}>Semester {s}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Circular Content / Directives</label>
+                <textarea
+                  rows={4}
+                  placeholder="Official notification text, instructions, and compliance notes..."
+                  value={noticeForm.body}
+                  onChange={(e) => setNoticeForm({ ...noticeForm, body: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Action Deadline (Optional)</label>
+                <input
+                  type="date"
+                  value={noticeForm.deadline}
+                  onChange={(e) => setNoticeForm({ ...noticeForm, deadline: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setModalType(null)} className="px-4 py-2 text-slate-600 font-semibold text-xs">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!noticeForm.title || !noticeForm.body) {
+                    showFeedback('error', 'Please enter title and notice body.');
+                    return;
+                  }
+                  await addNotice({
+                    title: noticeForm.title,
+                    subtitle: noticeForm.subtitle,
+                    body: noticeForm.body,
+                    priority: noticeForm.priority,
+                    audience: noticeForm.audience,
+                    targetSemester: noticeForm.targetSemester,
+                    deadline: noticeForm.deadline || undefined,
+                    date: new Date().toISOString().split('T')[0],
+                    isNew: true
+                  });
+                  setModalType(null);
+                  showFeedback('success', `Circular "${noticeForm.title}" broadcasted to ${noticeForm.audience}.`);
+                }}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl cursor-pointer"
+              >
+                Broadcast Notice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assessment Scheme Modal */}
+      {modalType === 'scheme' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">
+                {editingSchemeId ? 'Edit Assessment Component' : 'Add Assessment Component'}
+              </h3>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Component Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. CIA-1 Continuous Internal Assessment"
+                  value={schemeForm.name}
+                  onChange={(e) => setSchemeForm({ ...schemeForm, name: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Assessment Type</label>
+                  <select
+                    value={schemeForm.type}
+                    onChange={(e) => setSchemeForm({ ...schemeForm, type: e.target.value as any })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    <option value="CIA">CIA (Internal Exam)</option>
+                    <option value="LAB">Lab Practical / Viva</option>
+                    <option value="FINAL">University Final Exam</option>
+                    <option value="ASSIGNMENT">Assignment / Project</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Applicable Semesters</label>
+                  <input
+                    type="text"
+                    placeholder="All Semesters (1-6)"
+                    value={schemeForm.applicableSemesters}
+                    onChange={(e) => setSchemeForm({ ...schemeForm, applicableSemesters: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Max Marks</label>
+                  <input
+                    type="number"
+                    value={schemeForm.maxMarks}
+                    onChange={(e) => setSchemeForm({ ...schemeForm, maxMarks: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Weightage (%)</label>
+                  <input
+                    type="number"
+                    value={schemeForm.weightagePercent}
+                    onChange={(e) => setSchemeForm({ ...schemeForm, weightagePercent: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Min Passing</label>
+                  <input
+                    type="number"
+                    value={schemeForm.minPassingMarks}
+                    onChange={(e) => setSchemeForm({ ...schemeForm, minPassingMarks: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Faculty Grading Guidelines</label>
+                <textarea
+                  rows={2}
+                  placeholder="Evaluation criteria, rubric, and question paper structure..."
+                  value={schemeForm.guidelines}
+                  onChange={(e) => setSchemeForm({ ...schemeForm, guidelines: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setModalType(null)} className="px-4 py-2 text-slate-600 font-semibold text-xs">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!schemeForm.name) {
+                    showFeedback('error', 'Component name is required.');
+                    return;
+                  }
+                  if (editingSchemeId) {
+                    await updateAssessmentScheme(editingSchemeId, schemeForm);
+                    showFeedback('success', `Scheme "${schemeForm.name}" updated.`);
+                  } else {
+                    await addAssessmentScheme({
+                      ...schemeForm,
+                      isActive: true
+                    });
+                    showFeedback('success', `Scheme "${schemeForm.name}" configured.`);
+                  }
+                  setModalType(null);
+                }}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl cursor-pointer"
+              >
+                {editingSchemeId ? 'Save Changes' : 'Create Component'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {modalType === 'csv-import' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">

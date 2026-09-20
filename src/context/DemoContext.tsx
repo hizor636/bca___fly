@@ -27,8 +27,20 @@ import {
   SecurityIncident,
   Department,
   AcademicYear,
-  Batch
+  Batch,
+  DepartmentNotice,
+  AssessmentScheme,
+  SmsSettings,
+  SmsType,
+  SmsStatus
 } from '../types';
+import {
+  DEFAULT_SMS_SETTINGS,
+  MASTER_SMS_TEMPLATES,
+  SEEDED_SMS_HISTORY,
+  executeSmsDispatch,
+  renderTemplate
+} from '../services/sms/smsService';
 import {
   DEPARTMENTS as INITIAL_DEPARTMENTS,
   ACADEMIC_YEARS as INITIAL_ACADEMIC_YEARS,
@@ -201,6 +213,7 @@ interface DemoContextType {
   classes: ClassSection[];
   workingDays: WorkingDay[];
   attendanceSettings: AttendanceSettings;
+  smsSettings: SmsSettings;
   smsTemplates: SmsTemplate[];
   smsMessages: SmsMessage[];
   counselingReferrals: CounselingReferral[];
@@ -210,6 +223,8 @@ interface DemoContextType {
   documents: StudentDocument[];
   tenants: TenantInfo[];
   securityIncidents: SecurityIncident[];
+  notices: DepartmentNotice[];
+  assessmentSchemes: AssessmentScheme[];
 
   counselorList: User[];
   adminList: User[];
@@ -311,6 +326,9 @@ interface DemoContextType {
   toggleWorkingDay: (dateStr: string) => void;
   updateCondonationStatus: (studentId: string, status: 'Pending' | 'Approved' | 'Debarred') => void;
   updateSmsTemplate: (id: string, body: string) => void;
+  updateSmsSettings: (settings: Partial<SmsSettings>) => void;
+  dispatchManualSms: (payload: { recipientPhone: string; studentId?: string; studentName?: string; body: string; messageType: SmsType; triggerReason?: string }) => Promise<{ success: boolean; messageId?: string; error?: string }>;
+  retrySmsMessage: (id: string) => Promise<{ success: boolean; error?: string }>;
   resetDemoData: () => void;
 
   submitCorrectionRequest: (req: Omit<AttendanceCorrectionRequest, 'id' | 'createdAt' | 'status'>) => { success: boolean; message: string };
@@ -319,7 +337,63 @@ interface DemoContextType {
   deleteDocument: (id: string) => { success: boolean; message: string };
   createTenant: (tenant: Omit<TenantInfo, 'id' | 'createdAt'>) => { success: boolean; message: string };
   toggleSecurityIncident: (id: string) => void;
+
+  // Announcements & Circulars
+  addNotice: (notice: Omit<DepartmentNotice, 'id'>) => Promise<{ success: boolean; id: string }>;
+  deleteNotice: (id: string) => Promise<void>;
+
+  // Assessment Scheme Configuration
+  addAssessmentScheme: (scheme: Omit<AssessmentScheme, 'id'>) => Promise<{ success: boolean; id: string }>;
+  updateAssessmentScheme: (id: string, updates: Partial<AssessmentScheme>) => Promise<void>;
+  deleteAssessmentScheme: (id: string) => Promise<void>;
 }
+
+export const INITIAL_ASSESSMENT_SCHEMES: AssessmentScheme[] = [
+  {
+    id: 'as-cia1',
+    name: 'CIA-1 Continuous Internal Assessment',
+    type: 'CIA',
+    maxMarks: 20,
+    weightagePercent: 20,
+    minPassingMarks: 8,
+    applicableSemesters: 'All Semesters (1-6)',
+    isActive: true,
+    guidelines: 'Conduct within 45 days of semester commencement. Written examination covering Units 1 & 2.'
+  },
+  {
+    id: 'as-cia2',
+    name: 'CIA-2 Mid-Term Evaluation',
+    type: 'CIA',
+    maxMarks: 20,
+    weightagePercent: 20,
+    minPassingMarks: 8,
+    applicableSemesters: 'All Semesters (1-6)',
+    isActive: true,
+    guidelines: 'Mandatory second round internal evaluation covering Units 3 & 4. Closed prior to week 12.'
+  },
+  {
+    id: 'as-lab',
+    name: 'Continuous Lab Practicals & Viva Voce',
+    type: 'LAB',
+    maxMarks: 10,
+    weightagePercent: 10,
+    minPassingMarks: 4,
+    applicableSemesters: 'All Semesters (1-6)',
+    isActive: true,
+    guidelines: 'Continuous laboratory record evaluation, code execution rubric, and individual viva.'
+  },
+  {
+    id: 'as-final',
+    name: 'University End-Semester Final Examination',
+    type: 'FINAL',
+    maxMarks: 50,
+    weightagePercent: 50,
+    minPassingMarks: 20,
+    applicableSemesters: 'All Semesters (1-6)',
+    isActive: true,
+    guidelines: 'Centralized proctored comprehensive terminal assessment covering all 5 syllabus modules.'
+  }
+];
 
 const DemoContext = createContext<DemoContextType | null>(null);
 
@@ -364,10 +438,13 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [classes] = useState<ClassSection[]>(CLASSES);
   const [workingDays, setWorkingDays] = useState<WorkingDay[]>(INITIAL_WORKING_DAYS);
   const [attendanceSettings, setAttendanceSettings] = useState<AttendanceSettings>(INITIAL_ATTENDANCE_SETTINGS);
-  const [smsTemplates, setSmsTemplates] = useState<SmsTemplate[]>(INITIAL_SMS_TEMPLATES);
-  const [smsMessages, setSmsMessages] = useState<SmsMessage[]>([]);
+  const [smsSettings, setSmsSettings] = useState<SmsSettings>(DEFAULT_SMS_SETTINGS);
+  const [smsTemplates, setSmsTemplates] = useState<SmsTemplate[]>(MASTER_SMS_TEMPLATES);
+  const [smsMessages, setSmsMessages] = useState<SmsMessage[]>(SEEDED_SMS_HISTORY);
   const [counselingReferrals, setCounselingReferrals] = useState<CounselingReferral[]>([]);
   const [counselingNotes, setCounselingNotes] = useState<CounselingNote[]>([]);
+  const [notices, setNotices] = useState<DepartmentNotice[]>(INITIAL_NOTICES);
+  const [assessmentSchemes, setAssessmentSchemes] = useState<AssessmentScheme[]>(INITIAL_ASSESSMENT_SCHEMES);
   const [timetables] = useState<TimetableSlot[]>(INITIAL_TIMETABLES);
   const [correctionRequests, setCorrectionRequests] = useState<AttendanceCorrectionRequest[]>([]);
   const [documents, setDocuments] = useState<StudentDocument[]>([]);
@@ -914,10 +991,64 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
       true
     );
     const absents = records.filter((r) => r.status === 'absent');
+    const user = getCurrentUser();
+
+    // Automatically dispatch SMS alerts for absent students (Demo Safe via executeSmsDispatch)
+    absents.forEach(async (rec) => {
+      const student = students.find((s) => s.id === rec.studentId || s.studentId === rec.studentId);
+      const recipientPhone = student?.parentPhone || student?.phone || '+1 (555) 301-9900';
+      const studentName = student?.name || 'Student';
+      const attendanceRate = student ? Math.max(0, Math.round(student.attendanceRate - 2.5)) : 68;
+
+      const template = smsTemplates.find((t) => t.key === 'ATTENDANCE_ALERT') || smsTemplates[0];
+      const renderedBody = template ? renderTemplate(template.body, {
+        student_name: studentName,
+        subject: 'Web Application Architecture',
+        attendance_rate: attendanceRate,
+        threshold: smsSettings.attendanceThresholdPct
+      }) : `Dear Parent, ward ${studentName} is marked absent today. Current attendance: ${attendanceRate}%.`;
+
+      const dispatchRes = await executeSmsDispatch(recipientPhone, renderedBody, smsSettings);
+
+      const newMsg: SmsMessage = {
+        id: `sms-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        studentId: student?.id || rec.studentId,
+        studentName,
+        recipientUserId: student?.id,
+        recipientPhone,
+        recipientType: 'Parent',
+        messageType: 'ATTENDANCE',
+        templateId: template?.id || 'tpl-attendance-alert',
+        body: renderedBody,
+        status: dispatchRes.success ? 'sent' : 'failed',
+        sentAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        providerMessageId: dispatchRes.providerMessageId || `mock_err_${Date.now()}`,
+        errorMessage: dispatchRes.error,
+        triggerReason: 'attendance_below_threshold',
+        triggeredByUserId: activeFaculty.id,
+        createdAt: new Date().toISOString()
+      };
+
+      setSmsMessages((prev) => [newMsg, ...prev]);
+    });
+
+    const newLog: AuditLog = {
+      id: `aud-${Date.now()}`,
+      actorUserId: user.id,
+      actorName: user.name,
+      actorRole: currentRole,
+      action: 'SMS_DISPATCH_TRIGGERED',
+      entityType: 'sms',
+      entityId: `session-${Date.now()}`,
+      ip: '127.0.0.1',
+      createdAt: new Date().toISOString()
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+
     return {
       success: true,
       smsCount: absents.length,
-      message: `Attendance finalized for ${records.length} students. ${absents.length} shortage alerts queued.`
+      message: `Attendance finalized for ${records.length} students. ${absents.length} shortage SMS alerts dispatched via ${smsSettings.provider.toUpperCase()} provider.`
     };
   };
 
@@ -1023,6 +1154,93 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  const updateSmsSettings = (updates: Partial<SmsSettings>) => {
+    setSmsSettings((prev) => ({ ...prev, ...updates }));
+    const user = getCurrentUser();
+    const newLog: AuditLog = {
+      id: `aud-${Date.now()}`,
+      actorUserId: user.id,
+      actorName: user.name,
+      actorRole: currentRole,
+      action: 'SMS_SETTINGS_UPDATED',
+      entityType: 'settings',
+      entityId: 'sms-config',
+      ip: '127.0.0.1',
+      createdAt: new Date().toISOString()
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+  };
+
+  const dispatchManualSms = async (payload: {
+    recipientPhone: string;
+    studentId?: string;
+    studentName?: string;
+    body: string;
+    messageType: SmsType;
+    triggerReason?: string;
+  }) => {
+    const user = getCurrentUser();
+    const dispatchRes = await executeSmsDispatch(payload.recipientPhone, payload.body, smsSettings);
+
+    const newMsg: SmsMessage = {
+      id: `sms-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      studentId: payload.studentId,
+      studentName: payload.studentName || 'Recipient',
+      recipientUserId: payload.studentId,
+      recipientPhone: payload.recipientPhone,
+      recipientType: 'Student',
+      messageType: payload.messageType,
+      body: payload.body,
+      status: dispatchRes.success ? 'sent' : 'failed',
+      sentAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      providerMessageId: dispatchRes.providerMessageId || `mock_err_${Date.now()}`,
+      errorMessage: dispatchRes.error,
+      triggerReason: payload.triggerReason || 'admin_manual',
+      triggeredByUserId: user.id,
+      createdAt: new Date().toISOString()
+    };
+
+    setSmsMessages((prev) => [newMsg, ...prev]);
+
+    const newLog: AuditLog = {
+      id: `aud-${Date.now()}`,
+      actorUserId: user.id,
+      actorName: user.name,
+      actorRole: currentRole,
+      action: 'SMS_MANUAL_DISPATCH',
+      entityType: 'sms',
+      entityId: newMsg.id,
+      ip: '127.0.0.1',
+      createdAt: new Date().toISOString()
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+
+    return { success: dispatchRes.success, messageId: newMsg.id, error: dispatchRes.error };
+  };
+
+  const retrySmsMessage = async (id: string) => {
+    const msg = smsMessages.find((m) => m.id === id);
+    if (!msg) return { success: false, error: 'Message not found' };
+
+    const dispatchRes = await executeSmsDispatch(msg.recipientPhone, msg.body, smsSettings);
+    setSmsMessages((prev) =>
+      prev.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              status: dispatchRes.success ? 'sent' : 'failed',
+              providerMessageId: dispatchRes.providerMessageId || m.providerMessageId,
+              errorMessage: dispatchRes.error,
+              retryCount: (m.retryCount || 0) + 1,
+              sentAt: dispatchRes.success ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : m.sentAt
+            }
+          : m
+      )
+    );
+
+    return { success: dispatchRes.success, error: dispatchRes.error };
+  };
+
   const resetDemoData = () => {
     refreshData();
   };
@@ -1078,6 +1296,103 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  const addNotice = async (notice: Omit<DepartmentNotice, 'id'>) => {
+    const newNotice: DepartmentNotice = {
+      ...notice,
+      id: `not-${Date.now()}`
+    };
+    setNotices((prev) => [newNotice, ...prev]);
+    const user = getCurrentUser();
+    const newLog: AuditLog = {
+      id: `aud-${Date.now()}`,
+      actorUserId: user.id,
+      actorName: user.name,
+      actorRole: currentRole,
+      action: 'NOTICE_PUBLISHED',
+      entityType: 'settings',
+      entityId: newNotice.id,
+      ip: '127.0.0.1',
+      createdAt: new Date().toISOString()
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+    return { success: true, id: newNotice.id };
+  };
+
+  const deleteNotice = async (id: string) => {
+    setNotices((prev) => prev.filter((n) => n.id !== id));
+    const user = getCurrentUser();
+    const newLog: AuditLog = {
+      id: `aud-${Date.now()}`,
+      actorUserId: user.id,
+      actorName: user.name,
+      actorRole: currentRole,
+      action: 'NOTICE_DELETED',
+      entityType: 'settings',
+      entityId: id,
+      ip: '127.0.0.1',
+      createdAt: new Date().toISOString()
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+  };
+
+  const addAssessmentScheme = async (scheme: Omit<AssessmentScheme, 'id'>) => {
+    const newScheme: AssessmentScheme = {
+      ...scheme,
+      id: `as-${Date.now()}`
+    };
+    setAssessmentSchemes((prev) => [...prev, newScheme]);
+    const user = getCurrentUser();
+    const newLog: AuditLog = {
+      id: `aud-${Date.now()}`,
+      actorUserId: user.id,
+      actorName: user.name,
+      actorRole: currentRole,
+      action: 'ASSESSMENT_SCHEME_CREATED',
+      entityType: 'settings',
+      entityId: newScheme.id,
+      ip: '127.0.0.1',
+      createdAt: new Date().toISOString()
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+    return { success: true, id: newScheme.id };
+  };
+
+  const updateAssessmentScheme = async (id: string, updates: Partial<AssessmentScheme>) => {
+    setAssessmentSchemes((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
+    );
+    const user = getCurrentUser();
+    const newLog: AuditLog = {
+      id: `aud-${Date.now()}`,
+      actorUserId: user.id,
+      actorName: user.name,
+      actorRole: currentRole,
+      action: 'ASSESSMENT_SCHEME_UPDATED',
+      entityType: 'settings',
+      entityId: id,
+      ip: '127.0.0.1',
+      createdAt: new Date().toISOString()
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+  };
+
+  const deleteAssessmentScheme = async (id: string) => {
+    setAssessmentSchemes((prev) => prev.filter((s) => s.id !== id));
+    const user = getCurrentUser();
+    const newLog: AuditLog = {
+      id: `aud-${Date.now()}`,
+      actorUserId: user.id,
+      actorName: user.name,
+      actorRole: currentRole,
+      action: 'ASSESSMENT_SCHEME_DELETED',
+      entityType: 'settings',
+      entityId: id,
+      ip: '127.0.0.1',
+      createdAt: new Date().toISOString()
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+  };
+
   return (
     <DemoContext.Provider
       value={{
@@ -1104,6 +1419,7 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
         classes,
         workingDays,
         attendanceSettings,
+        smsSettings,
         smsTemplates,
         smsMessages,
         counselingReferrals,
@@ -1113,6 +1429,8 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
         documents,
         tenants,
         securityIncidents,
+        notices,
+        assessmentSchemes,
         counselorList,
         adminList,
         superAdminList,
@@ -1178,13 +1496,21 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toggleWorkingDay,
         updateCondonationStatus,
         updateSmsTemplate,
+        updateSmsSettings,
+        dispatchManualSms,
+        retrySmsMessage,
         resetDemoData,
         submitCorrectionRequest,
         reviewCorrectionRequest,
         uploadDocument,
         deleteDocument,
         createTenant,
-        toggleSecurityIncident
+        toggleSecurityIncident,
+        addNotice,
+        deleteNotice,
+        addAssessmentScheme,
+        updateAssessmentScheme,
+        deleteAssessmentScheme
       }}
     >
       {children}

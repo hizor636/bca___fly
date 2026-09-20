@@ -326,28 +326,48 @@ export interface WorkingDay {
   reason?: string;
 }
 
+export type SmsType = 'ANNOUNCEMENT' | 'ATTENDANCE' | 'ASSESSMENT' | 'ACCOUNT' | 'SECURITY' | 'GENERAL';
+export type SmsStatus = 'queued' | 'sending' | 'sent' | 'failed';
+
 export interface SmsTemplate {
   id: string;
+  key?: string;
   name: string;
   body: string;
   variables: string[];
+  type?: SmsType;
   isActive: boolean;
+}
+
+export interface SmsSettings {
+  smsEnabled: boolean;
+  provider: 'mock' | 'twilio';
+  senderId: string;
+  dailyLimit: number;
+  attendanceThresholdPct: number;
 }
 
 export interface SmsMessage {
   id: string;
-  studentId: string;
-  studentName: string;
+  studentId?: string;
+  studentName?: string;
+  recipientUserId?: string;
   recipientPhone: string;
-  recipientType: 'Student' | 'Parent';
-  templateId: string;
+  recipientType?: 'Student' | 'Parent' | 'Faculty' | 'Admin';
+  templateId?: string;
+  messageType?: SmsType;
   body: string;
-  channel: string;
-  status: 'queued' | 'sent' | 'failed';
-  sentAt: string;
-  providerMessageId: string;
-  idempotencyKey: string;
-  isWorkingDay: boolean;
+  channel?: string;
+  status: SmsStatus;
+  sentAt?: string;
+  providerMessageId?: string;
+  errorMessage?: string;
+  triggeredByUserId?: string;
+  triggerReason?: string;
+  idempotencyKey?: string;
+  isWorkingDay?: boolean;
+  createdAt?: string;
+  retryCount?: number;
 }
 
 export interface CounselingReferral {
@@ -418,8 +438,22 @@ export interface DepartmentNotice {
   isNew: boolean;
   priority: 'High' | 'Normal' | 'Urgent';
   body: string;
+  audience?: 'ALL' | 'FACULTY' | 'STUDENT' | 'PARENT';
+  targetSemester?: number | 'all';
   actionLabel?: string;
   deadline?: string;
+}
+
+export interface AssessmentScheme {
+  id: string;
+  name: string;
+  type: 'CIA' | 'LAB' | 'FINAL' | 'ASSIGNMENT';
+  maxMarks: number;
+  weightagePercent: number;
+  minPassingMarks: number;
+  applicableSemesters: string;
+  isActive: boolean;
+  guidelines?: string;
 }
 
 export interface AttendanceBatchItem {
