@@ -88,7 +88,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
                 onClick={() => onNavigate('dashboard')}
                 className="bg-white hover:bg-slate-100 text-slate-950 font-bold px-4 py-1.5 rounded-full transition-all text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                <span>Go to {currentRole === 'faculty' ? 'Faculty Workspace' : currentRole === 'admin' ? 'Admin Console' : currentRole === 'student' ? 'Student Portal' : 'Counselor Portal'}</span>
+                <span>Go to {currentRole === 'faculty' ? 'Faculty Workspace' : currentRole === 'admin' ? 'Admin Console' : currentRole === 'student' ? 'Student Portal' : 'Faculty Workspace'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
               <button
@@ -874,7 +874,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
                 },
                 {
                   q: 'Are counseling notes visible to faculty mentors?',
-                  a: 'No. Psychological and personal counseling notes are sealed within the Counselor Portal. Faculty mentors only receive sanitized non-clinical status markers (such as "Session Scheduled" or "Action Plan Recommended").'
+                  a: 'No. Faculty mentors create referrals from the Faculty Workspace, while personal therapeutic notes remain protected. Faculty only receive sanitized non-clinical status markers (such as "Session Scheduled" or "Action Plan Recommended").'
                 },
                 {
                   q: 'How do I test different roles in the interactive demo?',

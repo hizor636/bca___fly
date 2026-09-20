@@ -11,7 +11,6 @@ import { SmartWorkspaceView } from './components/SmartWorkspaceView';
 import { FacultiesView } from './components/FacultiesView';
 import { AdminPortalView } from './components/AdminPortalView';
 import { StudentPortalView } from './components/StudentPortalView';
-import { CounselorPortalView } from './components/CounselorPortalView';
 import { SuperAdminConsole } from './components/SuperAdminConsole';
 import { ParentPortalView } from './components/ParentPortalView';
 import { Footer } from './components/Footer';
@@ -59,7 +58,7 @@ const AppContent: React.FC = () => {
     }
 
     // Guard academic workspace screens if unauthenticated
-    const protectedScreens: ScreenType[] = ['dashboard', 'students', 'tracking', 'workspace', 'faculties', 'admin', 'student-portal', 'parent-portal', 'counselor-portal', 'platform'];
+    const protectedScreens: ScreenType[] = ['dashboard', 'students', 'tracking', 'workspace', 'faculties', 'admin', 'student-portal', 'parent-portal', 'platform'];
     if (protectedScreens.includes(screen) && !isAuthenticated) {
       setShowLoginModal(true);
       return;
@@ -81,8 +80,6 @@ const AppContent: React.FC = () => {
       setCurrentScreen('student-portal');
     } else if (role === 'parent') {
       setCurrentScreen('parent-portal');
-    } else if (role === 'counselor') {
-      setCurrentScreen('counselor-portal');
     }
   };
 
@@ -185,21 +182,6 @@ const AppContent: React.FC = () => {
         /* 6. Secure Academic Workspace: Parent Portal */
         <div className="flex-1">
           <ParentPortalView
-            onNavigateHome={() => {
-              switchRole('faculty');
-              setCurrentScreen('dashboard');
-            }}
-            onLogout={() => {
-              logout();
-              setCurrentScreen('home');
-            }}
-            onNavigatePublic={() => setCurrentScreen('home')}
-          />
-        </div>
-      ) : currentRole === 'counselor' ? (
-        /* 7. Secure Academic Workspace: Counselor Portal */
-        <div className="flex-1">
-          <CounselorPortalView
             onNavigateHome={() => {
               switchRole('faculty');
               setCurrentScreen('dashboard');

@@ -12,8 +12,6 @@ import {
   ChevronDown,
   Lock,
   Mail,
-  Users,
-  Heart,
   Fingerprint,
   KeyRound,
   ArrowLeft,
@@ -78,23 +76,14 @@ const ROLES: RoleDef[] = [
     label: 'Parent',
     idLabel: 'Parent ID / Email',
     platform: 'Parent Portal',
-    icon: Heart,
+    icon: User,
     blurb: 'Ward progress & updates',
     color: 'text-amber-400',
-  },
-  {
-    key: 'counselor',
-    label: 'Counselor',
-    idLabel: 'Counselor ID / Email',
-    platform: 'Counselor Portal',
-    icon: Users,
-    blurb: 'Student wellness support',
-    color: 'text-sky-400',
   },
 ];
 
 // Demo credentials — grouped by role for the collapsible drawer
-const DEMO_ACCOUNTS: Record<UserRole, { key: string; name: string; note?: string }[]> = {
+const DEMO_ACCOUNTS: Partial<Record<UserRole, { key: string; name: string; note?: string }[]>> = {
   super_admin: [{ key: 'superadmin', name: 'Platform Director Sarah Vance' }],
   admin: [{ key: 'admin', name: 'Dr. V. Swaminathan (HOD)' }],
   faculty: [
@@ -106,7 +95,6 @@ const DEMO_ACCOUNTS: Record<UserRole, { key: string; name: string; note?: string
     { key: 'student6', name: 'Aarav Patel (Group B)' },
   ],
   parent: [{ key: 'parent1', name: 'Robert Wright' }],
-  counselor: [{ key: 'counselor1', name: 'Dr. Priya Sharma' }],
 };
 
 interface AuthenticationViewProps {

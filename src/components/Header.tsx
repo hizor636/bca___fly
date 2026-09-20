@@ -65,7 +65,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Brand Logo */}
           <div
             id="nav-brand-logo"
-            onClick={() => onNavigate(isAuthenticated ? (currentRole === 'faculty' ? 'dashboard' : currentRole === 'admin' ? 'admin' : currentRole === 'student' ? 'student-portal' : currentRole === 'super_admin' ? 'platform' : currentRole === 'parent' ? 'parent-portal' : 'counselor-portal') : 'home')}
+            onClick={() => onNavigate(isAuthenticated ? (currentRole === 'faculty' ? 'dashboard' : currentRole === 'admin' ? 'admin' : currentRole === 'student' ? 'student-portal' : currentRole === 'super_admin' ? 'platform' : currentRole === 'parent' ? 'parent-portal' : 'dashboard') : 'home')}
             className="cursor-pointer transition-transform hover:opacity-95"
           >
             <BcaFlyLogo />
@@ -201,13 +201,6 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               )}
 
-              {currentRole === 'counselor' && (
-                <span className="text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3.5 py-1.5 rounded-full">
-                  🔒 Confidential Counseling Vault
-                </span>
-              )}
-
-
             </nav>
           )}
 
@@ -242,7 +235,6 @@ export const Header: React.FC<HeaderProps> = ({
                       else if (currentRole === 'student') onNavigate('student-portal');
                       else if (currentRole === 'super_admin') onNavigate('platform');
                       else if (currentRole === 'parent') onNavigate('parent-portal');
-                      else if (currentRole === 'counselor') onNavigate('counselor-portal');
                     }}
                     className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 px-4 py-2 rounded-full transition-all cursor-pointer shadow-xs"
                   >
@@ -298,7 +290,6 @@ export const Header: React.FC<HeaderProps> = ({
                             else if (currentRole === 'student') onNavigate('student-portal');
                             else if (currentRole === 'super_admin') onNavigate('platform');
                             else if (currentRole === 'parent') onNavigate('parent-portal');
-                            else if (currentRole === 'counselor') onNavigate('counselor-portal');
                           }}
                           className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 text-slate-800 font-medium transition-colors cursor-pointer"
                         >

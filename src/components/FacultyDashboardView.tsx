@@ -18,7 +18,9 @@ import {
   HeartHandshake,
   UserCheck,
   X,
-  Bell
+  Bell,
+  Bot,
+  Sparkles
 } from 'lucide-react';
 
 interface FacultyDashboardViewProps {
@@ -66,6 +68,7 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
 
   // Reports Modal State
   const [showReportsModal, setShowReportsModal] = useState(false);
+  const [showAiAgent, setShowAiAgent] = useState(false);
 
   // --- TAB 1: ASSIGNED STUDENTS STATE ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -334,6 +337,21 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
 
           <div className="flex items-center gap-2">
             <button
+              id="faculty-ai-agent-btn"
+              onClick={() => setShowAiAgent((visible) => !visible)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer border ${
+                showAiAgent
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+              }`}
+              aria-expanded={showAiAgent}
+              aria-controls="faculty-ai-agent-panel"
+              title="Open the built-in academic AI agent"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Built-in AI Agent</span>
+            </button>
+            <button
               onClick={() => setShowReportsModal(true)}
               className="px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
             >
@@ -350,6 +368,55 @@ export const FacultyDashboardView: React.FC<FacultyDashboardViewProps> = ({
             </button>
           </div>
         </div>
+
+        {showAiAgent && (
+          <section
+            id="faculty-ai-agent-panel"
+            className="rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-slate-50 p-5 shadow-xs animate-in fade-in slide-in-from-top-1 duration-150"
+            aria-label="Built-in academic AI agent"
+          >
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-sm font-bold text-slate-900">BcaFly Academic Agent</h2>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
+                      Built in
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                    Quick, role-scoped guidance from the current faculty workspace. The agent can summarize attendance risk and mentoring priorities without exposing students outside your assigned group.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center min-w-[260px]">
+                <div className="rounded-2xl bg-white/80 border border-indigo-100 px-3 py-2">
+                  <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-bold">Scope</span>
+                  <span className="text-xs font-bold text-slate-900">{assignedCount} mentees</span>
+                </div>
+                <div className="rounded-2xl bg-white/80 border border-indigo-100 px-3 py-2">
+                  <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-bold">Priority</span>
+                  <span className="text-xs font-bold text-rose-600">{atRiskCount} at risk</span>
+                </div>
+                <div className="col-span-2 sm:col-span-1 rounded-2xl bg-white/80 border border-indigo-100 px-3 py-2">
+                  <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-bold">Focus</span>
+                  <span className="text-xs font-bold text-slate-900">{selectedSemester === 'all' ? 'All semesters' : `Semester ${selectedSemester}`}</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 rounded-2xl bg-white/80 border border-indigo-100 px-4 py-3 text-xs text-slate-700">
+              <span className="font-bold text-slate-900">Suggested next step:</span>{' '}
+              {atRiskCount > 0
+                ? `Review the ${atRiskCount} mentee${atRiskCount === 1 ? '' : 's'} below 75% attendance and record a follow-up mentoring note.`
+                : honorCount > 0
+                  ? `Recognize ${honorCount} high-performing mentee${honorCount === 1 ? '' : 's'} while continuing routine attendance checks.`
+                  : 'No immediate attendance risk is detected in the current assigned group.'}
+            </div>
+          </section>
+        )}
 
         {/* 4. TAB CONTENT: COURSE ACADEMIC MANAGEMENT (Sem 1-6, Allocation, Attendance, Marks, Record) */}
         {activeTab === 'courses' && (
