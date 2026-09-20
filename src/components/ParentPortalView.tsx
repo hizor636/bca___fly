@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useDemoStore } from '../context/DemoContext';
 import { Student } from '../types';
 import { BcaFlyLogo } from './BcaFlyLogo';
+import { getAssignedMentor } from '../lib/demoAccess';
 import {
   AlertTriangle,
   Mail,
@@ -57,7 +58,7 @@ export const ParentPortalView: React.FC<ParentPortalViewProps> = ({
 
   // Match student linked to parent (default to first student or fallback)
   const student = students.find((s) => s.id === currentUser?.studentId || s.studentId === currentUser?.studentId) || students[0] || fallbackStudent;
-  const assignedMentor = facultyList.find((f) => f.id === student.assignedFacultyId || f.name === student.assignedFaculty) || facultyList[0] || null;
+  const assignedMentor = getAssignedMentor(student, facultyList);
 
   // SMS alerts dispatched to parent's phone or ward
   const parentSms = smsMessages.filter(
@@ -238,7 +239,12 @@ export const ParentPortalView: React.FC<ParentPortalViewProps> = ({
 
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4">
-              <h3 className="text-base font-bold text-slate-900">Assigned Faculty Mentor</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-base font-bold text-slate-900">Assigned Faculty Mentor</h3>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
+                  Read-only contact
+                </span>
+              </div>
               {assignedMentor ? (
                 <>
                   <div className="flex items-center gap-3">
@@ -251,7 +257,7 @@ export const ParentPortalView: React.FC<ParentPortalViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="space-y-2 text-xs text-slate-600 pt-2 border-t border-slate-100">
+                  <div className="space-y-2 text-xs text-slate-600 pt-2 border-t border-slate-100" aria-label="Read-only mentor contact details">
                     <div className="flex items-center gap-2">
                       <Building className="w-3.5 h-3.5 text-slate-400" />
                       <span>{assignedMentor.office || 'Faculty Department'}</span>
@@ -268,7 +274,7 @@ export const ParentPortalView: React.FC<ParentPortalViewProps> = ({
                 </>
               ) : (
                 <div className="py-6 text-center bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-400">
-                  No records yet. No mentor assigned yet.
+                  No mentor is assigned to this student yet. Contact details will appear after an administrator makes an assignment.
                 </div>
               )}
             </div>

@@ -68,6 +68,7 @@ import {
   INITIAL_COURSE_ATTENDANCE
 } from '../data/mockStore';
 import { api } from '../services/api';
+import { canCreateCounselingReferral, getFacultyScopedStudents } from '../lib/demoAccess';
 
 export const DEFAULT_ROOT_ADMIN: User = INITIAL_ADMINS[0] || {
   id: 'admin-1',
@@ -861,25 +862,13 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // =========================================================================
 
   const getScopedStudentsForActiveFaculty = (): Student[] => {
-    if (currentRole === 'admin' || currentRole === 'super_admin') {
-      return students;
-    }
-    if (!activeFaculty || !activeFaculty.id || activeFaculty.id === 'fac-default') {
-      return students;
-    }
-    const myStudents = students.filter(
-      (s) => s.assignedFacultyId === activeFaculty.id || (s.assignedFaculty && s.assignedFaculty.toLowerCase() === activeFaculty.name.toLowerCase())
-    );
-    return myStudents;
+    return getFacultyScopedStudents(currentRole, activeFaculty, students);
   };
 
   const getAssignedCoursesForFaculty = (facultyId: string, semester?: number | 'all'): Course[] => {
     const assignmentsForFac = facultyCourseAssignments.filter((fca) => fca.facultyId === facultyId && fca.isActive);
     const assignedCourseIds = new Set(assignmentsForFac.map((a) => a.courseId));
     let matchingCourses = courses.filter((c) => assignedCourseIds.has(c.id) || assignedCourseIds.has(c.courseCode));
-    if (matchingCourses.length === 0) {
-      matchingCourses = courses;
-    }
     if (semester && semester !== 'all') {
       return matchingCourses.filter((c) => c.semester === semester);
     }
@@ -1093,23 +1082,55 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const createCounselingReferral = async (studentId: string, reasonCode: CounselingReferral['reasonCode'], remarks: string) => {
     const student = students.find((s) => s.id === studentId || s.studentId === studentId);
+    const allowed = canCreateCounselingReferral({
+      currentRole,
+      currentUser: getCurrentUser(),
+      activeFaculty,
+      activeStudent,
+      student,
+    });
+    if (!allowed || !student) {
+      setAccessDeniedMessage('You can only create a counseling referral for a student within your permitted scope.');
+      return;
+    }
+
+    const referral: CounselingReferral = {
+      id: `ref-${Date.now()}`,
+      studentId: student.id,
+      studentName: student.name,
+      semester: student.semester,
+      referredByFacultyId: activeFaculty.id,
+      referredByFacultyName: activeFaculty.name,
+      counselorId: activeCounselor.id,
+      counselorName: activeCounselor.name,
+      reasonCode,
+      facultyRemarks: remarks,
+      status: 'pending',
+      mentorVisibleStatus: 'Under Review',
+      createdAt: new Date().toISOString(),
+      notesCount: 0,
+    };
+
+    // The demo is intentionally usable without a paid/backend service. Persist locally first,
+    // then best-effort sync when an API is available.
+    setCounselingReferrals((prev) => [referral, ...prev]);
     try {
-      await fetch('/api/counseling/referrals', {
+      const response = await fetch('/api/counseling/referrals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          studentId,
-          studentName: student?.name || 'Student',
-          semester: student?.semester || 1,
+          studentId: student.id,
+          studentName: student.name,
+          semester: student.semester,
           referredByFacultyId: activeFaculty.id,
           referredByFacultyName: activeFaculty.name,
           reasonCode,
           facultyRemarks: remarks
         })
       });
-      await refreshData();
+      if (!response.ok) console.info('Counseling API unavailable; retained referral in demo state.');
     } catch (err) {
-      console.error('Counseling referral error:', err);
+      console.info('Counseling API unavailable; retained referral in demo state.');
     }
   };
 

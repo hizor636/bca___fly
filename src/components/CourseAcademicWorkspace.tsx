@@ -29,6 +29,7 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
   onOpenAudit,
 }) => {
   const {
+    currentRole,
     activeFaculty,
     courses,
     facultyCourseAssignments,
@@ -51,30 +52,23 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
 
   // Available courses for active faculty (or all department courses if toggled)
   const facultyAssignedCourses = useMemo(() => {
-    if (showAllDeptCourses) {
+    if (showAllDeptCourses && (currentRole === 'admin' || currentRole === 'super_admin')) {
       return selectedSemester === 'all'
         ? courses
         : courses.filter((c) => c.semester === selectedSemester);
     }
-    const myCourses = getAssignedCoursesForFaculty(activeFaculty?.id || '', selectedSemester === 'all' ? undefined : selectedSemester);
-    // If no course assigned for that semester, fall back to active courses in that semester so faculty is never blocked
-    if (myCourses.length === 0) {
-      return selectedSemester === 'all'
-        ? courses
-        : courses.filter((c) => c.semester === selectedSemester);
-    }
-    return myCourses;
-  }, [courses, activeFaculty?.id, selectedSemester, showAllDeptCourses, getAssignedCoursesForFaculty]);
+    return getAssignedCoursesForFaculty(activeFaculty?.id || '', selectedSemester === 'all' ? undefined : selectedSemester);
+  }, [courses, activeFaculty?.id, currentRole, selectedSemester, showAllDeptCourses, getAssignedCoursesForFaculty]);
 
   // 2. COURSE SELECTION
   const [selectedCourseId, setSelectedCourseId] = useState<string>(() => {
-    const initial = facultyAssignedCourses[0]?.id || courses[0]?.id || '';
+    const initial = facultyAssignedCourses[0]?.id || '';
     return initial;
   });
 
   // Ensure selected course is valid in current list
   const activeCourse = useMemo(() => {
-    return courses.find((c) => c.id === selectedCourseId) || facultyAssignedCourses[0] || courses[0] || null;
+    return facultyAssignedCourses.find((c) => c.id === selectedCourseId) || facultyAssignedCourses[0] || null;
   }, [courses, selectedCourseId, facultyAssignedCourses]);
 
   // Sub-tab inside Course view: 'roster' | 'attendance' | 'marks' | 'performance'
@@ -340,18 +334,20 @@ export const CourseAcademicWorkspace: React.FC<CourseAcademicWorkspaceProps> = (
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAllDeptCourses(!showAllDeptCourses)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer border ${
-                showAllDeptCourses
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {showAllDeptCourses ? 'Showing All Dept Courses' : 'Filter to My Allocations'}
-            </button>
-          </div>
+          {(currentRole === 'admin' || currentRole === 'super_admin') && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowAllDeptCourses(!showAllDeptCourses)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer border ${
+                  showAllDeptCourses
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {showAllDeptCourses ? 'Showing All Dept Courses' : 'View All Dept Courses'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Semester Buttons Bar: Sem 1 to Sem 6 */}
