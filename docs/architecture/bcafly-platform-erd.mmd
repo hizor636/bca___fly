@@ -1,0 +1,198 @@
+erDiagram
+    DEPARTMENTS ||--o{ FACULTY : contains
+    DEPARTMENTS ||--o{ STUDENTS : contains
+    SEMESTERS ||--o{ FACULTY_STUDENT_ASSIGNMENTS : scopes
+    FACULTY ||--o{ FACULTY_STUDENT_ASSIGNMENTS : mentors
+    STUDENTS ||--o{ FACULTY_STUDENT_ASSIGNMENTS : receives
+    COURSES ||--o{ COURSE_ENROLLMENTS : has
+    STUDENTS ||--o{ COURSE_ENROLLMENTS : enrolls
+    SEMESTERS ||--o{ COURSE_ENROLLMENTS : applies_to
+    FACULTY ||--o{ COURSE_ENROLLMENTS : teaches
+    STUDENTS ||--o{ ATTENDANCE_RECORDS : owns
+    COURSES ||--o{ ATTENDANCE_RECORDS : records
+    FACULTY ||--o{ ATTENDANCE_RECORDS : submits
+    STUDENTS ||--o{ MARKS : receives
+    COURSES ||--o{ MARKS : assesses
+    SEMESTERS ||--o{ MARKS : applies_to
+    STUDENTS ||--o{ COUNSELING_REFERRALS : receives
+    FACULTY ||--o{ COUNSELING_REFERRALS : creates
+    SEMESTERS ||--o{ COUNSELING_REFERRALS : scopes
+    STUDENTS ||--o{ PARENT_WARDS : has
+    PARENTS ||--o{ PARENT_WARDS : supervises
+    API_INTEGRATIONS ||--o{ API_SYNC_RUNS : executes
+    API_INTEGRATIONS ||--o{ API_WEBHOOK_EVENTS : receives
+    API_SYNC_RUNS ||--o{ API_SYNC_ERRORS : reports
+    API_INTEGRATIONS ||--o{ SMS_MESSAGES : dispatches
+    STUDENTS ||--o{ SMS_MESSAGES : receives
+    FACULTY ||--o{ AUDIT_LOGS : acts
+    PARENTS ||--o{ AUDIT_LOGS : acts
+    API_INTEGRATIONS ||--o{ AUDIT_LOGS : records
+
+    DEPARTMENTS {
+      uuid id PK
+      string code UK
+      string name
+      boolean is_active
+    }
+    SEMESTERS {
+      uuid id PK
+      smallint semester_no
+      string academic_year
+      boolean is_active
+    }
+    FACULTY {
+      uuid id PK
+      string employee_code UK
+      string name
+      string email UK
+      uuid department_id FK
+      boolean is_active
+    }
+    STUDENTS {
+      uuid id PK
+      string roll_number UK
+      string name
+      string email UK
+      string phone
+      uuid department_id FK
+      smallint current_semester
+      string section
+      boolean is_active
+    }
+    PARENTS {
+      uuid id PK
+      string email UK
+      string name
+      string phone
+      boolean is_active
+    }
+    PARENT_WARDS {
+      uuid id PK
+      uuid parent_id FK
+      uuid student_id FK
+      string relationship
+      boolean is_primary
+    }
+    FACULTY_STUDENT_ASSIGNMENTS {
+      uuid id PK
+      uuid faculty_id FK
+      uuid student_id FK
+      uuid semester_id FK
+      string assignment_type
+      boolean is_active
+      datetime assigned_at
+    }
+    COURSES {
+      uuid id PK
+      string course_code UK
+      string course_name
+      smallint semester_no
+      numeric credits
+    }
+    COURSE_ENROLLMENTS {
+      uuid id PK
+      uuid course_id FK
+      uuid student_id FK
+      uuid semester_id FK
+      uuid faculty_id FK
+      string section
+    }
+    ATTENDANCE_RECORDS {
+      uuid id PK
+      uuid student_id FK
+      uuid course_id FK
+      uuid faculty_id FK
+      date class_date
+      string status
+      datetime created_at
+    }
+    MARKS {
+      uuid id PK
+      uuid student_id FK
+      uuid course_id FK
+      uuid semester_id FK
+      numeric cia1
+      numeric cia2
+      numeric assignment_marks
+      numeric university_marks
+    }
+    COUNSELING_REFERRALS {
+      uuid id PK
+      uuid student_id FK
+      uuid referred_by_faculty_id FK
+      uuid semester_id FK
+      string reason_code
+      string priority
+      string status
+      datetime created_at
+    }
+    API_INTEGRATIONS {
+      uuid id PK
+      string provider_name
+      string base_url
+      string auth_type
+      string credential_ref
+      string status
+      datetime last_health_check
+    }
+    API_SYNC_RUNS {
+      uuid id PK
+      uuid integration_id FK
+      string direction
+      string entity_type
+      string status
+      integer records_received
+      datetime started_at
+      datetime finished_at
+    }
+    API_WEBHOOK_EVENTS {
+      uuid id PK
+      uuid integration_id FK
+      string external_event_id UK
+      string event_type
+      string signature_status
+      string processing_status
+      json payload_hash
+      datetime received_at
+    }
+    API_SYNC_ERRORS {
+      uuid id PK
+      uuid sync_run_id FK
+      string entity_type
+      string external_id
+      string error_code
+      string error_message
+      boolean retryable
+    }
+    SMS_MESSAGES {
+      uuid id PK
+      uuid integration_id FK
+      uuid student_id FK
+      string recipient_phone
+      string message_type
+      string provider_message_id
+      string status
+      datetime sent_at
+    }
+    AUDIT_LOGS {
+      uuid id PK
+      uuid actor_id
+      string actor_role
+      uuid integration_id FK
+      string action
+      string entity_type
+      uuid entity_id
+      json metadata
+      datetime created_at
+    }
+
+    %% Authentication is deliberately represented as a service boundary.
+    %% Keep passwords, refresh tokens, and provider secrets outside the ER core.
+    AUTH_SERVICE {
+      string identity_provider PK
+      string oauth_oidc
+      string mfa_policy
+      string token_policy
+    }
+    AUTH_SERVICE ||--o{ AUDIT_LOGS : authenticates
+    AUTH_SERVICE ||--o{ API_INTEGRATIONS : protects
