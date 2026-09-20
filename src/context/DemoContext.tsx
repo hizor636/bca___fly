@@ -68,7 +68,7 @@ import {
   INITIAL_COURSE_ATTENDANCE
 } from '../data/mockStore';
 import { api } from '../services/api';
-import { canCreateCounselingReferral, getFacultyScopedStudents } from '../lib/demoAccess';
+import { canCreateCounselingReferral, findStudentForLogin, getFacultyScopedStudents } from '../lib/demoAccess';
 
 export const DEFAULT_ROOT_ADMIN: User = INITIAL_ADMINS[0] || {
   id: 'admin-1',
@@ -607,9 +607,7 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const idx = parseInt(numMatch[1], 10);
         st = students.find((s) => s.studentId === `BCA261${idx.toString().padStart(2, '0')}` || s.id === `stu-${idx.toString().padStart(3, '0')}`);
       }
-      if (!st) {
-        st = students.find((s) => s.email.toLowerCase() === input) || students[0] || DEFAULT_FALLBACK_STUDENT;
-      }
+      if (!st) st = findStudentForLogin(students, input) || DEFAULT_FALLBACK_STUDENT;
       targetUser = { id: st.id, name: st.name, email: st.email, role: 'student', phone: st.phone, departmentId: 'dept-bca', isActive: true, createdAt: '2026-08-01', studentId: st.studentId, semester: st.semester };
       setActiveStudentState(st);
     } else if (input === 'parent1' || input.includes('parent') || roleHint === 'parent') {

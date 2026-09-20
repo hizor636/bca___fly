@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canCreateCounselingReferral,
+  findStudentForLogin,
   getAssignedMentor,
   getFacultyScopedStudents,
   isCounselingReferralVisibleToRole,
@@ -104,5 +105,36 @@ describe('Parent mentor contact card model', () => {
     const unassigned = { ...student, assignedFaculty: '', assignedFacultyId: undefined };
     expect(getAssignedMentor(unassigned, [faculty, otherFaculty])).toBeNull();
     expect(getAssignedMentor(student, [faculty, otherFaculty])).toEqual(faculty);
+  });
+});
+
+describe('Student scale and identity routing', () => {
+  it('resolves an exact student identity without falling back to another student', () => {
+    expect(findStudentForLogin([student, otherStudent], 'BCA-002')).toEqual(otherStudent);
+    expect(findStudentForLogin([student, otherStudent], 'missing@student.bcafly.edu')).toBeNull();
+  });
+
+  it('scopes a 602-student population across 14 faculty rosters efficiently', () => {
+    const facultyRoster = Array.from({ length: 14 }, (_, index) => ({
+      ...faculty,
+      id: `faculty-${index + 1}`,
+      name: `Faculty ${index + 1}`,
+    }));
+    const scaledStudents = Array.from({ length: 602 }, (_, index) => ({
+      ...student,
+      id: `student-${index + 1}`,
+      studentId: `BCA-${String(index + 1).padStart(4, '0')}`,
+      assignedFaculty: facultyRoster[index % facultyRoster.length].name,
+      assignedFacultyId: facultyRoster[index % facultyRoster.length].id,
+      semester: (index % 6) + 1,
+    }));
+
+    const start = performance.now();
+    const scopedCounts = facultyRoster.map((mentor) => getFacultyScopedStudents('faculty', mentor, scaledStudents).length);
+    const elapsedMs = performance.now() - start;
+
+    expect(scopedCounts.reduce((sum, count) => sum + count, 0)).toBe(602);
+    expect(scopedCounts.every((count) => count >= 43 && count <= 44)).toBe(true);
+    expect(elapsedMs).toBeLessThan(250);
   });
 });

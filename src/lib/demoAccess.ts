@@ -15,6 +15,22 @@ export function getFacultyScopedStudents(
   );
 }
 
+export function findStudentForLogin(students: Student[], loginInput?: string, studentId?: string): Student | null {
+  const normalizedInput = loginInput?.trim().toLowerCase();
+  if (!normalizedInput && !studentId) return null;
+
+  return (
+    students.find(
+      (student) =>
+        (studentId && student.studentId === studentId) ||
+        (normalizedInput &&
+          (student.id.toLowerCase() === normalizedInput ||
+            student.studentId.toLowerCase() === normalizedInput ||
+            student.email.toLowerCase() === normalizedInput)),
+    ) || null
+  );
+}
+
 export function canCreateCounselingReferral(params: {
   currentRole: UserRole;
   currentUser?: User | null;

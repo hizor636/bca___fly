@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useDemoStore } from '../context/DemoContext';
 import { Student } from '../types';
+import { getAssignedMentor, findStudentForLogin } from '../lib/demoAccess';
 import { BcaFlyLogo } from './BcaFlyLogo';
 import {
   AlertTriangle,
@@ -81,8 +82,8 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
   };
 
   // Match student with currentUser
-  const student = students.find((s) => s.id === currentUser?.id || s.studentId === currentUser?.studentId) || students[0] || fallbackStudent;
-  const assignedMentor = facultyList.find((f) => f.id === student.assignedFacultyId || f.name === student.assignedFaculty) || facultyList[0] || null;
+  const student = findStudentForLogin(students, currentUser?.id, currentUser?.studentId) || (!currentUser?.studentId ? students[0] : null) || fallbackStudent;
+  const assignedMentor = getAssignedMentor(student, facultyList);
 
   // Scoped data
   const myDocuments = documents.filter((d) => d.studentId === student.id);
@@ -264,7 +265,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
             <h4 className="font-bold text-sm">Attendance Criteria Deficit ({student.attendanceRate}%)</h4>
             <p className="text-rose-800 leading-relaxed">
               Your overall attendance has fallen below the mandatory 75% threshold required for end-semester examinations.
-              Condonation Status: <strong>{student.condonationStatus || 'Pending Medical Verification'}</strong>. Submit a correction request with medical proof or schedule a meeting with your mentor <strong>{assignedMentor.name}</strong>.
+              Condonation Status: <strong>{student.condonationStatus || 'Pending Medical Verification'}</strong>. Submit a correction request with medical proof or schedule a meeting with your mentor <strong>{assignedMentor?.name || 'your assigned faculty mentor'}</strong>.
             </p>
           </div>
         </div>
